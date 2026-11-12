@@ -1,0 +1,66 @@
+{
+  "format": "rc-update-manifest/1",
+  "files": [
+    {
+      "path": "rc-coordinate-development/SKILL.md",
+      "sha256": "60b37bdd020f5728793fce1d13728020c788ed8409e5f7b6ce485300478760e4",
+      "bytes": 4865
+    },
+    {
+      "path": "rc-coordinate-development/agents/openai.yaml",
+      "sha256": "c9a994fcfdc90abdee7d82eae8eb80492df82400fc5f327e5988e651c25a80b1",
+      "bytes": 282
+    },
+    {
+      "path": "rc-coordinate-development/references/operating-loop.md",
+      "sha256": "54d508be882a5c2b18cf86f07266f63b9603fb76dc76026b8d80904b74fae966",
+      "bytes": 8317
+    },
+    {
+      "path": "rc-coordinate-development/references/program-contract.md",
+      "sha256": "14de6d4fd11f73cd7e309eae4de923324f6da890fe5d37ad66470c8645e72d92",
+      "bytes": 18280
+    },
+    {
+      "path": "rc-coordinate-development/references/separate-relay.md",
+      "sha256": "a693ba904bad40e3c9ab762e22bbf0e34cc93ec312fce1ebf3ae79118e3c0c92",
+      "bytes": 2234
+    },
+    {
+      "path": "rc-coordinate-development/scripts/check_wave.py",
+      "sha256": "a7f2056806c078968ae1dcb15b8755b8a0d24f8a974805b91e118bec6fcda456",
+      "bytes": 17179
+    },
+    {
+      "path": "rc-coordinate-development/scripts/rc_state.py",
+      "sha256": "8de3e319cb6b2f3ae6b91f11b02fa7b275b4115dff9ede31391559e7a94381b3",
+      "bytes": 77099
+    },
+    {
+      "path": "rc-prepare-socle-prompts/SKILL.md",
+      "sha256": "3d52c61bbb49b61c40a92a7b83125da78908bbbf5e5851f1e34e340436b95b84",
+      "bytes": 5319
+    },
+    {
+      "path": "rc-prepare-socle-prompts/agents/openai.yaml",
+      "sha256": "02cbf371a305ae470a86987565f67cdcaf54825b5256792c5117af55433a0805",
+      "bytes": 283
+    },
+    {
+      "path": "rc-prepare-supervisor/SKILL.md",
+      "sha256": "17df5f63269e22ca7df3daa30015a6141838efb1bbd25c547df8e8f8fcaadc67",
+      "bytes": 3861
+    },
+    {
+      "path": "rc-prepare-supervisor/agents/openai.yaml",
+      "sha256": "b53eb7151116db1c24817bea9c54b72579a34b602e2f01e914741e58eb1aad0a",
+      "bytes": 314
+    },
+    {
+      "path": "rc-prepare-supervisor/references/supervisor-template.md",
+      "sha256": "190c43f736b65c02220bd6f63ec8ebcc4a61d8bf8bf43a2d5a1e8387ac761da7",
+      "bytes": 5864
+    }
+  ],
+  "digest": "1697d6d8be3c766d525c9d2ae0f6f651ac02de040a18f125419f5f19b296a9f3"
+}

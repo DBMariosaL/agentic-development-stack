@@ -1,0 +1,4 @@
+interface:
+  display_name: "Radio Chantier — pilotage"
+  short_description: "Choisir, lancer et poursuivre le travail prêt"
+  default_prompt: "Utilise $rc-coordinate-development pour piloter le programme de Radio Chantier selon le mandat, l'état et les ressources disponibles."

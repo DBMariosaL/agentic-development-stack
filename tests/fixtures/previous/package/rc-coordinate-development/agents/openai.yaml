@@ -1,0 +1,4 @@
+interface:
+  display_name: "Radio Chantier — coordination"
+  short_description: "Choisir et préparer une vague de développement"
+  default_prompt: "Utilise $rc-coordinate-development pour organiser la prochaine vague de Radio Chantier selon le mandat et les ressources disponibles."

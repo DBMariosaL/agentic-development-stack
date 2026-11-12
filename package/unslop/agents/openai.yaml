@@ -1,0 +1,13 @@
+interface:
+  display_name: Unslop
+  short_description: Remove AI writing tells from every visible output when explicitly
+    invoked.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: false

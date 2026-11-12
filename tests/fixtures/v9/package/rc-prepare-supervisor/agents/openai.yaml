@@ -1,0 +1,4 @@
+interface:
+  display_name: "Radio Chantier — préparation du superviseur"
+  short_description: "Préparer le mandat d'un superviseur séparé"
+  default_prompt: "Utilise $rc-prepare-supervisor pour préparer le mandat du superviseur séparé imposé pour cette vague, en tenant compte des retours d'expérience pertinents."

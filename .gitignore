@@ -1,0 +1,7 @@
+.local/
+**/__pycache__/
+*.py[cod]
+tests/state/_fixtures/
+.env
+.env.*
+!.env.example

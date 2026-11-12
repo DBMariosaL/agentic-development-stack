@@ -1,0 +1,4 @@
+interface:
+  display_name: "Radio Chantier — préparation du superviseur"
+  short_description: "Préparer une supervision de soutien aux champions"
+  default_prompt: "Utilise $rc-prepare-supervisor pour préparer le superviseur de cette vague en tenant compte des retours d'expérience pertinents."

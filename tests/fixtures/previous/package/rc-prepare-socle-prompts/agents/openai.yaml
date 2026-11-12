@@ -1,0 +1,4 @@
+interface:
+  display_name: "Radio Chantier — prompts des socles"
+  short_description: "Préparer les mandats des champions et leurs raccords"
+  default_prompt: "Utilise $rc-prepare-socle-prompts pour préparer les prompts des champions de la vague et harmoniser leurs interfaces."

@@ -1,0 +1,13 @@
+interface:
+  display_name: "Claude Opus Prompt Optimizer"
+  short_description: "Optimise prompts, CLAUDE.md et scaffolding d'agents pour Claude Opus 5.5 / Opus 5"
+  icon_small: "assets/icon.svg"
+  icon_large: "assets/icon.svg"
+  default_prompt: "Utilise $claude-opus-prompt-optimizer pour auditer ou réécrire ce prompt pour Claude Opus 5.5."
+policy:
+  products:
+    - "chatgpt"
+    - "codex"
+    - "api"
+    - "atlas"
+  allow_implicit_invocation: true

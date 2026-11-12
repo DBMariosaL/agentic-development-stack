@@ -1,0 +1,65 @@
+{
+  "status": "approved-by-root-after-targeted-dispositions",
+  "created_at": "2026-10-31T00:25:51.317985+00:00",
+  "source_snapshot": "snapshots/v4/package",
+  "files": [
+    {
+      "path": "rc-coordinate-development\\agents\\openai.yaml",
+      "sha256": "18ef2254f8f15fc5ab53cbab1081b8eadf2da04f904e690ee2a26d7ac3f7d9e3",
+      "bytes": 287
+    },
+    {
+      "path": "rc-coordinate-development\\references\\wave-contract.md",
+      "sha256": "75a9703247729ab717a2d1f19a0c43c9be3b674979b28c73982836e71cee6a9f",
+      "bytes": 9922
+    },
+    {
+      "path": "rc-coordinate-development\\scripts\\check_wave.py",
+      "sha256": "a7f2056806c078968ae1dcb15b8755b8a0d24f8a974805b91e118bec6fcda456",
+      "bytes": 17179
+    },
+    {
+      "path": "rc-coordinate-development\\SKILL.md",
+      "sha256": "ca153d3441a13236fa225e2cb62f269eaf28eb3ef1ba15ecc7a34dc5616e42da",
+      "bytes": 5756
+    },
+    {
+      "path": "rc-prepare-socle-prompts\\agents\\openai.yaml",
+      "sha256": "02cbf371a305ae470a86987565f67cdcaf54825b5256792c5117af55433a0805",
+      "bytes": 283
+    },
+    {
+      "path": "rc-prepare-socle-prompts\\SKILL.md",
+      "sha256": "c93456335283b78b891ba9a0449c4cdd7acb3ec0cc7933efc8cdc085e4165e0d",
+      "bytes": 5362
+    },
+    {
+      "path": "rc-prepare-supervisor\\agents\\openai.yaml",
+      "sha256": "4ba9a89c03de79443672a3cfd001ae9679532c1643acbd2296c4a8ee58132558",
+      "bytes": 301
+    },
+    {
+      "path": "rc-prepare-supervisor\\references\\supervisor-template.md",
+      "sha256": "b3d4013f013841741c312ce0b2a68e39f7383b0b39f4f3ae4112cc56c60e3bcf",
+      "bytes": 12059
+    },
+    {
+      "path": "rc-prepare-supervisor\\SKILL.md",
+      "sha256": "4b35b1c30b95b12c2ecded9477745ed212fcfbdabe2848803d8d0422ffea7ff9",
+      "bytes": 4968
+    }
+  ],
+  "evidence": [
+    "verification-tests-final.json",
+    "contre-revue-opus/rapport.md",
+    "contre-revue-opus-v3/rapport.md",
+    "dispositions-opus-v2.json",
+    "dispositions-opus-v3.json",
+    "evaluations/v3/usage/resultats.json",
+    "evaluations/v4/relais/resultats.json"
+  ],
+  "limits": [
+    "Final v4 resolves the targeted v3 findings; no further Opus opinion on v4 is invented.",
+    "Documentary use exercises only, no product runtime or future real socles launched."
+  ]
+}

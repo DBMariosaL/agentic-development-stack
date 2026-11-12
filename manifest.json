@@ -1,0 +1,273 @@
+{
+  "format": "rc-update-manifest/2",
+  "distribution": "rc-core-with-dependencies",
+  "skills": [
+    {
+      "name": "rc-coordinate-development",
+      "role": "rc"
+    },
+    {
+      "name": "rc-prepare-socle-prompts",
+      "role": "rc"
+    },
+    {
+      "name": "rc-prepare-supervisor",
+      "role": "rc"
+    },
+    {
+      "name": "gpt-prompt-optimizer",
+      "role": "dependency"
+    },
+    {
+      "name": "claude-opus-prompt-optimizer",
+      "role": "dependency"
+    },
+    {
+      "name": "unslop",
+      "role": "dependency"
+    }
+  ],
+  "files": [
+    {
+      "path": "claude-opus-prompt-optimizer/SKILL.md",
+      "sha256": "cbc9c5548b43cb8c113368ad1de2df63aed3c0d7b4df86d61fc7cb9c488f5f07",
+      "bytes": 26331
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/agents/openai.yaml",
+      "sha256": "39c6093eae26d59935fe13db55117f01712a9e3d28d730ccabd0243534773a3e",
+      "bytes": 453
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/assets/icon.svg",
+      "sha256": "8936b24f674a1250d999e2c2b5901374fb4240426f32bd1ae340c352a90d617d",
+      "bytes": 1738
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/references/behavior-fixes.md",
+      "sha256": "03690b5f78a7f385feab9af24a17a8c785f0efd83d3cf6b2b4ef6e86b5dc177c",
+      "bytes": 39103
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/references/claude-code-and-apps.md",
+      "sha256": "7a0ffee2990582f25381c09fa844d8e1e969b621b44fdeabf284a277289697eb",
+      "bytes": 10156
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/references/cost-and-latency.md",
+      "sha256": "6f2960d742b626c220ff00a253b5a1b11259a785ae46c7ad46980c936750696c",
+      "bytes": 9880
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/references/evaluation-playbook.md",
+      "sha256": "575b13f87f7a784e93f381528f7b71d920dbe63d686ef294d499a5eb4632e4e6",
+      "bytes": 10242
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/references/hardening-matrix.md",
+      "sha256": "a6cadd5c17ab17da427dce490c1f7a68461951297b640a5fbb71b6d77dacb6f1",
+      "bytes": 9316
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/references/official-sources.md",
+      "sha256": "8c72efec89baccdfdeab4502777e0ab46206396559437d41a10678a1de59df9c",
+      "bytes": 9000
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/references/opus-5-5-configuration.md",
+      "sha256": "d105d5ded1a0e8bfc3bcc31da5b08e1393141c4370bc7d8c64d9fb22444674a4",
+      "bytes": 16475
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/references/opus-5-configuration.md",
+      "sha256": "008eb10ddb734f767dfa6aea59f137715e732dbb0c1d5145167d1419181a44f5",
+      "bytes": 14516
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/references/prompt-patterns.md",
+      "sha256": "b7d3088a79c3613b14f2a2c155852ba29b1b71ca8c3a6b4bc3ab9c0a114b5875",
+      "bytes": 17505
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/scripts/opus_api_check.py",
+      "sha256": "b606fd0a7c7f449d5ec7bda2b6dc4601f2753e97b6b6f1dcb0b7a7a2d82c8159",
+      "bytes": 19508
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/scripts/profile_eval_dataset.py",
+      "sha256": "0b469cfd4ea26687d9a5774cd7f80762e4d7e33f43ee35e7be20b43b27605a19",
+      "bytes": 8844
+    },
+    {
+      "path": "claude-opus-prompt-optimizer/scripts/prompt_lint.py",
+      "sha256": "4ddc3e6e25ec274215711885c63b00298a95534f6cdd635e42fe72dacc121158",
+      "bytes": 22977
+    },
+    {
+      "path": "gpt-prompt-optimizer/SKILL.md",
+      "sha256": "43562b6e6d68affa26082766fd376a1e80dc432597e4187997b9c7533762217a",
+      "bytes": 5269
+    },
+    {
+      "path": "gpt-prompt-optimizer/agents/openai.yaml",
+      "sha256": "3f1e853ba17749eb258ca1e225aa03fda516f255a8a30950edd92d6fe7bfb9c0",
+      "bytes": 430
+    },
+    {
+      "path": "gpt-prompt-optimizer/assets/icon.svg",
+      "sha256": "8936b24f674a1250d999e2c2b5901374fb4240426f32bd1ae340c352a90d617d",
+      "bytes": 1738
+    },
+    {
+      "path": "gpt-prompt-optimizer/references/codex-usage-efficiency.md",
+      "sha256": "87739790f881f0e71650fb122a0b84bedacd6aa9002478ea3a63ba46abcbfa83",
+      "bytes": 1740
+    },
+    {
+      "path": "gpt-prompt-optimizer/references/current-model.md",
+      "sha256": "8d11d5103ba599cdc1bedfb031ece8f8a0905bc6bd87d8a00c5c03aa85c18d8c",
+      "bytes": 3281
+    },
+    {
+      "path": "gpt-prompt-optimizer/references/evaluation-playbook.md",
+      "sha256": "dbb3508b37e508541a8805b4e110d15851f047b989c7ca1b49f54ea53d0a8de6",
+      "bytes": 3540
+    },
+    {
+      "path": "gpt-prompt-optimizer/references/execution-orchestration.md",
+      "sha256": "0af6d9fde0fd829a23d5c9ed5af1537051c7e8ecc37e0818c8c37478ffd37637",
+      "bytes": 3737
+    },
+    {
+      "path": "gpt-prompt-optimizer/references/hardening-matrix.md",
+      "sha256": "ee654200f833ee35b2787a710e0db3539b259ab03e2b5f1f38e0e38574138248",
+      "bytes": 1615
+    },
+    {
+      "path": "gpt-prompt-optimizer/references/instruction-audit.md",
+      "sha256": "458392529bd571589d4a6527315a516dd31f4ea37e6a55de499719a1b3d79bd3",
+      "bytes": 2857
+    },
+    {
+      "path": "gpt-prompt-optimizer/references/model-configuration.md",
+      "sha256": "f94a478aa8b709fd48e65ff30b4be9c99126246785be938bae3e7c47a122f553",
+      "bytes": 4810
+    },
+    {
+      "path": "gpt-prompt-optimizer/references/official-sources.md",
+      "sha256": "eb9fb67a9afe71903108dcfc27745c66306410aebc91e474db63a61f8a8f7241",
+      "bytes": 3691
+    },
+    {
+      "path": "gpt-prompt-optimizer/references/prompt-patterns.md",
+      "sha256": "82a2ed7a3ae696169d82b9f712ddef4b06095336bae1d7700cbcb8f8a7987431",
+      "bytes": 3218
+    },
+    {
+      "path": "gpt-prompt-optimizer/references/validation-cases.md",
+      "sha256": "c02ffedc5c2e7c89e49569f9b845fff3749ff3372703df27b1da14269394aaf8",
+      "bytes": 3124
+    },
+    {
+      "path": "gpt-prompt-optimizer/scripts/profile_eval_dataset.py",
+      "sha256": "027e803a244770015a2b6db7d48c0baaea794b678a1703205e3996eb66d2eee6",
+      "bytes": 8285
+    },
+    {
+      "path": "gpt-prompt-optimizer/scripts/prompt_lint.py",
+      "sha256": "813dfb2d7418474c8519bcd732c74be11de42908867d2334fcd8d25a1f258076",
+      "bytes": 9295
+    },
+    {
+      "path": "rc-coordinate-development/SKILL.md",
+      "sha256": "4a0f29578d45965f812896c59aedc7604f747d9002a1f49327fe5443bbe3da7b",
+      "bytes": 3327
+    },
+    {
+      "path": "rc-coordinate-development/agents/openai.yaml",
+      "sha256": "bdcadb985876c5ac12dc5f4402ab8104403e82fe0e52450e182da1c2b9319714",
+      "bytes": 280
+    },
+    {
+      "path": "rc-coordinate-development/references/engine.md",
+      "sha256": "897f82d2b8b0f6b25fc25c3fb46ef4de77f275c9a9f0cd1a7cca05ba1ee1390c",
+      "bytes": 11552
+    },
+    {
+      "path": "rc-coordinate-development/references/garden.md",
+      "sha256": "e74daaea279078207eda39f426b915374ec8806eae7250166c0e10d07e8b32b6",
+      "bytes": 4698
+    },
+    {
+      "path": "rc-coordinate-development/references/operating-loop.md",
+      "sha256": "9ff7d5691371dfb52fcd1f2049fb4fb96f854bc98155f939a8d97b2c35b25d07",
+      "bytes": 14651
+    },
+    {
+      "path": "rc-coordinate-development/references/program-contract.md",
+      "sha256": "3299f4d4ae36b430651cf8cd812375222989fe80625174aa1c3d518c9d1126c3",
+      "bytes": 9498
+    },
+    {
+      "path": "rc-coordinate-development/references/separate-relay.md",
+      "sha256": "a693ba904bad40e3c9ab762e22bbf0e34cc93ec312fce1ebf3ae79118e3c0c92",
+      "bytes": 2234
+    },
+    {
+      "path": "rc-coordinate-development/scripts/check_wave.py",
+      "sha256": "a7f2056806c078968ae1dcb15b8755b8a0d24f8a974805b91e118bec6fcda456",
+      "bytes": 17179
+    },
+    {
+      "path": "rc-coordinate-development/scripts/rc_state.py",
+      "sha256": "b9057d7c0d1968d7588d08a9ec178532a0a87ede7df54d4c897d1ab8a0cfa4e5",
+      "bytes": 108110
+    },
+    {
+      "path": "rc-prepare-socle-prompts/SKILL.md",
+      "sha256": "90f3fa8a0cf74caa7169f9cd15a69cfc2c4b5ce46546770291c2ea6bd2a6849e",
+      "bytes": 7284
+    },
+    {
+      "path": "rc-prepare-socle-prompts/agents/openai.yaml",
+      "sha256": "32e8f349108b938ee34e7245251e43d9ab4644422426412c3f12cd0277cd5683",
+      "bytes": 271
+    },
+    {
+      "path": "rc-prepare-supervisor/SKILL.md",
+      "sha256": "8cf728cac3795e7086f18a41fa70ae82d49ac55946c9d86610e0f2af6007317f",
+      "bytes": 4000
+    },
+    {
+      "path": "rc-prepare-supervisor/agents/openai.yaml",
+      "sha256": "e5664dd0581617e834872edacfea2e4a108d53dd78f8a940bfe87c1f64475e78",
+      "bytes": 314
+    },
+    {
+      "path": "rc-prepare-supervisor/references/supervisor-template.md",
+      "sha256": "1940ee671dc5fbe0ed3a809f692edaa03aa3449065d13a17166439f707e1c5e6",
+      "bytes": 3982
+    },
+    {
+      "path": "unslop/SKILL.md",
+      "sha256": "3fecfe3b1791774d5acee48d434e990572a89dc696bb5b7e046e6e2d47a99b16",
+      "bytes": 4730
+    },
+    {
+      "path": "unslop/agents/openai.yaml",
+      "sha256": "bd757b08c015badc5b6e7fae780aa6d0c6c22c8b5562b7fdfb057a755882ceb2",
+      "bytes": 289
+    },
+    {
+      "path": "unslop/assets/icon.svg",
+      "sha256": "49315dda7125ec5fc77ef5f2b96126d8b2121c6e72944b4702972e90f321d3ee",
+      "bytes": 1210
+    },
+    {
+      "path": "unslop/references/patterns.md",
+      "sha256": "144bca6d0b851997172c912543ed31795592d060787aba94600a8ce4e9e7f05e",
+      "bytes": 5663
+    }
+  ],
+  "digest": "4fa6d56e7e2a035eb34c659bd1ed74186a7324e79691c2906bdf1993f4775bae"
+}
