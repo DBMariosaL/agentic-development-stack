@@ -1,7 +1,7 @@
 {
   "format": "rc-stack-provenance/2",
   "release": "v10",
-  "status": "candidate on 2026-11-16: full offline checks passed; cross-family review recorded in docs/qualification.md; two comparative pilot trials on small programs",
+  "status": "candidate on 2026-11-16: full offline checks passed; cross-family review recorded in docs/qualification.md; two comparative pilot trials and a thirty-agent campaign on small programs, findings fixed and re-reviewed",
   "scope": "Local implemented scope; installation, runtime resume, relay idempotence, agent behaviour under the v10 relevance rules and model gains not qualified",
   "v7_reference": {
     "accepted_snapshot": "v7",
@@ -1626,7 +1626,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "README.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "61d499802761a72e9273a2a894efe0ba6b08c80100d3561771a6bdc4c7acc355",
-      "sha256": "fd7f9658468dc51fa0decd49d44386f548741ed43aada9e277ca960e765db9da",
+      "sha256": "5d95b2aeee71c799ab2a762b5013ccd060a21331917492852b31d234b425da82",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "README.md",
