@@ -164,7 +164,8 @@ def signals(rows, classes, comment_info, args, previous):
     tests, product, docs = (classes[name]['added'] for name in ('tests', 'product', 'docs'))
     if tests > args.test_ratio * product + args.test_slack:
         found.append({'id': 'tests_outweigh_product',
-                      'detail': f'tests +{tests} > {args.test_ratio:g} x product +{product} + {args.test_slack}'})
+                      'detail': f'tests +{tests} > {args.test_ratio:g} x product +{product} + {args.test_slack}: '
+                                'have the added tests classified with references/test-review-brief.md'})
     if docs:
         grown = {path for path, added, _ in rows if added and classify(path) == 'docs'}
         new = [path for path in classes['docs']['new_files'] if path in grown]
