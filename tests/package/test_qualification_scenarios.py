@@ -19,10 +19,10 @@ from pathlib import Path  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 QUALIFICATION = ROOT / 'tests' / 'qualification'
 V9 = QUALIFICATION / 'scenarios-v9.json'
-V9_SHA256 = '8f054c906bb4f64bf39d416bfb0ba81c9e3a2b608c0d83bd23c3a9bdcfd19d0d'
+V9_SHA256 = 'e8765894c3043d710f47564d62a0c7a4a0921939d80237d9d2954172fab1ec72'
 # Révision r1 : oracle Q14 symétrique, utilisée pour corriger l'épreuve exploratoire du 2026-11-10.
 V9_R1 = QUALIFICATION / 'scenarios-v9-r1.json'
-V9_R1_SHA256 = '8b998599c146b3a889652eca01dbcd9595ab26e1e3bf087db5c762d29d6e3f52'
+V9_R1_SHA256 = 'ffffdc7b7bc7325f0687d7fd12aeb56e10b2c5afec0d6279eb9746b0ecf8154d'
 NEW_IDS = ['Q12-jardin-declencheur', 'Q13-jardin-arret', 'Q14-elagage-test-redondant', 'Q15-invariant-securite',
            'Q16-attente-sans-reveil', 'Q17-verrou-auto-impose', 'Q18-troisieme-tour', 'Q19-acceptation-risque-bas',
            'Q20-ready-vide-backlog', 'Q21-cliquet-tests']

@@ -117,7 +117,7 @@ Trente agents GPT-6.1 Sol (effort `high`) sur le paquet gelé au commit `0a2e7fa
 
 Les attaques ont reproduit trente-trois défauts, chacun avec son script : dix-sept dans `rc_state.py` (dont un état accepté sans vague, un événement dépassé encore applicable, deux défauts de la forme courte ajoutée le jour même), deux dans `rc_update.py` (dont un retour arrière qui supprimait un fichier tiers), quatre dans `rc_footprint.py`, cinq dans `validate_package.py`, cinq dans les documents et le skill Fable. Le brief de revue, donné à froid sur un produit au défaut connu, l'a trouvé et classé bloquant. Aucune contradiction entre les textes des skills n'a été démontrée.
 
-Corrections, par deux auteurs Opus 5.5 et la racine : les défauts majeurs et la plupart des mineurs sont corrigés, chacun avec un cas qui échoue quand sa règle est cassée ; leurs scripts de reproduction sortent 0 sur la version corrigée. Trois règles changent pour le pilote : ni le silence ni une demande du besoin ne valent accord pour détruire ou modifier une donnée réelle ; un écrit que le candidat contredit se corrige ou se supprime avec lui ; un critère explicite du mandat non tenu est bloquant même sur un cas rare. Le nom d'un projet privé et un prénom, restés dans des sections archivées et des scénarios, sont retirés.
+Corrections, par deux auteurs Opus 5.5 et la racine : les défauts majeurs et la plupart des mineurs sont corrigés, chacun avec un cas qui échoue quand sa règle est cassée ; leurs scripts de reproduction sortent 0 sur la version corrigée. Trois règles changent pour le pilote : ni le silence ni une demande du besoin ne valent accord pour détruire ou modifier une donnée réelle ; un écrit que le candidat contredit se corrige ou se supprime avec lui ; un critère explicite du mandat non tenu est bloquant même sur un cas rare. Le nom d'un projet privé et un prénom, restés dans des sections archivées et des scénarios, sont retirés. Les trois fichiers de scénarios de qualification changent donc d'empreinte ; celles que cette page cite plus bas sont les nouvelles, pas celles du gel d'origine.
 
 Ce que la campagne ne dit pas : les pilotes étaient des GPT-6.1 Sol, pas la configuration retenue ; presque tous ont lu un skill du profil réel avant leur consigne, ce qui tient à leur hôte ; aucune seconde campagne n'a suivi les corrections, seulement le rejeu des scripts et une revue.
 
@@ -205,7 +205,7 @@ Statut : **acceptée dans la portée locale implémentée** le 10 novembre 2026.
 
 ### Épreuve de conduite exploratoire v8/v9
 
-`tests/qualification/scenarios-v9.json` fixe 21 scénarios : Q1–Q11 repris de la v8, et Q12–Q21, des cas de jardinage et d'autonomie (6 décisions, 4 manipulations observables). Empreinte : `8f054c906bb4f64bf39d416bfb0ba81c9e3a2b608c0d83bd23c3a9bdcfd19d0d`. Le fichier v8 reste inchangé (`a050ce188ca4819d62080c334024ccaafd379c1ec1f035a2794436adfcbc26ba`). La correction a utilisé la révision `scenarios-v9-r1.json` (`8b998599c146b3a889652eca01dbcd9595ab26e1e3bf087db5c762d29d6e3f52`), qui ne change que l'oracle de Q14 (voir les limites).
+`tests/qualification/scenarios-v9.json` fixe 21 scénarios : Q1–Q11 repris de la v8, et Q12–Q21, des cas de jardinage et d'autonomie (6 décisions, 4 manipulations observables). Empreinte : `e8765894c3043d710f47564d62a0c7a4a0921939d80237d9d2954172fab1ec72`. Le fichier v8 reste inchangé (`cbaa8299758bde1400c7003db769da7bec7e2147369543ab3909d17472fee3ed`). La correction a utilisé la révision `scenarios-v9-r1.json` (`ffffdc7b7bc7325f0687d7fd12aeb56e10b2c5afec0d6279eb9746b0ecf8154d`), qui ne change que l'oracle de Q14 (voir les limites).
 
 Dispositif : un pilote GPT-6.1-SOL high par version. Chaque pilote ne reçoit que les skills de sa version (v8 : `22b05e2`, v9 : `5fb2de6`) et les scénarios sans oracles. Il construit la matière synthétique des manipulations et laisse ses observables sur disque. Correction aveugle par deux correcteurs indépendants, Opus 5.5 et GPT-6.1-SOL high, contre les oracles. Copies anonymisées X/Y, chemins et en-têtes de version retirés.
 
@@ -284,7 +284,7 @@ Les scripts vendored des optimiseurs sont compilés, leurs imports sont vérifi�
 
 `tests/qualification/scenarios-v8.json` fixe onze scénarios et leurs oracles avant toute réponse : changement ordinaire autorisé, faux positif, doublon, défaut bloquant malgré une note, delta sensible non couvert, refus de runtime, interruption de push, routage des filtres, récupération irréversible, stagnation, incident confirmé.
 
-Empreinte du fichier figé : `a050ce188ca4819d62080c334024ccaafd379c1ec1f035a2794436adfcbc26ba`.
+Empreinte du fichier figé : `cbaa8299758bde1400c7003db769da7bec7e2147369543ab3909d17472fee3ed`.
 
 **Aucun de ces essais d'agent n'a été exécuté.** Le test associé vérifie seulement leur structure et cette empreinte. Un gain d'autonomie, de temps ou de faux positifs ne pourra être affirmé qu'après une campagne comparative v7/v8 sur les mêmes scénarios, avec effectifs bruts.
 

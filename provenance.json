@@ -1231,11 +1231,19 @@
     },
     {
       "path": "tests/package/test_qualification_scenarios.py",
-      "source_group": "rc-stack-v9-20261110",
-      "source": "authored for v9",
-      "source_sha256": null,
-      "sha256": "3c5dc9cdd5161fc6510f9786a493525f9a833d17bb1be1f26f32d0517f63c8e8",
-      "adaptation": "v9 new"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tests/package/test_qualification_scenarios.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "3c5dc9cdd5161fc6510f9786a493525f9a833d17bb1be1f26f32d0517f63c8e8",
+      "sha256": "dc67e3939c5572274b105cbd09c8f888d0bd009f8e2dd56573c3c0c26c230027",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "tests/package/test_qualification_scenarios.py",
+        "source_group": "rc-stack-v9-20261110",
+        "source": "authored for v9",
+        "source_sha256": null,
+        "sha256": "3c5dc9cdd5161fc6510f9786a493525f9a833d17bb1be1f26f32d0517f63c8e8",
+        "adaptation": "v9 new"
+      }
     },
     {
       "path": "tests/qualification/scenarios-v9.json",
