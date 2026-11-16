@@ -213,6 +213,18 @@ class ReviewHashes(Campaign):
             [{'op': 'append', 'path': 'reviews', 'value': dict(review, sha256=actual)}]))
         self.assertEqual(self.ok('check', wave, '--check-paths')['errors'], [])
 
+    def test_closed_wave_keeps_passing_check_paths_when_a_reviewed_document_changed(self):
+        for phase, errors in (('launched', 1), ('stopped', 0)):
+            with self.subTest(phase=phase):
+                w = wave2(phase)
+                w['artifacts']['doc'] = 'doc.txt'
+                w['reviews'].append({'artifact': 'doc', 'sha256': 'a' * 64, 'status': 'done',
+                                     'disposition': 'reviewed', 'reference': 'report.md'})
+                self.write(self.wave_path, w)
+                (self.wave_path.parent / 'doc.txt').write_bytes(b'changed after review')
+                code, result = self.run_cli('check', self.wave_path, '--check-paths')
+                self.assertEqual(len([e for e in result['errors'] if 'documentary review' in e]), errors, result)
+
     def test_init_and_append_default_review_disposition_and_reference_to_null(self):
         review = {'artifact': 'doc', 'sha256': 'a' * 64, 'status': 'pending'}
         wave = self.solo(dict(WAVE_SPEC, artifacts={'doc': 'doc.txt'}, reviews=[review]))

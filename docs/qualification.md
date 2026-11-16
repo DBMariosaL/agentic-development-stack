@@ -119,6 +119,8 @@ Les attaques ont reproduit trente-trois défauts, chacun avec son script : dix-s
 
 Corrections, par deux auteurs Opus 5.5 et la racine : les défauts majeurs et la plupart des mineurs sont corrigés, chacun avec un cas qui échoue quand sa règle est cassée ; leurs scripts de reproduction sortent 0 sur la version corrigée. Trois règles changent pour le pilote : ni le silence ni une demande du besoin ne valent accord pour détruire ou modifier une donnée réelle ; un écrit que le candidat contredit se corrige ou se supprime avec lui ; un critère explicite du mandat non tenu est bloquant même sur un cas rare. Le nom d'un projet privé et un prénom, restés dans des sections archivées et des scénarios, sont retirés. Les trois fichiers de scénarios de qualification changent donc d'empreinte ; celles que cette page cite plus bas sont les nouvelles, pas celles du gel d'origine.
 
+Deux revues GPT-6.1 Sol ont relu ces corrections sur le candidat `d2a4d14`, avec mutations à l'appui. Elles ont trouvé trois défauts bloquants, corrigés : la boucle et le brief de revue définissaient différemment un constat bloquant (la boucle renvoie maintenant au brief) ; le validateur traitait comme actif un lien d'exemple dans un bloc de code indenté ; le nouveau contrôle des empreintes de revue rendait invalide, sans réparation possible, une vague close dont un document avait changé depuis (une vague close en est dispensée).
+
 Ce que la campagne ne dit pas : les pilotes étaient des GPT-6.1 Sol, pas la configuration retenue ; presque tous ont lu un skill du profil réel avant leur consigne, ce qui tient à leur hôte ; aucune seconde campagne n'a suivi les corrections, seulement le rejeu des scripts et une revue.
 
 Limites :

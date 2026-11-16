@@ -299,7 +299,7 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
         target = (Path(directory) / str(artifacts[cand['artifact']]).replace('\\', '/')).resolve()
         require(target.is_file() and sha256_file(target) == cand['sha256'].lower(),
                 'candidate artifact missing or sha256 mismatch with local file')
-    if check_paths and directory is not None:
+    if check_paths and directory is not None and sval(state, 'phase') not in TERMINAL_PHASES:
         consumed = state.get('consumed') if isinstance(state.get('consumed'), dict) else {}
         documentary = {}
         for review in _items(doc.get('reviews')):
