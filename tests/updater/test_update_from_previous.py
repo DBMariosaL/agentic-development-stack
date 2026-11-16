@@ -1,18 +1,21 @@
-"""Mise à jour d'une installation v8 réelle vers le paquet courant, sur profils factices.
+"""Mise à jour d'une installation antérieure réelle vers le paquet courant, sur profils factices.
 
 Lancer depuis la racine du dépôt :
-  python -B tools/check.py                       (avec les autres suites)
-  python -B -m unittest tests/updater/test_update_from_v8.py
+  python -B tools/check.py                       (une étape par version d'origine)
+  python -B -m unittest tests/updater/test_update_from_previous.py
 
 Variables : celles de test_rc_update_v8.py (RC_UPDATE_MODULE, RC_UPDATE_FIXTURES), dont
-les aides sont réutilisées.
+les aides sont réutilisées, et RC_UPDATE_FROM, une version de PREVIOUS (par exemple v9.1)
+dont seuls les cas sont collectés ; sans elle, toutes les versions.
 
-Référence v8 figée et compacte : tests/fixtures/v8/manifest.json (manifeste v8 octet pour
-octet) et, sous tests/fixtures/v8/package, les seuls fichiers RC v8 absents de la fixture
-v7. Chaque test recompose le paquet v8 complet dans son dossier : chaque fichier est pris
-dans la fixture v8, la fixture v7 ou le paquet courant, seulement si son empreinte est celle
-du manifeste v8 ; sinon le test échoue et nomme le fichier à figer. Les attendus sont
-calculés depuis manifest.json et package/ du dépôt, jamais écrits en dur.
+PREVIOUS déclare chaque version d'origine et l'ordre des fixtures où composer ses octets.
+Référence figée et compacte : tests/fixtures/<version>/manifest.json (manifeste d'origine
+octet pour octet) et, sous tests/fixtures/<version>/package, les seuls fichiers RC absents
+des fixtures antérieures. Chaque test recompose le paquet d'origine complet dans son
+dossier : chaque fichier est pris dans ces fixtures, dans l'ordre déclaré, puis dans le
+paquet courant, seulement si son empreinte est celle du manifeste d'origine ; sinon le test
+échoue et nomme le fichier à figer. Les attendus sont calculés depuis manifest.json et
+package/ du dépôt, jamais écrits en dur.
 """
 import sys
 
@@ -20,26 +23,32 @@ sys.dont_write_bytecode = True
 
 import importlib.util  # noqa: E402
 import json  # noqa: E402
+import os  # noqa: E402
 from pathlib import Path  # noqa: E402
 from unittest import mock  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-_spec = importlib.util.spec_from_file_location('rc_update_v8_helpers', HERE / 'test_rc_update_v8.py')
+_spec = importlib.util.spec_from_file_location('rc_update_v8_helpers_for_previous', HERE / 'test_rc_update_v8.py')
 shared = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(shared)
-rc_update, sha, tree, read_manifest = shared.rc_update, shared.sha, shared.tree, shared.read_manifest
+rc_update, sha, read_manifest = shared.rc_update, shared.sha, shared.read_manifest
 RC, DEPS, ALL = shared.RC, shared.DEPS, shared.ALL
-NEW_PKG, NEW_MANIFEST = shared.NEW_PKG, shared.NEW_MANIFEST
+NEW_PKG = shared.NEW_PKG
 
-V8 = shared.ROOT / 'tests' / 'fixtures' / 'v8'
-V8_MANIFEST = V8 / 'manifest.json'
-SOURCES = (V8 / 'package', shared.V7 / 'package', NEW_PKG)
+FROZEN = shared.ROOT / 'tests' / 'fixtures'
+PREVIOUS = (
+    ('v8', ('v8', 'v7')),
+    ('v9', ('v9', 'v8', 'v7')),
+    ('v9.1', ('v9.1', 'v9', 'v8', 'v7')),
+    ('v9.1.1', ('v9.1.1', 'v9.1', 'v9', 'v8', 'v7')),
+    ('v9.1.2', ('v9.1.2', 'v9.1.1', 'v9.1', 'v9', 'v8', 'v7')),
+)
 
 
-def compose_v8(dest):
-    """Paquet v8 complet, chaque octet prouvé par le manifeste v8."""
-    for rel, item in read_manifest(V8_MANIFEST).items():
-        for src in SOURCES:
+def compose(version, sources, dest):
+    """Paquet d'origine complet, chaque octet prouvé par son manifeste."""
+    for rel, item in read_manifest(FROZEN / version / 'manifest.json').items():
+        for src in sources:
             path = src.joinpath(*rel.split('/'))
             if path.is_file() and sha(path.read_bytes()) == item['sha256']:
                 out = dest.joinpath(*rel.split('/'))
@@ -47,17 +56,22 @@ def compose_v8(dest):
                 out.write_bytes(path.read_bytes())
                 break
         else:
-            raise AssertionError(f'octets v8 introuvables pour {rel} : les figer sous tests/fixtures/v8/package')
+            raise AssertionError(f'octets {version} introuvables pour {rel} : '
+                                 f'les figer sous tests/fixtures/{version}/package')
     return dest
 
 
-class FromV8Base(shared.Base):
+class UpdateFromPreviousCases:
+    version = order = None
+
     def setUp(self):
         super().setUp()
-        self.v8_pkg = compose_v8(self.dir / 'v8')
+        self.prev_manifest = FROZEN / self.version / 'manifest.json'
+        sources = tuple(FROZEN / v / 'package' for v in self.order) + (NEW_PKG,)
+        self.prev_pkg = compose(self.version, sources, self.dir / self.version)
         for t in self.targets:
-            self.build_profile(t, self.v8_pkg)
-        self.old = read_manifest(V8_MANIFEST)
+            self.build_profile(t, self.prev_pkg)
+        self.old = read_manifest(self.prev_manifest)
         self.changes = {}
         for rel in sorted(set(self.old) | set(self.new)):
             if rel not in self.old:
@@ -66,21 +80,20 @@ class FromV8Base(shared.Base):
                 self.changes[rel] = 'remove'
             elif self.old[rel]['sha256'] != self.new[rel]['sha256']:
                 self.changes[rel] = 'replace'
-        self.assertTrue(self.changes, 'manifest.json décrit encore les octets v8 : aucune mise à jour à éprouver')
+        self.assertTrue(self.changes, f'manifest.json décrit encore les octets {self.version} : '
+                                      'aucune mise à jour à éprouver')
 
     def preflight(self, **kw):
-        kw.setdefault('prev', V8_MANIFEST)
+        kw.setdefault('prev', self.prev_manifest)
         return super().preflight(**kw)
 
     def deps(self):
         return {(i, d): self.sub(t, d) for i, t in enumerate(self.targets) for d in DEPS}
 
-
-class FromV8Tests(FromV8Base):
-    def test_v8_reference_rebuilt_exactly(self):
-        doc = json.loads(V8_MANIFEST.read_text(encoding='utf-8'))
+    def test_reference_rebuilt_exactly(self):
+        doc = json.loads(self.prev_manifest.read_text(encoding='utf-8'))
         self.assertEqual(doc['distribution'], 'rc-core-with-dependencies')
-        self.assertEqual(rc_update.manifest_doc(rc_update.compute_manifest(self.v8_pkg)), doc)
+        self.assertEqual(rc_update.manifest_doc(rc_update.compute_manifest(self.prev_pkg)), doc)
 
     def test_plan_replaces_rc_files_only(self):
         before = self.trees()
@@ -90,7 +103,7 @@ class FromV8Tests(FromV8Base):
         self.assertEqual(out['distributions'], {'previous': 'rc-core-with-dependencies',
                                                 'new': 'rc-core-with-dependencies'})
         self.assertEqual({r.split('/')[0] for r in self.changes} - set(RC), set(),
-                         'une dépendance a changé : la v9 doit la livrer octet pour octet')
+                         'une dépendance a changé : le paquet courant doit la livrer octet pour octet')
         expected = {r: self.changes.get(r, 'unchanged') for r in set(self.old) | set(self.new)}
         expected.update({rel: 'preserve-unknown' for rel in shared.UNKNOWN})
         changed_skills = {r.split('/')[0] for r in self.changes}
@@ -161,7 +174,7 @@ class FromV8Tests(FromV8Base):
             self.assertEqual(sum(e['event'] == 'written' and e['step'] == s for e in events), 1, s)
         self.assertEqual(self.run_main('verify', '--plan', self.plan)[0], 0)
 
-    def test_rollback_restores_v8_bytes(self):
+    def test_rollback_restores_previous_bytes(self):
         initial = self.snapshot()
         self.preflight()
         self.assertEqual(self.apply()[0], 0)
@@ -184,6 +197,22 @@ class FromV8Tests(FromV8Base):
         self.assertEqual(code, 0, out)
         self.assertEqual(self.snapshot(), initial)
         self.assert_clean_targets()
+
+
+CASES = {}
+for _version, _order in PREVIOUS:
+    _name = 'FromV' + _version[1:].replace('.', '_') + 'Tests'
+    CASES[_version] = globals()[_name] = type(_name, (UpdateFromPreviousCases, shared.Base),
+                                              {'version': _version, 'order': _order})
+
+
+def load_tests(loader, tests, pattern):
+    wanted = os.environ.get('RC_UPDATE_FROM')
+    if not wanted:
+        return tests
+    if wanted not in CASES:
+        raise ValueError(f'RC_UPDATE_FROM={wanted} absente de PREVIOUS {sorted(CASES)}')
+    return loader.loadTestsFromTestCase(CASES[wanted])
 
 
 if __name__ == '__main__':

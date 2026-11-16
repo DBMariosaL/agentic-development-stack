@@ -6,17 +6,11 @@ Steps:
   updater-v7  tests/updater/test_rc_update.py, unchanged, against the frozen v7 fixture
               (31 October -> v7, three RC skills)
   updater-v8  tests/updater/test_rc_update_v8.py: three -> six skills and dependencies
-  updater-from-v8
-              tests/updater/test_update_from_v8.py: an installed v8 (compact frozen reference
-              tests/fixtures/v8) updated to package/: RC files replaced, dependencies untouched
-  updater-from-v9
-              tests/updater/test_update_from_v9.py: the same for an installed v9 (compact frozen
-              reference tests/fixtures/v9)
-  updater-from-v9.1
-              tests/updater/test_update_from_v9_1.py: the same for an installed v9.1 (compact
-              frozen reference tests/fixtures/v9.1)
-  updater-from-v9.1.1
-              tests/updater/test_update_from_v9_1_1.py: the same for installed v9.1.1
+  updater-from-<version>
+              tests/updater/test_update_from_previous.py, one step per origin version
+              (v8, v9, v9.1, v9.1.1, v9.1.2) selected by RC_UPDATE_FROM: an installed
+              version (compact frozen reference tests/fixtures/<version>) updated to
+              package/: RC files replaced, dependencies untouched
   package     tests/package: moved package, missing resources, dependency metadata,
               vendored scripts, frozen qualification scenarios
   structure   tools/validate_package.py on package/ with provenance
@@ -45,7 +39,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 169, 'updater-v7': 30, 'updater-v8': 28, 'updater-from-v8': 7, 'updater-from-v9': 7, 'updater-from-v9.1': 7, 'updater-from-v9.1.1': 7, 'package': 25}
+EXPECTED = {'state': 169, 'updater-v7': 30, 'updater-v8': 28, 'updater-from-v8': 7, 'updater-from-v9': 7, 'updater-from-v9.1': 7, 'updater-from-v9.1.1': 7, 'updater-from-v9.1.2': 7, 'package': 25}
 # Every step in run order; all_passed requires exactly these results, in this order.
 STEPS = list(EXPECTED) + ['structure']
 # Skips accepted only off Windows (NTFS junction tests); none is accepted on Windows.
@@ -56,13 +50,14 @@ NON_NT_SKIPS = {
     'updater-from-v9': set(),
     'updater-from-v9.1': set(),
     'updater-from-v9.1.1': set(),
+    'updater-from-v9.1.2': set(),
     'package': set(),
     'state': set(),
 }
 # Deepest synthetic profile path observed below a fixture root, plus margin (characters).
 FIXTURE_DEPTH_MARGIN = 175
 ENV_KEYS = ('RC_STATE_PACKAGE', 'RC_UPDATE_LOT', 'RC_UPDATE_PREVIOUS', 'RC_UPDATE_CANDIDATE',
-            'RC_UPDATE_MODULE', 'RC_UPDATE_FIXTURES', 'RC_PACKAGE_FIXTURES')
+            'RC_UPDATE_MODULE', 'RC_UPDATE_FIXTURES', 'RC_UPDATE_FROM', 'RC_PACKAGE_FIXTURES')
 
 
 def sha(data):
@@ -213,7 +208,9 @@ def main():
                   'set RC_CHECK_FIXTURES_ROOT to a short folder (for example C:\\rc)', flush=True)
             return 1
         base.mkdir(parents=True)
-        roots = {k: base / k for k in ('f', 'g', 'h', 'i', 'j', 'k', 'p')}
+        from_steps = [n for n in EXPECTED if n.startswith('updater-from-')]
+        roots = {k: base / k for k in ('f', 'g', 'p')}
+        roots.update({n: base / f'h{i}' for i, n in enumerate(from_steps)})
         for r in roots.values():
             r.mkdir()
         env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8',
@@ -233,22 +230,13 @@ def main():
             ('updater-v8', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'), str(ROOT / 'tests/updater'),
                             str(out / 'updater-v8.json'), 'test_rc_update_v8.py'],
              ROOT, {'RC_UPDATE_FIXTURES': str(roots['g'])}, out / 'updater-v8.json'),
-            ('updater-from-v8', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'),
-                                 str(ROOT / 'tests/updater'), str(out / 'updater-from-v8.json'),
-                                 'test_update_from_v8.py'],
-             ROOT, {'RC_UPDATE_FIXTURES': str(roots['h'])}, out / 'updater-from-v8.json'),
-            ('updater-from-v9', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'),
-                                 str(ROOT / 'tests/updater'), str(out / 'updater-from-v9.json'),
-                                 'test_update_from_v9.py'],
-             ROOT, {'RC_UPDATE_FIXTURES': str(roots['i'])}, out / 'updater-from-v9.json'),
-            ('updater-from-v9.1', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'),
-                                   str(ROOT / 'tests/updater'), str(out / 'updater-from-v9.1.json'),
-                                   'test_update_from_v9_1.py'],
-             ROOT, {'RC_UPDATE_FIXTURES': str(roots['j'])}, out / 'updater-from-v9.1.json'),
-            ('updater-from-v9.1.1', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'),
-                                     str(ROOT / 'tests/updater'), str(out / 'updater-from-v9.1.1.json'),
-                                     'test_update_from_v9_1_1.py'],
-             ROOT, {'RC_UPDATE_FIXTURES': str(roots['k'])}, out / 'updater-from-v9.1.1.json'),
+        ] + [
+            (n, [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'), str(ROOT / 'tests/updater'),
+                 str(out / (n + '.json')), 'test_update_from_previous.py'],
+             ROOT, {'RC_UPDATE_FIXTURES': str(roots[n]), 'RC_UPDATE_FROM': n[len('updater-from-'):]},
+             out / (n + '.json'))
+            for n in from_steps
+        ] + [
             ('package', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/package'), str(ROOT / 'tests/package'),
                          str(out / 'package.json')],
              ROOT, {'RC_PACKAGE_FIXTURES': str(roots['p'])}, out / 'package.json'),

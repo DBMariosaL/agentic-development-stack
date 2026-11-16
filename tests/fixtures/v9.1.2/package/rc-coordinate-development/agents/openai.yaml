@@ -1,0 +1,4 @@
+interface:
+  display_name: "RC — pilotage de développement"
+  short_description: "Choisir, lancer et poursuivre le travail prêt"
+  default_prompt: "Utilise $rc-coordinate-development pour piloter le programme du projet selon le mandat, l'état et les ressources disponibles."
