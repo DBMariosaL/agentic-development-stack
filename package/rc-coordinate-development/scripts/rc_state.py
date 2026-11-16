@@ -656,6 +656,8 @@ def check_evolution(old, new, owner_change=False):
             errors.append(f'wave is terminal ({po}); record late signals with event, start a new wave to resume')
         elif pn != po and pn not in TRANSITIONS.get(po, set()):
             errors.append(f'transition {po} -> {pn} not allowed')
+        elif po == 'ready' and pn == 'launched' and nstate.get('launch_ready') is not True:
+            errors.append('entering launched requires state.launch_ready=true, set by the owner after checking the launch context')
         origin = (ostate.get('waiting') or {}).get('from') if po in WAITLIKE else None
         if po not in WAITLIKE and pn in WAITLIKE:
             entered = (nstate.get('waiting') or {}).get('from') if isinstance(nstate.get('waiting'), dict) else None
@@ -1431,6 +1433,7 @@ def cmd_init(args):
     if exists:
         check_state_file(given)
     errors = validate_any(doc, path.parent, check_paths=False, self_path=path)
+    errors += [f'unknown key {key}' for key in unknown_keys(doc)]
     if errors:
         raise StateError('refused: initial state invalid: ' + '; '.join(errors))
     new_bytes = (json.dumps(doc, ensure_ascii=False, indent=2) + '\n').encode('utf-8')

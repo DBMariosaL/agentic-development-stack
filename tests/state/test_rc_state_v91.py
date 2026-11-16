@@ -83,6 +83,11 @@ class Init(InitBase):
         self.assertTrue(self.ok('check', path)['valid'])
         self.assertEqual(self.journal(path.parent)[-1]['wave'], 'wave.json')
         self.ok('transition', path, '--actor', OWNER, '--expect-revision', 0, '--to', 'preparing')
+        stray = self.fresh / 'waves/c/stray.json'
+        code, result = self.init(stray, 'wave', dict(WAVE_SPEC, **{'state/launch_ready': True}))
+        self.assertEqual(code, 1, result)
+        self.assertIn('unknown key state/launch_ready', result['error'])
+        self.assertFalse(stray.exists())
 
     def test_init_wave_then_program_then_attach(self):
         wave_path = self.fresh / 'waves/c/wave.json'

@@ -114,13 +114,16 @@ class Review1(Base):
         self.assertEqual(result['launch_ready_reset']['changed'], ['project'])
         self.assertIs(self.wave()['state']['launch_ready'], False)
         self.assertEqual(self.wave()['project']['baseline'], 'changed-base')
+        self.refused('launch_ready', 'transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1,
+                     '--to', 'launched')
         ops = json.dumps([{'op': 'set', 'path': 'state.launch_ready', 'value': True}])
         result = self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--ops', ops)
         self.assertNotIn('launch_ready_reset', result)
         self.assertIs(self.wave()['state']['launch_ready'], True)
+        self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 2, '--to', 'launched')
         ops = json.dumps([{'op': 'set', 'path': 'artifacts.extra', 'value': 'extra.txt'},
                           {'op': 'set', 'path': 'state.launch_ready', 'value': True}])
-        result = self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 2, '--ops', ops)
+        result = self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 3, '--ops', ops)
         self.assertEqual(result['launch_ready_reset']['changed'], ['artifacts'])
         self.assertIs(self.wave()['state']['launch_ready'], False)
 
