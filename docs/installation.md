@@ -1,15 +1,15 @@
-# Installer ou mettre à jour les six skills
+# Installer ou mettre à jour les sept skills
 
 La création de ce dépôt n'installe rien dans les profils actifs. Une installation demande un mandat couvrant les profils visés et une frontière de vague stable : un acteur en cours peut encore lire les anciennes instructions.
 
 ## Première installation
 
-Les six dossiers sous `package/` sont les dossiers de skills complets. Selon le profil utilisé, les racines habituelles sous Windows sont :
+Les sept dossiers sous `package/` sont les dossiers de skills complets. Selon le profil utilisé, les racines habituelles sous Windows sont :
 
 - Codex : `%USERPROFILE%\.codex\skills` ;
 - Claude Code : `%USERPROFILE%\.claude\skills`.
 
-Vérifier les chemins réellement utilisés par le client. Copier uniquement les six dossiers, après contrôle de leurs empreintes et de l'absence de dossiers existants de même nom. Les trois dépendances (`gpt-prompt-optimizer`, `claude-opus-prompt-optimizer`, `unslop`) sont souvent déjà présentes dans un profil personnel : si une version existe déjà, suivre la procédure de mise à jour ci-dessous, qui ne remplace jamais une copie personnalisée.
+Vérifier les chemins réellement utilisés par le client. Copier uniquement les sept dossiers, après contrôle de leurs empreintes et de l'absence de dossiers existants de même nom. Les quatre dépendances (`gpt-prompt-optimizer`, `claude-opus-prompt-optimizer`, `claude-fable-prompt-optimizer`, `unslop`) sont souvent déjà présentes dans un profil personnel : si une version existe déjà, suivre la procédure de mise à jour ci-dessous, qui ne remplace jamais une copie personnalisée.
 
 La prise en compte des skills par une nouvelle conversation doit ensuite être constatée dans le client concerné. Unslop reste en invocation explicite (`allow_implicit_invocation: false`).
 
@@ -27,19 +27,21 @@ Le manifeste précédent doit être celui de la version réellement installée :
 
 ### Distributions et transitions
 
-L'outil connaît deux distributions, définies dans son code ; un manifeste ne peut ni en ajouter ni changer les rôles :
+L'outil connaît trois distributions, définies dans son code ; un manifeste ne peut ni en ajouter ni changer les rôles :
 
 | Distribution | Skills | Manifeste |
 |---|---|---|
 | `rc-core` | trois skills RC | format absent ou `rc-update-manifest/1` (31 octobre, v7) |
-| `rc-core-with-dependencies` | trois skills RC et trois dépendances | `rc-update-manifest/2` (depuis la v8) |
+| `rc-core-with-dependencies` | trois skills RC et trois dépendances | `rc-update-manifest/2` (v8 à v9.1.2) |
+| `rc-core-with-dependencies-2` | trois skills RC et quatre dépendances, dont `claude-fable-prompt-optimizer` | `rc-update-manifest/2` (depuis la v10) |
 
-Transitions acceptées : `rc-core` vers `rc-core`, `rc-core` vers `rc-core-with-dependencies`, `rc-core-with-dependencies` vers elle-même. Un retour de v8 à v7 passe par `rollback` du plan appliqué ; l'outil ne retire jamais une dépendance par simple changement de distribution.
+Transitions acceptées : `rc-core` vers `rc-core`, `rc-core` vers `rc-core-with-dependencies`, `rc-core-with-dependencies` vers elle-même, et vers `rc-core-with-dependencies-2` depuis `rc-core`, `rc-core-with-dependencies` et elle-même. Un retour de v8 à v7 passe par `rollback` du plan appliqué ; l'outil ne retire jamais une dépendance par simple changement de distribution.
 
 ### Décisions par skill
 
 - Skills RC : règles inchangées depuis la v7. Copie de la version précédente : mise à jour ; déjà à jour : rien ; fichier personnalisé : conflit ; fichiers manquants ou versions mélangées : profil refusé.
 - Dépendances : absente ou dossier vide : installation (`install`) ; identique : aucune écriture (`already-new`) ; copie exacte de la version précédente du manifeste : mise à jour ; personnalisée, partielle ou dossier existant sans fichier géré : conflit, sans écriture.
+- Une ancienne copie de `claude-fable-prompt-optimizer` existe déjà dans certains profils, dont celui du propriétaire : la mise à jour depuis une version à trois dépendances la classe en conflit sans l'écraser ; écarter ce dossier hors de la racine de skills avant le préflight pour que la version du paquet soit installée.
 - Fichiers inconnus dans un dossier de skill : conservés (`preserve-unknown`). Dossiers hors de la distribution : ni lus ni modifiés.
 
 Un conflit bloque le plan. `apply --allow-blocked` met à jour les seuls skills non bloqués. Relire le plan, ses conflits, les fichiers inconnus et les actions prévues avant application. L'outil sauvegarde les octets remplacés dans le dossier d'état et refuse les états inattendus ou un plan périmé.

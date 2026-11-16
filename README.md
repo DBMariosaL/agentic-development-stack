@@ -1,6 +1,6 @@
 # RC — stack de pilotage agentique
 
-Six skills pour préparer et piloter le développement d’un projet dans T3 Code, avec un pilote GPT et des champions Opus : trois skills RC et les trois skills de filtre qu'ils appellent.
+Sept skills pour préparer et piloter le développement d’un projet dans T3 Code, avec un pilote GPT et des champions Opus : trois skills RC et les quatre skills de filtre qu'ils appellent.
 
 | Skill | Rôle |
 |---|---|
@@ -9,6 +9,7 @@ Six skills pour préparer et piloter le développement d’un projet dans T3 Cod
 | `rc-prepare-supervisor` | Préparer un mandat de supervision qui soutient les champions et conserve les limites de la mission. |
 | `gpt-prompt-optimizer` | Dépendance : passe unique sur un prompt destiné à GPT, ou sur la remise d'un enfant à un parent GPT. |
 | `claude-opus-prompt-optimizer` | Dépendance : passe unique sur un prompt destiné à Opus, ou sur la remise d'un enfant à un parent Opus. |
+| `claude-fable-prompt-optimizer` | Dépendance : passe unique sur un prompt destiné à Fable, ou sur la remise d'un enfant à un parent Fable. |
 | `unslop` | Dépendance : passe finale sur un livrable destiné à un humain, invocation explicite seulement. |
 
 Le même pilote coordonne et supervise par défaut. Le paquet fournit aussi `rc_state.py` pour l'état durable du programme, les événements et la reprise, et `rc_footprint.py` pour mesurer ce qu'un candidat ajoute ; `tools/rc_update.py` met à jour les skills de façon contrôlée.
@@ -21,7 +22,7 @@ Ce dépôt contient la **v10 « pertinence »**, candidate du 16 novembre 2026. 
 - Chaque ajout répond à une exigence du mandat ou à un comportement nommé, sinon il sort du candidat. Le réviseur reçoit un [brief](package/rc-coordinate-development/references/review-brief.md) qui lui demande de chercher ces ajouts, de prouver ses constats bloquants et de proposer le correctif qui retire. Les tours de revue sont plafonnés, et un tour qui a fait grossir le diff commence par couper.
 - Un écrit hérité (document, commentaire, remise) est un contexte, pas une preuve. Le jardin dit quels écrits supprimer, et une règle d'`AGENTS.md` sans commande qui l'applique devient un signal de jardinage.
 
-La lecture obligatoire du pilote reste à 3 953 mots, et `tools/check.py` échoue si elle dépasse ce budget. Formats d'état, `rc_state.py` et dépendances ne changent pas. Aucun pilote n'a encore conduit la v10 : choix et sources dans [sources v10](docs/sources-v10.md), statut dans [qualification](docs/qualification.md).
+La lecture obligatoire du pilote reste à 3 953 mots, et `tools/check.py` échoue si elle dépasse ce budget. Formats d'état et `rc_state.py` ne changent pas ; `claude-fable-prompt-optimizer` devient la quatrième dépendance. Aucun pilote n'a encore conduit la v10 : choix et sources dans [sources v10](docs/sources-v10.md), statut dans [qualification](docs/qualification.md).
 
 La **v9.1.2**, version précédente, généralise la v9.1.1 sans changement de moteur, de format ou de conduite. Les noms `rc-*` restent un préfixe historique pour préserver les installations. La référence v9.1.1 est figée par le tag du même nom dans l’archive privée, sa fixture incluse et `provenance.json`.
 
@@ -39,20 +40,20 @@ Python 3.10 ou ultérieur, bibliothèque standard uniquement. La validation de r
 python -B tools/check.py
 ```
 
-La commande vérifie les empreintes du paquet et de la provenance et le budget de lecture du pilote, lance les suites d'état, de mise à jour (historique v7, distribution à six skills, mises à jour réelles depuis la v8, la v9, la v9.1, la v9.1.1 et la v9.1.2), de paquet et d'empreinte, puis la validation structurelle. Elle écrit dans un nouveau dossier `.local/` un `summary.json` : identité du candidat, empreintes des entrées, commandes, collectes, skips et journaux. Une étape ne passe que si sa collecte correspond au nombre déclaré, sans échec ni skip non déclaré ; un code de sortie nul ne suffit pas. Elle utilise des fichiers synthétiques et des profils factices, sans réseau ; elle n'installe aucun skill dans les profils actifs.
+La commande vérifie les empreintes du paquet et de la provenance et le budget de lecture du pilote, lance les suites d'état, de mise à jour (historique v7, distribution à sept skills, mises à jour réelles depuis la v8, la v9, la v9.1, la v9.1.1 et la v9.1.2), de paquet et d'empreinte, puis la validation structurelle. Elle écrit dans un nouveau dossier `.local/` un `summary.json` : identité du candidat, empreintes des entrées, commandes, collectes, skips et journaux. Une étape ne passe que si sa collecte correspond au nombre déclaré, sans échec ni skip non déclaré ; un code de sortie nul ne suffit pas. Elle utilise des fichiers synthétiques et des profils factices, sans réseau ; elle n'installe aucun skill dans les profils actifs.
 
 ## Installation et usage
 
-Les six dossiers à installer sont dans `package/`. Lire [les instructions d'installation](docs/installation.md) avant de modifier un profil existant : une dépendance déjà présente et personnalisée n'est jamais écrasée.
+Les sept dossiers à installer sont dans `package/`. Lire [les instructions d'installation](docs/installation.md) avant de modifier un profil existant : une dépendance déjà présente et personnalisée n'est jamais écrasée.
 
-Dans T3 Code, le pilote a besoin d'un mandat qui précise les résultats attendus, les autorisations, les ressources disponibles et les critères de fin. Les skills utilisent les outils réellement exposés par le runtime ; ils ne créent pas à eux seuls de service de réveil ni d'ordonnanceur. Les copies des optimiseurs portent des faits fournisseurs datés : nommer le modèle réellement visé. Un skill qu'elles citent hors du paquet (l'optimiseur Fable notamment) reste externe.
+Dans T3 Code, le pilote a besoin d'un mandat qui précise les résultats attendus, les autorisations, les ressources disponibles et les critères de fin. Les skills utilisent les outils réellement exposés par le runtime ; ils ne créent pas à eux seuls de service de réveil ni d'ordonnanceur. Les copies des optimiseurs portent des faits fournisseurs datés : nommer le modèle réellement visé. Un skill qu'elles citent hors du paquet reste externe.
 
 Le dossier `package/` utilise des descriptions génériques. Pour chaque projet, fournir son mandat, ses instructions, son backlog et ses autorisations ; aucun profil privé supplémentaire n’est nécessaire. La généralisation des descriptions ne qualifie pas un nouveau runtime ou un autre modèle.
 
 ## Organisation
 
 ```text
-package/              Six skills : trois RC et trois dépendances de filtre
+package/              Sept skills : trois RC et quatre dépendances de filtre
 manifest.json         Manifeste v10 (format rc-update-manifest/2, distribution et rôles)
 tools/                Vérification, validation structurelle et mise à jour
 tests/state/          Tests de l'état et de la reprise (ceux de la v9 inchangés, plus la v9.1)

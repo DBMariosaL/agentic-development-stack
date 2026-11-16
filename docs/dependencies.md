@@ -1,18 +1,19 @@
 # Dépendances de filtre
 
-Les skills RC routent leurs livrables vers trois filtres (section « Filtres » du contrat d'état). Depuis la v8, ces trois skills sont livrés dans `package/` pour que le paquet fonctionne sans le profil personnel d'origine.
+Les skills RC routent leurs livrables vers des filtres (section « Filtres » du contrat d'état). Depuis la v8, ces skills sont livrés dans `package/` pour que le paquet fonctionne sans le profil personnel d'origine ; la v10 ajoute `claude-fable-prompt-optimizer` aux trois premiers.
 
 | Skill | Fichiers | Usage dans la stack |
 |---|---|---|
 | `gpt-prompt-optimizer` | 15 | Prompt destiné à GPT ; remise d'un enfant à un parent GPT. |
 | `claude-opus-prompt-optimizer` | 15 | Prompt destiné à Opus ; remise d'un enfant à un parent Opus. |
+| `claude-fable-prompt-optimizer` | 13 | Prompt destiné à Fable ; remise d'un enfant à un parent Fable. |
 | `unslop` | 4 | Livrable destiné à un humain ; invocation explicite seulement. |
 
 ## Origine
 
-- Source : profil Codex de l'utilisateur (`%USERPROFILE%\.codex\skills`), instantané du 9 novembre 2026 à 09:29 UTC, copié octet pour octet. `provenance.json` donne pour chaque fichier la source, l'empreinte source et l'empreinte de la copie.
+- Source des trois premiers : profil Codex de l'utilisateur (`%USERPROFILE%\.codex\skills`), instantané du 9 novembre 2026 à 09:29 UTC, copié octet pour octet. `provenance.json` donne pour chaque fichier la source, l'empreinte source et l'empreinte de la copie.
 - Exclus : `gpt-prompt-optimizer/scripts/__pycache__/` (cache), archives `.zip` du profil, tout autre skill.
-- Droits et origine déclarée le 12 novembre 2026 : les deux optimiseurs ont été créés par le propriétaire du dépôt ; Unslop est une adaptation de pstack de Lauren Tan (Poteto), sous MIT. Voir [la notice tierce](../THIRD_PARTY_NOTICES.md). La révision initialement reprise d’Unslop n’est pas connue ; le rapprochement et la licence amont vérifiée sont consignés dans `provenance.json`. Les 34 fichiers de dépendances restent identiques à la v9.1.1.
+- Droits et origine déclarée le 12 novembre 2026 : les deux optimiseurs ont été créés par le propriétaire du dépôt ; Unslop est une adaptation de pstack de Lauren Tan (Poteto), sous MIT. Voir [la notice tierce](../THIRD_PARTY_NOTICES.md). La révision initialement reprise d’Unslop n’est pas connue ; le rapprochement et la licence amont vérifiée sont consignés dans `provenance.json`. Les 34 fichiers des trois premières dépendances restent identiques à la v9.1.1.
 
 ## Ce qui est contrôlé
 
@@ -22,7 +23,6 @@ Les skills RC routent leurs livrables vers trois filtres (section « Filtres » 
 
 ## Renvois externes et limites
 
-- L'optimiseur Opus renvoie vers `claude-fable-prompt-optimizer` pour une cible Fable ou Mythos. Ce skill n'est pas inclus : la stack n'emploie pas ces modèles. S'il devient nécessaire, il reste une dépendance externe à déclarer.
 - Les optimiseurs portent des faits fournisseurs datés : par exemple, la cible maintenue de `gpt-prompt-optimizer` est celle de sa référence `current-model.md` à la date de la copie, distincte du modèle du pilote. Le contrat demande de nommer le modèle réellement visé ; la copie n'est pas corrigée sur place.
 - Une consigne générale d'une dépendance ne prime ni le mandat ni les règles RC : un filtre ne remplace pas l'action demandée, ne change pas de modèle et ne supprime pas une revue exigée.
 

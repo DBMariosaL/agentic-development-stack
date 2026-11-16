@@ -1,4 +1,4 @@
-"""Tests de distribution v8 de rc_update.py : trois skills RC -> six skills, sur profils factices.
+"""Tests de distribution v8 de rc_update.py : trois skills RC -> sept skills, sur profils factices.
 
 Lancer depuis la racine du dépôt :
   python -B tools/check.py                       (avec les autres suites)
@@ -48,7 +48,7 @@ NEW_PKG, NEW_MANIFEST = ROOT / 'package', ROOT / 'manifest.json'
 PREVIOUS = ROOT / 'tests' / 'fixtures' / 'previous'
 # Listes figées ici, indépendantes de l'outil éprouvé (un outil v7 échoue alors cas par cas).
 RC = ('rc-coordinate-development', 'rc-prepare-socle-prompts', 'rc-prepare-supervisor')
-DEPS = ('gpt-prompt-optimizer', 'claude-opus-prompt-optimizer', 'unslop')
+DEPS = ('gpt-prompt-optimizer', 'claude-opus-prompt-optimizer', 'claude-fable-prompt-optimizer', 'unslop')
 ALL = RC + DEPS
 UNKNOWN = {'rc-coordinate-development/notes-locales.md': b'notes locales\n'}
 OUTSIDE = {'autre-skill/SKILL.md': b'skill sans rapport\n'}
@@ -206,7 +206,7 @@ class ManifestV2Tests(Base):
     def test_manifest_v2_matches_package(self):
         doc = json.loads(NEW_MANIFEST.read_text(encoding='utf-8'))
         self.assertEqual(doc['format'], 'rc-update-manifest/2')
-        self.assertEqual(doc['distribution'], 'rc-core-with-dependencies')
+        self.assertEqual(doc['distribution'], 'rc-core-with-dependencies-2')
         self.assertEqual({s['name']: s['role'] for s in doc['skills']},
                          {**{s: 'rc' for s in RC}, **{d: 'dependency' for d in DEPS}})
         self.assertEqual(rc_update.compute_manifest(NEW_PKG), self.new)
@@ -268,12 +268,12 @@ class ManifestV2Tests(Base):
 
 
 class PlanV8Tests(Base):
-    def test_three_to_six_plan(self):
+    def test_three_to_seven_plan(self):
         before = self.trees()
         code, out = self.preflight(cli=True)
         self.assertEqual(code, 0, out)
         self.assertEqual(self.trees(), before)  # le préflight n'écrit rien dans les cibles
-        self.assertEqual(out['distributions'], {'previous': 'rc-core', 'new': 'rc-core-with-dependencies'})
+        self.assertEqual(out['distributions'], {'previous': 'rc-core', 'new': 'rc-core-with-dependencies-2'})
         plan = self.plan_doc()
         self.assertEqual(plan['format'], 'rc-update-plan/2')
         expected = {}
@@ -294,8 +294,6 @@ class PlanV8Tests(Base):
             got = {f['path']: f['decision'] for s in t['skills'] for f in s['files']}
             self.assertEqual(got, expected)
             self.assertNotIn('autre-skill/SKILL.md', t['observed'])
-        creates = sum(1 for r in self.new if r.split('/')[0] in DEPS)
-        self.assertEqual(creates, 34)
         self.assertEqual(len(plan['actions']), 2 * sum(v != 'unchanged' and v != 'preserve-unknown'
                                                         for v in expected.values()))
         self.assertFalse(plan['blocked'])

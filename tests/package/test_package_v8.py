@@ -68,7 +68,7 @@ class PackageTests(Base):
     def test_real_package_validates(self):
         result = validator.validate(PACKAGE, PROVENANCE)
         self.assertEqual(failing(result), {})
-        self.assertEqual(result['distribution'], 'rc-core-with-dependencies')
+        self.assertEqual(result['distribution'], 'rc-core-with-dependencies-2')
         names = {c['check'] for c in result['checks']}
         for dep in DEPS:  # les contrôles propres aux dépendances ont bien tourné
             self.assertIn(f'{dep}:ui_invocation_policy', names)
@@ -186,7 +186,8 @@ class DependencyRecordTests(Base):
         provenance = json.loads(PROVENANCE.read_text(encoding='utf-8'))
         records = [f for f in provenance['files'] if f['path'].split('/')[1:2] and f['path'].split('/')[1] in DEPS]
         counts = {d: sum(1 for f in records if f['path'].split('/')[1] == d) for d in DEPS}
-        self.assertEqual(counts, {'gpt-prompt-optimizer': 15, 'claude-opus-prompt-optimizer': 15, 'unslop': 4})
+        self.assertEqual(counts, {'gpt-prompt-optimizer': 15, 'claude-opus-prompt-optimizer': 15,
+                                  'claude-fable-prompt-optimizer': 13, 'unslop': 4})
         for f in records:
             self.assertEqual(f['adaptation'], 'byte-identical', f['path'])
             self.assertEqual(f['sha256'], f['source_sha256'], f['path'])

@@ -72,6 +72,7 @@ class UpdateFromPreviousCases:
         for t in self.targets:
             self.build_profile(t, self.prev_pkg)
         self.old = read_manifest(self.prev_manifest)
+        self.added = tuple(d for d in DEPS if not any(r.split('/')[0] == d for r in self.old))
         self.changes = {}
         for rel in sorted(set(self.old) | set(self.new)):
             if rel not in self.old:
@@ -88,22 +89,24 @@ class UpdateFromPreviousCases:
         return super().preflight(**kw)
 
     def deps(self):
-        return {(i, d): self.sub(t, d) for i, t in enumerate(self.targets) for d in DEPS}
+        return {(i, d): self.sub(t, d) for i, t in enumerate(self.targets) for d in DEPS if d not in self.added}
 
     def test_reference_rebuilt_exactly(self):
         doc = json.loads(self.prev_manifest.read_text(encoding='utf-8'))
         self.assertEqual(doc['distribution'], 'rc-core-with-dependencies')
         self.assertEqual(rc_update.manifest_doc(rc_update.compute_manifest(self.prev_pkg)), doc)
 
-    def test_plan_replaces_rc_files_only(self):
+    def test_plan_replaces_rc_files_and_installs_new_dependency(self):
         before = self.trees()
         code, out = self.preflight(cli=True)
         self.assertEqual(code, 0, out)
         self.assertEqual(self.trees(), before)
         self.assertEqual(out['distributions'], {'previous': 'rc-core-with-dependencies',
-                                                'new': 'rc-core-with-dependencies'})
-        self.assertEqual({r.split('/')[0] for r in self.changes} - set(RC), set(),
+                                                'new': 'rc-core-with-dependencies-2'})
+        self.assertEqual(self.added, ('claude-fable-prompt-optimizer',))
+        self.assertEqual({r.split('/')[0] for r in self.changes} - set(RC), set(self.added),
                          'une dépendance a changé : le paquet courant doit la livrer octet pour octet')
+        self.assertEqual({op for r, op in self.changes.items() if r.split('/')[0] in self.added}, {'create'})
         expected = {r: self.changes.get(r, 'unchanged') for r in set(self.old) | set(self.new)}
         expected.update({rel: 'preserve-unknown' for rel in shared.UNKNOWN})
         changed_skills = {r.split('/')[0] for r in self.changes}
@@ -111,7 +114,8 @@ class UpdateFromPreviousCases:
         for t in plan['targets']:
             self.assertEqual(t['status'], 'ok')
             self.assertEqual({s['name']: s['status'] for s in t['skills']},
-                             {s: 'update' if s in changed_skills else 'already-new' for s in ALL})
+                             {s: 'install' if s in self.added else 'update' if s in changed_skills else 'already-new'
+                              for s in ALL})
             self.assertEqual({f['path']: f['decision'] for s in t['skills'] for f in s['files']}, expected)
         self.assertEqual(sorted((a['target'], a['path'], a['op']) for a in plan['actions']),
                          sorted((i, r, op) for i in (0, 1) for r, op in self.changes.items()))
@@ -151,6 +155,25 @@ class UpdateFromPreviousCases:
         self.assert_new(self.targets[0])
         self.assert_new(self.targets[1], tuple(s for s in ALL if s != skill))
         self.assertEqual(self.run_main('verify', '--plan', self.plan)[0], 0)
+
+    def test_existing_new_dependency_copy_conflict(self):
+        old_copy = self.targets[1] / self.added[0]
+        shared.copy_tree(NEW_PKG / self.added[0], old_copy)
+        skill_md = old_copy / 'SKILL.md'
+        skill_md.write_bytes(skill_md.read_bytes() + b'\n<!-- ancienne copie du profil -->\n')
+        code, out = self.preflight()
+        self.assertEqual(code, 2, out)
+        self.assertEqual(out['targets'][0]['skills'][self.added[0]], 'install')
+        self.assertEqual(out['targets'][1]['skills'][self.added[0]], 'conflict')
+        self.assertEqual(out['targets'][1]['conflicts'], [self.added[0] + '/SKILL.md'])
+        before = self.trees()
+        self.assertEqual(self.apply()[0], 2)
+        self.assertEqual(self.trees(), before)
+        kept = self.sub(self.targets[1], self.added[0])
+        self.assertEqual(self.apply('--allow-blocked')[0], 0)
+        self.assertEqual(self.sub(self.targets[1], self.added[0]), kept)
+        self.assert_new(self.targets[0])
+        self.assert_new(self.targets[1], tuple(s for s in ALL if s != self.added[0]))
 
     def test_interrupt_then_resume(self):
         self.preflight()

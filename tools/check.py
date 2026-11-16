@@ -6,12 +6,13 @@ Steps:
   state       tests/state, unchanged v7 state regressions
   updater-v7  tests/updater/test_rc_update.py, unchanged, against the frozen v7 fixture
               (31 October -> v7, three RC skills)
-  updater-v8  tests/updater/test_rc_update_v8.py: three -> six skills and dependencies
+  updater-v8  tests/updater/test_rc_update_v8.py: three -> seven skills and dependencies
   updater-from-<version>
               tests/updater/test_update_from_previous.py, one step per origin version
               (v8, v9, v9.1, v9.1.1, v9.1.2) selected by RC_UPDATE_FROM: an installed
               version (compact frozen reference tests/fixtures/<version>) updated to
-              package/: RC files replaced, dependencies untouched
+              package/: RC files replaced, dependencies untouched, claude-fable-prompt-optimizer
+              installed
   package     tests/package: moved package, missing resources, dependency metadata,
               vendored scripts, frozen qualification scenarios
   footprint   tests/footprint: rc_footprint.py on temporary git repositories
@@ -41,7 +42,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 169, 'updater-v7': 30, 'updater-v8': 28, 'updater-from-v8': 7, 'updater-from-v9': 7, 'updater-from-v9.1': 7, 'updater-from-v9.1.1': 7, 'updater-from-v9.1.2': 7, 'package': 25, 'footprint': 7}
+EXPECTED = {'state': 169, 'updater-v7': 30, 'updater-v8': 28, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 25, 'footprint': 7}
 READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
 READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.

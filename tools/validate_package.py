@@ -45,6 +45,7 @@ NAMES = _registry.SKILLS  # RC skills, historical rules
 DEPENDENCY_POLICY = {
     'gpt-prompt-optimizer': {'allow_implicit_invocation': True, 'default_prompt': True},
     'claude-opus-prompt-optimizer': {'allow_implicit_invocation': True, 'default_prompt': True},
+    'claude-fable-prompt-optimizer': {'allow_implicit_invocation': True, 'default_prompt': True},
     'unslop': {'allow_implicit_invocation': False, 'default_prompt': False},
 }
 TEXT_SUFFIXES = {'.md', '.py', '.yaml', '.yml', '.svg', '.txt', '.json'}

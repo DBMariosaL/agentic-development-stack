@@ -6,9 +6,12 @@ Distributions reconnues (liste fermée, définie ici et non par un manifeste) :
   rc-core                     les trois skills RC (manifestes historiques, format 1) ;
   rc-core-with-dependencies   les trois skills RC et les trois dépendances de filtre
                               (gpt-prompt-optimizer, claude-opus-prompt-optimizer, unslop),
-                              manifeste au format 2 qui déclare distribution et rôles.
-Transitions acceptées : rc-core -> rc-core, rc-core -> rc-core-with-dependencies et
-rc-core-with-dependencies -> rc-core-with-dependencies. Un retour vers rc-core passe par
+                              manifeste au format 2 qui déclare distribution et rôles ;
+  rc-core-with-dependencies-2 les trois skills RC et quatre dépendances (les trois précédentes
+                              et claude-fable-prompt-optimizer), manifeste au format 2.
+Transitions acceptées : rc-core -> rc-core, rc-core -> rc-core-with-dependencies,
+rc-core-with-dependencies -> rc-core-with-dependencies, et vers rc-core-with-dependencies-2
+depuis rc-core, rc-core-with-dependencies et elle-même. Un retour en arrière passe par
 ``rollback`` du plan appliqué : l'outil ne retire jamais une dépendance installée par
 simple changement de distribution.
 
@@ -59,14 +62,18 @@ import stat  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 SKILLS = ('rc-coordinate-development', 'rc-prepare-socle-prompts', 'rc-prepare-supervisor')
-DEPENDENCIES = ('gpt-prompt-optimizer', 'claude-opus-prompt-optimizer', 'unslop')
+DEPENDENCIES = ('gpt-prompt-optimizer', 'claude-opus-prompt-optimizer', 'claude-fable-prompt-optimizer', 'unslop')
 ALL_SKILLS = SKILLS + DEPENDENCIES
 DISTRIBUTIONS = {
     'rc-core': {s: 'rc' for s in SKILLS},
-    'rc-core-with-dependencies': {**{s: 'rc' for s in SKILLS}, **{d: 'dependency' for d in DEPENDENCIES}},
+    'rc-core-with-dependencies': {**{s: 'rc' for s in SKILLS},
+                                  **{d: 'dependency' for d in DEPENDENCIES if d != 'claude-fable-prompt-optimizer'}},
+    'rc-core-with-dependencies-2': {**{s: 'rc' for s in SKILLS}, **{d: 'dependency' for d in DEPENDENCIES}},
 }
 TRANSITIONS = {('rc-core', 'rc-core'), ('rc-core', 'rc-core-with-dependencies'),
-               ('rc-core-with-dependencies', 'rc-core-with-dependencies')}
+               ('rc-core-with-dependencies', 'rc-core-with-dependencies'),
+               ('rc-core', 'rc-core-with-dependencies-2'), ('rc-core-with-dependencies', 'rc-core-with-dependencies-2'),
+               ('rc-core-with-dependencies-2', 'rc-core-with-dependencies-2')}
 TMP_PREFIX = '.rc-update-'
 REPARSE_ATTR = 0x400  # FILE_ATTRIBUTE_REPARSE_POINT
 PLAN_FORMAT = 'rc-update-plan/2'
