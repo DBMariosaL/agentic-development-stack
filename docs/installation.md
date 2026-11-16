@@ -41,7 +41,7 @@ Transitions acceptées : `rc-core` vers `rc-core`, `rc-core` vers `rc-core-with-
 
 - Skills RC : règles inchangées depuis la v7. Copie de la version précédente : mise à jour ; déjà à jour : rien ; fichier personnalisé : conflit ; fichiers manquants ou versions mélangées : profil refusé.
 - Dépendances : absente ou dossier vide : installation (`install`) ; identique : aucune écriture (`already-new`) ; copie exacte de la version précédente du manifeste : mise à jour ; personnalisée, partielle ou dossier existant sans fichier géré : conflit, sans écriture.
-- Une ancienne copie de `claude-fable-prompt-optimizer` existe déjà dans certains profils, dont celui du propriétaire : la mise à jour depuis une version à trois dépendances la classe en conflit sans l'écraser ; écarter ce dossier hors de la racine de skills avant le préflight pour que la version du paquet soit installée.
+- Une ancienne copie de `claude-fable-prompt-optimizer` peut déjà exister dans un profil : la mise à jour depuis une version à trois dépendances la classe en conflit sans l'écraser ; écarter ce dossier hors de la racine de skills avant le préflight pour que la version du paquet soit installée.
 - Fichiers inconnus dans un dossier de skill : conservés (`preserve-unknown`). Dossiers hors de la distribution : ni lus ni modifiés.
 
 Un conflit bloque le plan. `apply --allow-blocked` met à jour les seuls skills non bloqués. Relire le plan, ses conflits, les fichiers inconnus et les actions prévues avant application. L'outil sauvegarde les octets remplacés dans le dossier d'état et refuse les états inattendus ou un plan périmé.

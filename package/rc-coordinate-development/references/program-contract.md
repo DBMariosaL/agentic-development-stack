@@ -60,8 +60,8 @@ Un constat `ouvert` et `bloquant` interdit l'acceptation de sa portée, quels qu
 
 Les instructions de mission et de projet priment. À défaut, classe séparément chaque livrable d'une même réponse et choisis son filtre par son seul destinataire direct ; ta filiation ne décide que de la remise à ton parent :
 
-- prompt ou mandat pour une IA : optimiseur du modèle cible réellement visé, [gpt-prompt-optimizer](../../gpt-prompt-optimizer/SKILL.md) pour GPT, [claude-opus-prompt-optimizer](../../claude-opus-prompt-optimizer/SKILL.md) pour Opus (leur cible par défaut est datée) ;
+- prompt ou mandat pour une IA : optimiseur du modèle cible réellement visé, [gpt-prompt-optimizer](../../gpt-prompt-optimizer/SKILL.md) pour GPT, [claude-opus-prompt-optimizer](../../claude-opus-prompt-optimizer/SKILL.md) pour Opus, [claude-fable-prompt-optimizer](../../claude-fable-prompt-optimizer/SKILL.md) pour Fable (leur cible par défaut est datée) ;
 - remise d'un enfant à son parent direct : optimiseur du modèle de ce parent, jamais [Unslop](../../unslop/SKILL.md) ; parent inconnu : le chercher dans le brief ou les métadonnées de délégation, sinon le demander ;
 - livrable pour un humain : Unslop, invoqué explicitement.
 
-Une seule passe par livrable, consignée, sans récursion ; le filtre ne remplace pas l'action demandée. Un skill requis indisponible est déclaré, ni simulé ni remplacé en silence ; un skill externe qu'ils citent (optimiseur Fable) sert seulement si la cible l'exige.
+Une seule passe par livrable, consignée, sans récursion ; le filtre ne remplace pas l'action demandée. Un skill requis indisponible est déclaré, ni simulé ni remplacé en silence.

@@ -34,8 +34,8 @@
   "files": [
     {
       "path": "claude-fable-prompt-optimizer/SKILL.md",
-      "sha256": "b029ae18996e6e3d6ae9acd1d79e0ab52850b20f27a4d7db7a9134c23807086f",
-      "bytes": 17241
+      "sha256": "e4fbab9f01dc263cf73ec54bfe90b84b99305360ae26a5033ae513cc2c5f002d",
+      "bytes": 16730
     },
     {
       "path": "claude-fable-prompt-optimizer/agents/openai.yaml",
@@ -49,53 +49,58 @@
     },
     {
       "path": "claude-fable-prompt-optimizer/references/agentic-scaffolding.md",
-      "sha256": "3056a36fc6de6524b5331e2bcf39e433feff8bdb819eafe62072e9310798ea74",
-      "bytes": 11420
+      "sha256": "4c724900faa82b4afcb9d1fd9dc65dc2f804b8bf6661ddaae3d4dc024461588f",
+      "bytes": 7074
     },
     {
       "path": "claude-fable-prompt-optimizer/references/behavior-fixes.md",
-      "sha256": "04a129079864993f3c7d9c7b889265048937b34f6af74dee763737a831098272",
-      "bytes": 34169
+      "sha256": "bd3c1db84f4fcb6c89f9b72b65da79297f6a471671a89e095fc2920e34a3e275",
+      "bytes": 25157
     },
     {
       "path": "claude-fable-prompt-optimizer/references/evaluation-playbook.md",
-      "sha256": "8bdc9ce2da67bb4e4f3b7d433b99fcef7bf656cb7fe5c3be778e0e3c2a8beb05",
-      "bytes": 7067
+      "sha256": "b1bbb619789050cf4cdcd0339b70cf2c123843b2b4c58e2885fc98407ef70061",
+      "bytes": 5776
     },
     {
       "path": "claude-fable-prompt-optimizer/references/fable-configuration.md",
-      "sha256": "7b59ece7515310bf536475e5002f05d64a42f66d372252a7415de3d2554374b1",
-      "bytes": 13678
+      "sha256": "2d0dfa1d3c381f662d5a2dd6231b51fffd902b2cdf2de41b787f4b4fff9fb5b7",
+      "bytes": 14060
     },
     {
       "path": "claude-fable-prompt-optimizer/references/hardening-matrix.md",
-      "sha256": "fb25e0d0edaad3847e7e3792557fd2deaf82793e7e0ac73ff606faf8a84bdcd0",
-      "bytes": 6011
+      "sha256": "4bc80e68530bd0433a72e21f8d023511b80f3fbf54312814b38d9eaba570ce18",
+      "bytes": 5156
     },
     {
       "path": "claude-fable-prompt-optimizer/references/official-sources.md",
-      "sha256": "474659f27b17229a2eecf437ba54d45e963fe456aa3c513cb08c284b70604d2a",
-      "bytes": 5816
+      "sha256": "d5fc2b27f231e65b518642e11ea1e3f658b6f1c48a84d605b8eaa3d8084ab749",
+      "bytes": 7061
+    },
+    {
+      "path": "claude-fable-prompt-optimizer/references/orchestration-and-handoffs.md",
+      "sha256": "312aab40cf6f1b2a078d0cc3186a2a1ffb8ea5060e01166e1c86e1226f38c174",
+      "bytes": 11487
     },
     {
       "path": "claude-fable-prompt-optimizer/references/prompt-patterns.md",
-      "sha256": "1ad6b35484cca9dc17460df82900d7bb389665cfa49129d533b58a46a1e7d1a8",
-      "bytes": 12362
+      "sha256": "2654fd69024b7fc9c3708c2fae38db5cc5030e89144b1d5c2f5f12b585d23f00",
+      "bytes": 9757
     },
     {
       "path": "claude-fable-prompt-optimizer/scripts/fable_api_check.py",
-      "sha256": "8fab10de5d953bddc6a51048c519f63b00f49ad5dfba7f600515c4b730839d63",
-      "bytes": 14130
+      "sha256": "3a5ac0496b2c4207e48bdb54ba3067c824c333ac8b6311400044ff0484ae76c9",
+      "bytes": 17922
     },
     {
       "path": "claude-fable-prompt-optimizer/scripts/profile_eval_dataset.py",
-      "sha256": "80e2ee5a655d6fad35d7f0a2dbfb1d04c4c4fff2185b33bfa1536b9a36d20570",
-      "bytes": 8844
+      "sha256": "3317d2285006a4241e2e6a5256c84c641a4b88b51e8f47c64f09cdfe4357491e",
+      "bytes": 9552
     },
     {
       "path": "claude-fable-prompt-optimizer/scripts/prompt_lint.py",
-      "sha256": "547b90dfe90d35b352a6a39291c0a2ac5aa8806e362b6d71a7c83e89c263f5f7",
-      "bytes": 15977
+      "sha256": "641c4c5012b8a8684199a85b8cad8d7b0cf21d24f8eef3d6c88ca8b45c4f6183",
+      "bytes": 21403
     },
     {
       "path": "claude-opus-prompt-optimizer/SKILL.md",
@@ -274,8 +279,8 @@
     },
     {
       "path": "rc-coordinate-development/references/program-contract.md",
-      "sha256": "1eed69bc2fac55364da1648a5574d21e8aed54cc948cc77d05e6833780f28478",
-      "bytes": 8834
+      "sha256": "4d94058c2280a804f52dff5a1b50ec4187b4e9d6d34f2e30e502ee8d5f7a56dd",
+      "bytes": 8837
     },
     {
       "path": "rc-coordinate-development/references/review-brief.md",
@@ -348,5 +353,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "d586f36ffbdb68e6b5432db62c6d8fd27ccc1f84840eb4492289b423a8c7f8f3"
+  "digest": "cb0892878883537f3916508f4495ac50348054a1f7d318c5649466fc5fe07ab5"
 }

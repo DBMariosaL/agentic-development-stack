@@ -92,7 +92,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/program-contract.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "3299f4d4ae36b430651cf8cd812375222989fe80625174aa1c3d518c9d1126c3",
-      "sha256": "1eed69bc2fac55364da1648a5574d21e8aed54cc948cc77d05e6833780f28478",
+      "sha256": "4d94058c2280a804f52dff5a1b50ec4187b4e9d6d34f2e30e502ee8d5f7a56dd",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/program-contract.md",
@@ -212,7 +212,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "da6cdc6fd2f5642c57ce080e4e60a23256de70bded91b373c8d1b51fe6a3891c",
+      "sha256": "20de2d0ce303b03880fa06c3b0489edcae5f40531671a43023246625437eb4d9",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -225,18 +225,18 @@
     },
     {
       "path": "tools/rc_update.py",
-      "source_group": "rc-stack-generic-v9.1.2-20261112",
-      "source": "tools/rc_update.py (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
-      "source_sha256": "4f75cf6362adcd0da64d593731e2dd432fd702b0d461962631d63c22545780de",
-      "sha256": "13dd94554eca8a3bd2737c712b472e0b0e380fd9c476a43d483f3c88d1060e26",
-      "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tools/rc_update.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "13dd94554eca8a3bd2737c712b472e0b0e380fd9c476a43d483f3c88d1060e26",
+      "sha256": "5ecaa1435e78c149d8632221414327ed749ccc0426b8af5a3a21f1ee8d7c4a02",
+      "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/rc_update.py",
-        "source_group": "rc-stack-v8-20261109",
-        "source": "tools/rc_update.py (v7, commit f6558272307309baad6b5c4be7d875f4e382e4a1) edited for v8",
-        "source_sha256": "4a419f35a41375d3220298fcab076517e4e54e3c95d479a0053a7a30e2ac847d",
-        "sha256": "4f75cf6362adcd0da64d593731e2dd432fd702b0d461962631d63c22545780de",
-        "adaptation": "v8 edit; R1-01 legacy plan freshness"
+        "source_group": "rc-stack-generic-v9.1.2-20261112",
+        "source": "tools/rc_update.py (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
+        "source_sha256": "4f75cf6362adcd0da64d593731e2dd432fd702b0d461962631d63c22545780de",
+        "sha256": "13dd94554eca8a3bd2737c712b472e0b0e380fd9c476a43d483f3c88d1060e26",
+        "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change"
       }
     },
     {
@@ -249,11 +249,19 @@
     },
     {
       "path": "tools/validate_package.py",
-      "source_group": "rc-stack-v8-20261109",
-      "source": "tools/validate_package.py (v7, commit f6558272307309baad6b5c4be7d875f4e382e4a1) edited for v8",
-      "source_sha256": "f5b2fa73c9c6bef4883f774b60f5188db2845b39f8a14b1c9fc4d2124aa4846f",
-      "sha256": "1ca84e30385bd92bdbf93def03a98ec39e37131776c352617e8bc042a816d473",
-      "adaptation": "v8 edit"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tools/validate_package.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "1ca84e30385bd92bdbf93def03a98ec39e37131776c352617e8bc042a816d473",
+      "sha256": "9142d41e153d0c78d3827f65f064156d7f0bb4f9e591e1dc090a5c62721cf61a",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "tools/validate_package.py",
+        "source_group": "rc-stack-v8-20261109",
+        "source": "tools/validate_package.py (v7, commit f6558272307309baad6b5c4be7d875f4e382e4a1) edited for v8",
+        "source_sha256": "f5b2fa73c9c6bef4883f774b60f5188db2845b39f8a14b1c9fc4d2124aa4846f",
+        "sha256": "1ca84e30385bd92bdbf93def03a98ec39e37131776c352617e8bc042a816d473",
+        "adaptation": "v8 edit"
+      }
     },
     {
       "path": "tests/state/regression/__init__.py",
@@ -516,7 +524,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/check.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
-      "sha256": "2d97c2f543781c761c8610b33a4dbe9c3c694d57d7af7a4cb26728a67bf603f9",
+      "sha256": "de067c8a7ef14cfde7886b7bded6e92168cc92191c8851d56b562b709249d694",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/check.py",
@@ -529,19 +537,35 @@
     },
     {
       "path": "tests/updater/test_rc_update_v8.py",
-      "source_group": "rc-stack-v9-20261110",
-      "source": "tests/updater/test_rc_update_v8.py (v8, commit 22b05e22c4ab9001d4d8bb14cbce8ddbf8dddeeb) edited for v9",
-      "source_sha256": "ec0f8504a3e9d54fd0be8a159ecaa90018db252286e47e53d366ddd43bcf53eb",
-      "sha256": "a492df0be2fd3e2ec4fc952b9372b6fc48fa72620a2e8851a059b50b8d12a048",
-      "adaptation": "v9 edit"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tests/updater/test_rc_update_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "a492df0be2fd3e2ec4fc952b9372b6fc48fa72620a2e8851a059b50b8d12a048",
+      "sha256": "d391fac0f2925101ae9902e4b2c6e8dc5ff3ca0839b9fd6c5345b73e5a9dc8da",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "tests/updater/test_rc_update_v8.py",
+        "source_group": "rc-stack-v9-20261110",
+        "source": "tests/updater/test_rc_update_v8.py (v8, commit 22b05e22c4ab9001d4d8bb14cbce8ddbf8dddeeb) edited for v9",
+        "source_sha256": "ec0f8504a3e9d54fd0be8a159ecaa90018db252286e47e53d366ddd43bcf53eb",
+        "sha256": "a492df0be2fd3e2ec4fc952b9372b6fc48fa72620a2e8851a059b50b8d12a048",
+        "adaptation": "v9 edit"
+      }
     },
     {
       "path": "tests/package/test_package_v8.py",
-      "source_group": "rc-stack-v8-20261109",
-      "source": "authored for v8",
-      "source_sha256": null,
-      "sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
-      "adaptation": "v8 new; R1 regression cases"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tests/package/test_package_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
+      "sha256": "e73b745d147543834b5be863e5b0500590c5b541621477302fd1d3b2f79d4c53",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "tests/package/test_package_v8.py",
+        "source_group": "rc-stack-v8-20261109",
+        "source": "authored for v8",
+        "source_sha256": null,
+        "sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
+        "adaptation": "v8 new; R1 regression cases"
+      }
     },
     {
       "path": "tests/qualification/scenarios-v8.json",
@@ -1546,7 +1570,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "README.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "61d499802761a72e9273a2a894efe0ba6b08c80100d3561771a6bdc4c7acc355",
-      "sha256": "6e27e8025fe06eea2909a83fdc441a35db0bd9136460367b0af56421873ba5b8",
+      "sha256": "f1d1914c619a6c4e5b2de55037fd9f2b8e3388fe2f2c9a7348df523e6bc2fc59",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "README.md",
@@ -1562,7 +1586,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/installation.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "023bceaa61651e05d34471840fe1b7b4e934bd25524b24997e401a3f5df8810c",
-      "sha256": "9e71d4e90696f9a884deb66a9cb42b4fc53b99666c738e3543af0468e78f2a5a",
+      "sha256": "bc6990da0deda10c1e8d246351882aef9e9c498fd54a06ecc0ee0ed836ffe4fc",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "docs/installation.md",
@@ -1575,11 +1599,19 @@
     },
     {
       "path": "docs/dependencies.md",
-      "source_group": "rc-stack-generic-v9.1.2-20261112",
-      "source": "prepared for generic v9.1.2",
-      "source_sha256": "530fa2f99b51263b92e0c48c5fc6b875aff7550df698a82a5e54c4758137cbfc",
-      "sha256": "d48c1c4bc2c60b9615085bbd9ccb0c5d3cc67954ae9693e94228ce1fbced4c3b",
-      "adaptation": "generic release preparation"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "docs/dependencies.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "d48c1c4bc2c60b9615085bbd9ccb0c5d3cc67954ae9693e94228ce1fbced4c3b",
+      "sha256": "564b5d4a5d4e5cf6a1ec71c88269b5987649f6178ec58b9f8a96d8025ebd4118",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "docs/dependencies.md",
+        "source_group": "rc-stack-generic-v9.1.2-20261112",
+        "source": "prepared for generic v9.1.2",
+        "source_sha256": "530fa2f99b51263b92e0c48c5fc6b875aff7550df698a82a5e54c4758137cbfc",
+        "sha256": "d48c1c4bc2c60b9615085bbd9ccb0c5d3cc67954ae9693e94228ce1fbced4c3b",
+        "adaptation": "generic release preparation"
+      }
     },
     {
       "path": "package/rc-coordinate-development/references/review-brief.md",
@@ -1610,8 +1642,134 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "57e4a72aabffc9bb65683ced3e61e2bf3dd3ea9268ac914d20eb904b3e498fca",
+      "sha256": "e4e8a4c10cedac4c4effc056c9c24e4173aa4bec8e0711909b87ce11474ae1d6",
       "adaptation": "v10 creation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/agents/openai.yaml",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "created for v10",
+      "bytes": 450,
+      "source_sha256": null,
+      "sha256": "e8ae0975321adaaced431e1881b21aae2d6f47d300618130f468d40e1647b40c",
+      "adaptation": "v10 creation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/assets/icon.svg",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/assets/icon.svg (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 1738,
+      "source_sha256": "8936b24f674a1250d999e2c2b5901374fb4240426f32bd1ae340c352a90d617d",
+      "sha256": "8936b24f674a1250d999e2c2b5901374fb4240426f32bd1ae340c352a90d617d",
+      "adaptation": "byte-identical"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/references/agentic-scaffolding.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/references/agentic-scaffolding.md (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 7074,
+      "source_sha256": "3056a36fc6de6524b5331e2bcf39e433feff8bdb819eafe62072e9310798ea74",
+      "sha256": "4c724900faa82b4afcb9d1fd9dc65dc2f804b8bf6661ddaae3d4dc024461588f",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/references/behavior-fixes.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/references/behavior-fixes.md (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 25157,
+      "source_sha256": "04a129079864993f3c7d9c7b889265048937b34f6af74dee763737a831098272",
+      "sha256": "bd3c1db84f4fcb6c89f9b72b65da79297f6a471671a89e095fc2920e34a3e275",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/references/evaluation-playbook.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/references/evaluation-playbook.md (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 5776,
+      "source_sha256": "8bdc9ce2da67bb4e4f3b7d433b99fcef7bf656cb7fe5c3be778e0e3c2a8beb05",
+      "sha256": "b1bbb619789050cf4cdcd0339b70cf2c123843b2b4c58e2885fc98407ef70061",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/references/fable-configuration.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/references/fable-configuration.md (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 14060,
+      "source_sha256": "7b59ece7515310bf536475e5002f05d64a42f66d372252a7415de3d2554374b1",
+      "sha256": "2d0dfa1d3c381f662d5a2dd6231b51fffd902b2cdf2de41b787f4b4fff9fb5b7",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/references/hardening-matrix.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/references/hardening-matrix.md (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 5156,
+      "source_sha256": "fb25e0d0edaad3847e7e3792557fd2deaf82793e7e0ac73ff606faf8a84bdcd0",
+      "sha256": "4bc80e68530bd0433a72e21f8d023511b80f3fbf54312814b38d9eaba570ce18",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/references/official-sources.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/references/official-sources.md (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 7061,
+      "source_sha256": "474659f27b17229a2eecf437ba54d45e963fe456aa3c513cb08c284b70604d2a",
+      "sha256": "d5fc2b27f231e65b518642e11ea1e3f658b6f1c48a84d605b8eaa3d8084ab749",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/references/orchestration-and-handoffs.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "created for v10",
+      "bytes": 11487,
+      "source_sha256": null,
+      "sha256": "312aab40cf6f1b2a078d0cc3186a2a1ffb8ea5060e01166e1c86e1226f38c174",
+      "adaptation": "v10 creation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/references/prompt-patterns.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/references/prompt-patterns.md (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 9757,
+      "source_sha256": "1ad6b35484cca9dc17460df82900d7bb389665cfa49129d533b58a46a1e7d1a8",
+      "sha256": "2654fd69024b7fc9c3708c2fae38db5cc5030e89144b1d5c2f5f12b585d23f00",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/scripts/fable_api_check.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/scripts/fable_api_check.py (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 17922,
+      "source_sha256": "8fab10de5d953bddc6a51048c519f63b00f49ad5dfba7f600515c4b730839d63",
+      "sha256": "3a5ac0496b2c4207e48bdb54ba3067c824c333ac8b6311400044ff0484ae76c9",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/scripts/profile_eval_dataset.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/scripts/profile_eval_dataset.py (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 9552,
+      "source_sha256": "80e2ee5a655d6fad35d7f0a2dbfb1d04c4c4fff2185b33bfa1536b9a36d20570",
+      "sha256": "3317d2285006a4241e2e6a5256c84c641a4b88b51e8f47c64f09cdfe4357491e",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/scripts/prompt_lint.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/scripts/prompt_lint.py (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 21403,
+      "source_sha256": "547b90dfe90d35b352a6a39291c0a2ac5aa8806e362b6d71a7c83e89c263f5f7",
+      "sha256": "641c4c5012b8a8684199a85b8cad8d7b0cf21d24f8eef3d6c88ca8b45c4f6183",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
+    },
+    {
+      "path": "package/claude-fable-prompt-optimizer/SKILL.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/SKILL.md (owner profile, 2026-09-03, Fable 5.1)",
+      "bytes": 16730,
+      "source_sha256": "b029ae18996e6e3d6ae9acd1d79e0ab52850b20f27a4d7db7a9134c23807086f",
+      "sha256": "e4fbab9f01dc263cf73ec54bfe90b84b99305360ae26a5033ae513cc2c5f002d",
+      "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
     },
     {
       "path": "tests/fixtures/v9.1.2/manifest.json",

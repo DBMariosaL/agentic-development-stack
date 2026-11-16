@@ -6,12 +6,13 @@ Les skills RC routent leurs livrables vers des filtres (section « Filtres » du
 |---|---|---|
 | `gpt-prompt-optimizer` | 15 | Prompt destiné à GPT ; remise d'un enfant à un parent GPT. |
 | `claude-opus-prompt-optimizer` | 15 | Prompt destiné à Opus ; remise d'un enfant à un parent Opus. |
-| `claude-fable-prompt-optimizer` | 13 | Prompt destiné à Fable ; remise d'un enfant à un parent Fable. |
+| `claude-fable-prompt-optimizer` | 14 | Prompt destiné à Fable ; remise d'un enfant à un parent Fable. |
 | `unslop` | 4 | Livrable destiné à un humain ; invocation explicite seulement. |
 
 ## Origine
 
 - Source des trois premiers : profil Codex de l'utilisateur (`%USERPROFILE%\.codex\skills`), instantané du 9 novembre 2026 à 09:29 UTC, copié octet pour octet. `provenance.json` donne pour chaque fichier la source, l'empreinte source et l'empreinte de la copie.
+- `claude-fable-prompt-optimizer` : repris du profil Claude du propriétaire (`%USERPROFILE%\.claude\skills`, version du 3 septembre 2026 écrite pour Fable 5.1), puis mis à jour dans ce dépôt le 16 novembre 2026 pour Fable 5.2 et Mythos 5.2, d'après la documentation d'Anthropic lue ce jour-là. Ce n'est donc pas une copie octet pour octet : ce dépôt en est la source, et `provenance.json` garde l'empreinte de chaque fichier d'origine.
 - Exclus : `gpt-prompt-optimizer/scripts/__pycache__/` (cache), archives `.zip` du profil, tout autre skill.
 - Droits et origine déclarée le 12 novembre 2026 : les deux optimiseurs ont été créés par le propriétaire du dépôt ; Unslop est une adaptation de pstack de Lauren Tan (Poteto), sous MIT. Voir [la notice tierce](../THIRD_PARTY_NOTICES.md). La révision initialement reprise d’Unslop n’est pas connue ; le rapprochement et la licence amont vérifiée sont consignés dans `provenance.json`. Les 34 fichiers des trois premières dépendances restent identiques à la v9.1.1.
 
@@ -19,7 +20,7 @@ Les skills RC routent leurs livrables vers des filtres (section « Filtres » du
 
 `tools/validate_package.py` vérifie sur ces copies, sans les réécrire : nom et description, sous-ensemble de `agents/openai.yaml` effectivement utilisé, icônes résolues depuis la racine du skill, politique d'invocation enregistrée (Unslop non implicite et sans `default_prompt`), liens Markdown et ancres, chemins `references/`, `scripts/` et `assets/` cités, compilation et imports de bibliothèque standard des scripts. Avec `--provenance`, toute modification d'octet est détectée.
 
-`tests/package/` exécute en plus `--help` et une entrée synthétique de chacun des cinq scripts, hors ligne, sans écriture. Ces contrôles ne mesurent pas la qualité des optimiseurs ; un lint de prompt ne certifie pas un prompt.
+`tests/package/` exécute en plus `--help` et une entrée synthétique de chacun des huit scripts, hors ligne, sans écriture. Ces contrôles ne mesurent pas la qualité des optimiseurs ; un lint de prompt ne certifie pas un prompt.
 
 ## Renvois externes et limites
 

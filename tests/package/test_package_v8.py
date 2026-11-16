@@ -42,7 +42,11 @@ DEPS = rc_update.DEPENDENCIES
 SCRIPTS = ['gpt-prompt-optimizer/scripts/prompt_lint.py', 'gpt-prompt-optimizer/scripts/profile_eval_dataset.py',
            'claude-opus-prompt-optimizer/scripts/prompt_lint.py',
            'claude-opus-prompt-optimizer/scripts/profile_eval_dataset.py',
-           'claude-opus-prompt-optimizer/scripts/opus_api_check.py']
+           'claude-opus-prompt-optimizer/scripts/opus_api_check.py',
+           'claude-fable-prompt-optimizer/scripts/prompt_lint.py',
+           'claude-fable-prompt-optimizer/scripts/profile_eval_dataset.py',
+           'claude-fable-prompt-optimizer/scripts/fable_api_check.py']
+MAINTAINED_HERE = {'claude-fable-prompt-optimizer'}
 
 
 def failing(result):
@@ -187,10 +191,11 @@ class DependencyRecordTests(Base):
         records = [f for f in provenance['files'] if f['path'].split('/')[1:2] and f['path'].split('/')[1] in DEPS]
         counts = {d: sum(1 for f in records if f['path'].split('/')[1] == d) for d in DEPS}
         self.assertEqual(counts, {'gpt-prompt-optimizer': 15, 'claude-opus-prompt-optimizer': 15,
-                                  'claude-fable-prompt-optimizer': 13, 'unslop': 4})
+                                  'claude-fable-prompt-optimizer': 14, 'unslop': 4})
         for f in records:
-            self.assertEqual(f['adaptation'], 'byte-identical', f['path'])
-            self.assertEqual(f['sha256'], f['source_sha256'], f['path'])
+            if f['path'].split('/')[1] not in MAINTAINED_HERE:
+                self.assertEqual(f['adaptation'], 'byte-identical', f['path'])
+                self.assertEqual(f['sha256'], f['source_sha256'], f['path'])
             data = (ROOT / f['path']).read_bytes()
             self.assertEqual(hashlib.sha256(data).hexdigest(), f['sha256'], f['path'])
             self.assertEqual(len(data), f['bytes'], f['path'])
@@ -220,7 +225,7 @@ class VendoredScriptTests(Base):
         (self.dir / 'h.py').write_text('client.messages.create(model="claude-opus-5-5", max_tokens=10)\n',
                                        encoding='utf-8')
         cases = [(SCRIPTS[0], 'p.txt'), (SCRIPTS[2], 'p.txt'), (SCRIPTS[1], 'd.jsonl'), (SCRIPTS[3], 'd.jsonl'),
-                 (SCRIPTS[4], 'h.py')]
+                 (SCRIPTS[4], 'h.py'), (SCRIPTS[5], 'p.txt'), (SCRIPTS[6], 'd.jsonl'), (SCRIPTS[7], 'h.py')]
         before = sorted(p.name for p in self.dir.iterdir())
         for rel, arg in cases:
             with self.subTest(rel):
