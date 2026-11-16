@@ -552,7 +552,15 @@ WRITE_EXAMPLES = '''examples (--ops takes a JSON list; a path names object keys 
   change a list item:   [{"op":"update","path":"outcomes","match":{"id":"B1"},
                           "value":{"status":"admitted","state_ref":"waves/b1/wave.json"}}]
   add a list item:      [{"op":"append","path":"decisions","value":"lot B1 cut in two"}]
-update merges value into the single item whose fields equal match; it refuses zero or several matches.'''
+update merges value into the single item whose fields equal match; it refuses zero or several matches.
+
+actor return in one command (signal receipt, intent resolution and application in a single revision):
+  write FILE --actor A --expect-revision N --resolve-intent CORR --status confirmed --result-ref R
+        --record-event ID --kind K [--candidate-seq S] [--ops ...]
+  ops apply after the resolution, so they can update the actor it creates. The signal is recorded first, as
+  event does; the write runs only when it is new or received but unapplied, otherwise its class is reported,
+  nothing is written and the exit code is 1. A refused write leaves the event recorded and unapplied: rerun
+  the same command once the cause is fixed.'''
 
 
 def _list_in_path(path, parts, index):
@@ -1507,10 +1515,11 @@ def cmd_init(args):
 
 
 def cmd_write(args):
-    ops = load(args.ops_file) if args.ops_file else json.loads(args.ops)
+    ops = load(args.ops_file) if args.ops_file else json.loads(args.ops) if args.ops is not None else None
 
     def mutate(doc):
-        new = apply_ops(doc, ops)
+        new = resolve_intent(doc, args.resolve_intent, args) if args.resolve_intent else doc
+        new = apply_ops(new, ops) if ops is not None else new
         created = [k for k in unknown_keys(new) if k not in unknown_keys(doc)]
         if created:
             raise StateError(f'refused: unknown key {", ".join(created)}: the {kind_of(doc)} format does not define it. '
@@ -1518,8 +1527,24 @@ def cmd_write(args):
                              'see write --help and init --template')
         return new
 
-    return guarded_write(args.file, args.actor, args.expect_revision, mutate,
-                         detail=args.reason, applies_event=args.applies_event), False
+    event, applies = None, args.applies_event
+    if args.record_event:
+        event, _ = cmd_event(argparse.Namespace(file=args.file, actor=args.actor, id=args.record_event, kind=args.kind,
+                                                candidate_seq=args.candidate_seq, detail=None, attach_legacy=False,
+                                                evidence=None))
+        if event['classification'] not in {'new', 'unapplied'}:
+            return {'event': event, 'written': None}, True
+        applies = args.record_event
+    detail = {'reason': args.reason, 'correlation': args.resolve_intent, 'status': args.status} \
+        if args.resolve_intent else args.reason
+    try:
+        result = guarded_write(args.file, args.actor, args.expect_revision, mutate, detail=detail, applies_event=applies)
+    except StateError as exc:
+        if event is None:
+            raise
+        raise StateError(f'{exc}; event {args.record_event} is recorded and stays unapplied: rerun this command '
+                         'once the cause is fixed')
+    return dict(result, event=event) if event else result, False
 
 
 def cmd_claim(args):
@@ -1575,6 +1600,18 @@ def cmd_transition(args):
                          detail={'to': args.to}, applies_event=args.applies_event), False
 
 
+def resolve_intent(doc, correlation, args):
+    wave_only(doc, 'intent')
+    doc = apply_ops(doc, [{'op': 'update', 'path': 'intents', 'match': {'correlation': correlation},
+                           'value': {'status': args.status, 'result_ref': args.result_ref, 'resolved_at': now()}}])
+    intent = next(i for i in doc['intents'] if i['correlation'] == correlation)
+    if args.status == 'confirmed' and intent['op'] == 'launch':
+        doc['actors'].append({'role': args.role or 'unspecified', 'model': args.model, 'ref': args.result_ref,
+                              'correlation': correlation, 'status': 'running',
+                              'target': intent['target'], 'candidate_seq': None})
+    return doc
+
+
 def cmd_intent(args):
     if args.action == 'add':
         def mutate(doc):
@@ -1596,15 +1633,7 @@ def cmd_intent(args):
         detail = {'correlation': args.correlation, 'op': args.op}
     else:
         def mutate(doc):
-            wave_only(doc, 'intent')
-            doc = apply_ops(doc, [{'op': 'update', 'path': 'intents', 'match': {'correlation': args.correlation},
-                                   'value': {'status': args.status, 'result_ref': args.result_ref, 'resolved_at': now()}}])
-            intent = next(i for i in doc['intents'] if i['correlation'] == args.correlation)
-            if args.status == 'confirmed' and intent['op'] == 'launch':
-                doc['actors'].append({'role': args.role or 'unspecified', 'model': args.model, 'ref': args.result_ref,
-                                      'correlation': args.correlation, 'status': 'running',
-                                      'target': intent['target'], 'candidate_seq': None})
-            return doc
+            return resolve_intent(doc, args.correlation, args)
         detail = {'correlation': args.correlation, 'status': args.status}
     return guarded_write(args.file, args.actor, args.expect_revision, mutate, kind='intent', detail=detail), False
 
@@ -1877,10 +1906,21 @@ def build_parser():
         if name in {'write', 'transition'}:
             p.add_argument('--applies-event', help='id of the received event this write applies')
         if name == 'write':
-            group = p.add_mutually_exclusive_group(required=True)
+            group = p.add_mutually_exclusive_group()
             group.add_argument('--ops', help='JSON list of {op:set|append|update, path, value, match}')
             group.add_argument('--ops-file')
             p.add_argument('--reason')
+            p.add_argument('--resolve-intent', metavar='CORRELATION',
+                           help='resolve this pending intent in the same write, as intent resolve does')
+            p.add_argument('--status', choices=['confirmed', 'absent', 'failed'])
+            p.add_argument('--result-ref')
+            p.add_argument('--role', help='actor role recorded when a launch is confirmed')
+            p.add_argument('--model')
+            p.add_argument('--record-event', metavar='ID',
+                           help='record this signal as event does, then write only if it is new or unapplied, '
+                                'applying it')
+            p.add_argument('--kind', help='signal kind, with --record-event')
+            p.add_argument('--candidate-seq', type=int, help='with --record-event')
         elif name == 'claim':
             p.add_argument('--role', required=True)
             p.add_argument('--takeover', action='store_true')
@@ -1923,6 +1963,16 @@ def main(argv=None):
             parser.error('intent add needs --op and --target')
         if args.action == 'resolve' and not args.status:
             parser.error('intent resolve needs --status')
+    if args.command == 'write':
+        if args.ops is None and args.ops_file is None and not args.resolve_intent:
+            parser.error('write needs --ops, --ops-file or --resolve-intent')
+        if bool(args.resolve_intent) != bool(args.status) or \
+                (not args.resolve_intent and (args.result_ref or args.role or args.model)):
+            parser.error('--resolve-intent goes with --status; --result-ref, --role and --model need --resolve-intent')
+        if bool(args.record_event) != bool(args.kind) or (args.candidate_seq is not None and not args.record_event):
+            parser.error('--record-event goes with --kind; --candidate-seq needs --record-event')
+        if args.record_event and args.applies_event:
+            parser.error('--record-event already applies the event it records; drop --applies-event')
     if args.command == 'init':
         if args.template and any((args.file, args.kind, args.actor, args.role, args.spec, args.replace_invalid)):
             parser.error('init --template only prints a template; it takes no FILE or other option')
