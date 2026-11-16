@@ -254,8 +254,8 @@
     },
     {
       "path": "rc-coordinate-development/SKILL.md",
-      "sha256": "1d30646846488eaa644eec51ee68575b724668105ae26818d4d14120674b9059",
-      "bytes": 3474
+      "sha256": "cf9aab0f7d693b0c3d16afd12205f7896d7b4aa398a16eb018acc2407e87e1dd",
+      "bytes": 3540
     },
     {
       "path": "rc-coordinate-development/agents/openai.yaml",
@@ -264,18 +264,23 @@
     },
     {
       "path": "rc-coordinate-development/references/engine.md",
-      "sha256": "5e5df48e06509f1c0a8bd412264c70af8d1f98160b425378c948e69152c1b0d2",
-      "bytes": 12999
+      "sha256": "eeef9fd7a2fac68b4e4bea3347d1386190738e1ed11fd982fc4abbf8b9e9786e",
+      "bytes": 14374
     },
     {
       "path": "rc-coordinate-development/references/garden.md",
-      "sha256": "d577a3e5f24cbb16d1992cfe24becdec6b4eda8d18f5c7f50fc22c838c00e9cf",
-      "bytes": 6026
+      "sha256": "e37afc65c935274061ccfbf7d45472361b24768c8f151ade16fcc28b9c379076",
+      "bytes": 6282
+    },
+    {
+      "path": "rc-coordinate-development/references/host-t3.md",
+      "sha256": "606fc91c3d8798bfde7b2837794e7283964e999d25157fbf19a351991d53fa4b",
+      "bytes": 3516
     },
     {
       "path": "rc-coordinate-development/references/operating-loop.md",
-      "sha256": "5cff65f3e6f99226a9cda7e059eeeb6caa5b05f6a0096527bb75e23a5b7e5330",
-      "bytes": 14830
+      "sha256": "2ee6831b0e315385a27ba811411c434d19184b5f98524f127186367591347c0d",
+      "bytes": 14769
     },
     {
       "path": "rc-coordinate-development/references/program-contract.md",
@@ -298,19 +303,24 @@
       "bytes": 2234
     },
     {
+      "path": "rc-coordinate-development/references/test-review-brief.md",
+      "sha256": "9398f95735e76edb6173af399007951cb02243b21eb925a26f0339d22799330e",
+      "bytes": 2748
+    },
+    {
       "path": "rc-coordinate-development/scripts/check_wave.py",
       "sha256": "a7f2056806c078968ae1dcb15b8755b8a0d24f8a974805b91e118bec6fcda456",
       "bytes": 17179
     },
     {
       "path": "rc-coordinate-development/scripts/rc_footprint.py",
-      "sha256": "7c7a73834c8ab3551ea886002592838f9fdc0b5a6d5520bf0a4989223d632ffe",
-      "bytes": 9843
+      "sha256": "e98b212d21298e6a73fe1168b539bdfb165d2c41445db30011750f9fd83dccfa",
+      "bytes": 9948
     },
     {
       "path": "rc-coordinate-development/scripts/rc_state.py",
-      "sha256": "4ad43505f2b21b4c2fd6b2f1324d97654e3523bfc5b8f5af651b9944545ce8f8",
-      "bytes": 111865
+      "sha256": "057517fac907a37f628e833d269d3abd5ad7f8ebb4558a4851f881a9a58f01e8",
+      "bytes": 115264
     },
     {
       "path": "rc-prepare-socle-prompts/SKILL.md",
@@ -358,5 +368,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "6dc01dd23da95c294f7622394b775c36ca67706ded556302ffe5370974823b4e"
+  "digest": "9c34500c8746d74ab9f74526c09b88e6e7c3a809002d8527134b3d6ef9164200"
 }
