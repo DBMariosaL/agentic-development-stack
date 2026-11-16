@@ -72,7 +72,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/operating-loop.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "9ff7d5691371dfb52fcd1f2049fb4fb96f854bc98155f939a8d97b2c35b25d07",
-      "sha256": "32ef9b0fbeaf586605bed8303db389e90ec8aedb50c5ae0221e41515efcabcbb",
+      "sha256": "5cff65f3e6f99226a9cda7e059eeeb6caa5b05f6a0096527bb75e23a5b7e5330",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/operating-loop.md",
@@ -208,7 +208,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "ef8bdbbf16fe06b43ee06565b6da24e4ba9fa4606f5a47fed3b30f8346582065",
+      "sha256": "da6cdc6fd2f5642c57ce080e4e60a23256de70bded91b373c8d1b51fe6a3891c",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",

@@ -200,8 +200,8 @@
     },
     {
       "path": "rc-coordinate-development/references/operating-loop.md",
-      "sha256": "32ef9b0fbeaf586605bed8303db389e90ec8aedb50c5ae0221e41515efcabcbb",
-      "bytes": 14837
+      "sha256": "5cff65f3e6f99226a9cda7e059eeeb6caa5b05f6a0096527bb75e23a5b7e5330",
+      "bytes": 14830
     },
     {
       "path": "rc-coordinate-development/references/program-contract.md",
@@ -279,5 +279,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "7bbd57a12fa1ac384ec36bd17be8ff525358f5ec7792ee0901d9eb25f8007ad1"
+  "digest": "2dc6acb498ecdbe497922221856742b6c209c737b093777d808351a70412b01d"
 }
