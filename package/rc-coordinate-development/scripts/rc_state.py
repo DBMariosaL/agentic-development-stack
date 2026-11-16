@@ -55,6 +55,18 @@ WAIT_KINDS = {'human', 'quota', 'runtime', 'dependency', 'resource'}
 WAVE_WAIT_KINDS = WAIT_KINDS | {'children'}
 MANAGED_PATHS = ('owner', 'revision', 'schema', 'schema_version', 'migrated_from', 'state.owner')
 LAUNCH_CONTEXT = ('project', 'authorization', 'socles', 'batches', 'artifacts', 'reviews', 'candidate')
+CLOSED_KEYS = {
+    'program': {'': {'schema', 'revision', 'owner', 'mandate', 'skills_consumed', 'status', 'status_reason',
+                     'outcomes', 'decisions_pending', 'last_milestone'},
+                'mandate': {'ref', 'sha256', 'scope', 'exclusions', 'end_criteria'}},
+    'wave2': {'': {'schema_version', 'revision', 'mode', 'project', 'authorization', 'socles', 'batches', 'artifacts',
+                   'reviews', 'decisions', 'state', 'program_ref', 'candidate', 'envelope', 'actors', 'intents',
+                   'migrated_from'},
+              'state': {'phase', 'owner', 'next_action', 'blockers', 'runtime_refs', 'consumed', 'launch_ready',
+                        'waiting', 'legacy_runtime_refs'},
+              'project': {'root', 'baseline', 'observed_at'},
+              'authorization': {'launch', 'source', 'scope', 'exclusions'}},
+}
 LIMITS = ('Checks declarations, revisions and local files only. Cannot certify authority, '
           'review quality, runtime delivery, idempotence of runtime calls or execution.')
 
@@ -106,6 +118,16 @@ def kind_of(doc):
 
 def _items(value):
     return [x for x in value if isinstance(x, dict)] if isinstance(value, list) else []
+
+
+def unknown_keys(doc):
+    """Keys of the closed objects of a program or v2 wave that its format does not define."""
+    out = []
+    for where, known in CLOSED_KEYS.get(kind_of(doc), {}).items():
+        obj = doc.get(where) if where else doc
+        if isinstance(obj, dict):
+            out.extend(f'{where}.{k}' if where else k for k in obj if k not in known)
+    return out
 
 
 # ---------------------------------------------------------------- per-field messages
@@ -421,8 +443,9 @@ def validate_program(doc, directory=None, check_paths=False, self_path=None):
     require(isinstance(raw_decisions, list) and len(decisions) == len(raw_decisions), 'decisions_pending must be a list of objects')
     for index, dec in enumerate(decisions):
         ok = (all(text(dec.get(k)) for k in ('id', 'question', 'option', 'effects'))
-              and string_list(dec.get('suspends')) and dec.get('suspends') and all(s in by_id for s in dec['suspends']))
-        require(ok, f'decisions_pending[{index}]: id, question, concrete option, effects and known suspends required')
+              and string_list(dec.get('suspends')) and all(s in by_id for s in dec['suspends']))
+        require(ok, f'decisions_pending[{index}]: id, question, concrete option, effects and suspends '
+                    '(list of known outcome ids, empty when the decision suspends nothing) required')
     suspended = _suspended(doc)
     base = Path(directory).resolve() if directory is not None else None
     program_path = Path(self_path).resolve() if self_path is not None else None
@@ -501,7 +524,7 @@ def validate_program(doc, directory=None, check_paths=False, self_path=None):
     if status == 'completed':
         open_ = [o for o, v in by_id.items() if sval(v, 'status') not in CLOSED_OUTCOMES]
         require(not open_, 'completed with open outcomes: ' + ', '.join(open_))
-        require(not decisions, 'completed with pending decisions')
+        require(not [d for d in decisions if d.get('suspends')], 'completed with pending decisions that suspend outcomes')
     if status == 'active':
         moving = view['ready'] or [o for o in view['admitted'] if not by_id[o].get('waiting_on')]
         require(bool(moving), 'active without ready or unwaited admitted outcomes: declare a waiting status, stopped or completed')
@@ -582,7 +605,7 @@ def apply_ops(doc, ops):
             target = _get(result, path)
             if not isinstance(target, list):
                 raise StateError(f'{path} is not a list')
-            target.append(copy.deepcopy(op.get('value')))
+            target.append(with_item_defaults(copy.deepcopy(op.get('value')), ITEM_DEFAULTS.get((kind_of(result), path))))
         else:
             target = _get(result, path)
             match = op.get('match')
@@ -601,6 +624,18 @@ def _owner_of(doc):
     if kind_of(doc) == 'program':
         return doc.get('owner')
     return (doc.get('state') or {}).get('owner') if isinstance(doc.get('state'), dict) else None
+
+
+def launch_context_changes(old, new):
+    """Launch-context fields changed between two v2 waves that both keep launch_ready true."""
+    ostate, nstate = old.get('state'), new.get('state')
+    if not (isinstance(ostate, dict) and isinstance(nstate, dict)
+            and ostate.get('launch_ready') is True and nstate.get('launch_ready') is True):
+        return []
+    changed = [f for f in LAUNCH_CONTEXT if old.get(f) != new.get(f)]
+    if ostate.get('consumed') != nstate.get('consumed'):
+        changed.append('state.consumed')
+    return changed
 
 
 def check_evolution(old, new, owner_change=False):
@@ -633,12 +668,9 @@ def check_evolution(old, new, owner_change=False):
             errors.append(f'wait was entered from {origin}; resume to {origin}, not {pn}')
         if old.get('program_ref') is not None and new.get('program_ref') != old.get('program_ref'):
             errors.append('program_ref is immutable once set')
-        if ostate.get('launch_ready') is True and nstate.get('launch_ready') is True:
-            changed = [f for f in LAUNCH_CONTEXT if old.get(f) != new.get(f)]
-            if ostate.get('consumed') != nstate.get('consumed'):
-                changed.append('state.consumed')
-            if changed:
-                errors.append('launch_ready must be reset to false when launch context changes: ' + ', '.join(changed))
+        changed = launch_context_changes(old, new)
+        if changed:
+            errors.append('launch_ready must be reset to false when launch context changes: ' + ', '.join(changed))
         oi = {i['correlation']: i for i in _items(old.get('intents')) if text(i.get('correlation'))}
         ni = {i['correlation']: i for i in _items(new.get('intents')) if text(i.get('correlation'))}
         for corr, intent in oi.items():
@@ -901,6 +933,9 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
             raise StateError(f'actor {actor} is not the owner ({owner}); hand the need to the owner')
         new = mutate(copy.deepcopy(old))
         new['revision'] = old['revision'] + 1
+        reset = launch_context_changes(old, new) if kind_of(old) == 'wave2' else []
+        if reset:
+            new['state']['launch_ready'] = False
         errors = validate_any(new, path.parent, check_paths=False, self_path=path)
         if not errors:
             errors = check_evolution(old, new, owner_change=owner_change)
@@ -965,7 +1000,11 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
                 except (OSError, StateError) as exc:
                     raise StateError(f'state committed at revision {new["revision"]} but its journal commit failed in '
                                      f'{j}: {exc}; operation {op_id} stays unresolved: run reconcile before any other action')
-        return {'written': str(path), 'revision': new['revision']}
+        result = {'written': str(path), 'revision': new['revision']}
+        if reset:
+            result['launch_ready_reset'] = {'changed': reset, 'effect': 'launch_ready set to false by this write; '
+                                            'the owner sets it to true again once the launch conditions hold'}
+        return result
 
 
 # ---------------------------------------------------------------- commands
@@ -974,7 +1013,10 @@ def cmd_check(args):
     path = Path(args.file).resolve()
     doc = load(path)
     errors = validate_any(doc, path.parent, args.check_paths, self_path=path)
-    return {'valid': not errors, 'kind': kind_of(doc), 'errors': errors, 'limits': LIMITS}, bool(errors)
+    result = {'valid': not errors, 'kind': kind_of(doc), 'errors': errors, 'limits': LIMITS}
+    if kind_of(doc) in CLOSED_KEYS:
+        result['unknown_keys'] = unknown_keys(doc)
+    return result, bool(errors)
 
 
 def cmd_ready(args):
@@ -1146,6 +1188,16 @@ def cmd_migrate(args):
 INIT_REASON = 'initialized by rc_state.py init'
 OUTCOME_DEFAULTS = {'depends_on': [], 'status': 'pending', 'state_ref': None, 'waiting_on': None, 'resources': []}
 SOCLE_DEFAULTS = {'depends_on': [], 'resources': [], 'source_refs': []}
+ITEM_DEFAULTS = {('program', 'outcomes'): OUTCOME_DEFAULTS, ('wave2', 'socles'): SOCLE_DEFAULTS}
+
+
+def with_item_defaults(item, defaults):
+    """List item completed with the defaults init applies to its missing fields."""
+    if not (defaults and isinstance(item, dict)):
+        return item
+    return {**item, **{k: copy.deepcopy(v) for k, v in defaults.items() if k not in item}}
+
+
 INIT_TEMPLATES = {
     'program': {
         'mandate': {'ref': 'required: nonempty text', 'sha256': 'optional: 64 hex characters',
@@ -1163,7 +1215,8 @@ INIT_TEMPLATES = {
         'skills_consumed': 'default []: list of {name: text, sha256: 64 hex of its SKILL.md}',
         'status': 'default "active": one of ' + ', '.join(sorted(PROGRAM_STATUSES)),
         'status_reason': f'default "{INIT_REASON}": nonempty text',
-        'decisions_pending': 'default []: list of {id, question, option, effects: text, suspends: list of outcome ids}',
+        'decisions_pending': 'default []: list of {id, question, option, effects: text, suspends: list of outcome ids, '
+                             'empty for a decision that suspends nothing and does not prevent completion}',
         'last_milestone': 'default null: null or {at, summary, ref: text}'},
     'wave': {
         'mode': 'default "prepare": one of prepare, prepare-and-launch',
@@ -1189,7 +1242,11 @@ INIT_TEMPLATES = {
 }
 INIT_SET = {
     'program': {'schema': PROGRAM_SCHEMA, 'revision': 0, 'owner': '{role: --role, ref: --actor}'},
-    'wave': {'schema_version': 2, 'revision': 0, 'program_ref': None, 'candidate': None, 'actors': [], 'intents': [],
+    'wave': {'schema_version': 2, 'revision': 0, 'program_ref': None,
+             'candidate': 'null; frozen later with write: {seq: int >= 1, increasing; ref: text, exact reference of the '
+                          'frozen candidate (commit SHA, branch@SHA or manifest name); artifact: key of artifacts naming '
+                          'its manifest; sha256: 64 hex of that artifact}',
+             'actors': [], 'intents': [],
              'state.phase': 'planning', 'state.owner': '{role: --role, ref: --actor}', 'state.launch_ready': False,
              'state.waiting': None, 'state.runtime_refs': None},
 }
@@ -1259,10 +1316,9 @@ def build_initial(kind, spec, actor, role):
     for key, (base, values) in nested.items():
         if isinstance(doc[key], dict):
             doc[key] = {**copy.deepcopy(base), **doc[key], **copy.deepcopy(values)}
-    key, item_defaults = ('outcomes', OUTCOME_DEFAULTS) if kind == 'program' else ('socles', SOCLE_DEFAULTS)
-    if isinstance(doc.get(key), list):
-        doc[key] = [{**item, **{k: copy.deepcopy(v) for k, v in item_defaults.items() if k not in item}}
-                    if isinstance(item, dict) else item for item in doc[key]]
+    item_kind = ('program', 'outcomes') if kind == 'program' else ('wave2', 'socles')
+    if isinstance(doc.get(item_kind[1]), list):
+        doc[item_kind[1]] = [with_item_defaults(item, ITEM_DEFAULTS[item_kind]) for item in doc[item_kind[1]]]
     doc.update(copy.deepcopy(managed))
     return doc
 
@@ -1449,7 +1505,17 @@ def cmd_init(args):
 
 def cmd_write(args):
     ops = load(args.ops_file) if args.ops_file else json.loads(args.ops)
-    return guarded_write(args.file, args.actor, args.expect_revision, lambda d: apply_ops(d, ops),
+
+    def mutate(doc):
+        new = apply_ops(doc, ops)
+        created = [k for k in unknown_keys(new) if k not in unknown_keys(doc)]
+        if created:
+            raise StateError(f'refused: unknown key {", ".join(created)}: the {kind_of(doc)} format does not define it. '
+                             'A path joins object keys with ".", never "/" (state.next_action, not state/next_action); '
+                             'see write --help and init --template')
+        return new
+
+    return guarded_write(args.file, args.actor, args.expect_revision, mutate,
                          detail=args.reason, applies_event=args.applies_event), False
 
 
