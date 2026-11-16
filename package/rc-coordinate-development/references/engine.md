@@ -47,6 +47,8 @@ Chaque signal reçu a un identifiant stable (`taskId` + `runId`, ou équivalent 
 - `late` : vague terminale, consigné sans relance ;
 - `uncertain` : une écriture qui l'appliquait est restée sans validation : `reconcile` d'abord, aucun retraitement.
 
+Retour d'un acteur en une commande : `write FICHIER --actor … --expect-revision N --resolve-intent CORR --status confirmed|absent|failed [--result-ref R] [--role … --model …] --record-event ID --kind K [--candidate-seq S] [--ops …]`. Le signal est d'abord consigné comme par `event`, sous le seul verrou du journal, relâché avant l'écriture. L'écriture ne suit que s'il est `new` ou `unapplied` : elle résout l'intention comme `intent resolve`, applique ensuite les `ops` (qui peuvent donc requalifier l'acteur créé) et marque l'événement appliqué, en une seule révision. Toute autre classe est rapportée sous `event` avec `written: null`, sans écriture, en échec. Une écriture refusée laisse l'événement consigné et non appliqué : relance la même commande une fois la cause corrigée. `--resolve-intent` s'emploie aussi avec `--applies-event` ou seul ; `--record-event`, avec des `ops` seules.
+
 Un événement reçu avant la clôture de sa vague et jamais appliqué ne la rouvre pas : `dispose FICHIER --id … --disposition late|handled_elsewhere|not_applicable --evidence …`, après rattachement s'il est legacy ; le fichier de vague terminale reste inchangé. Une entrée porte l'identité de sa vague et ne s'applique qu'à elle ; reçue non appliquée puis dépassée par le candidat, elle devient `stale`. Une entrée d'une version antérieure, sans identité de vague, n'est ni appliquée ni reclassée avant `event --attach-legacy --evidence` ; l'entrée d'origine reste intacte et le rattachement est consigné à part.
 
 ## Écritures
