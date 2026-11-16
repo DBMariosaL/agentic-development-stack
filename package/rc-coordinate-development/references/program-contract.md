@@ -4,7 +4,7 @@ Formats et règles communes aux trois skills RC ; le lire ne lance rien. Conduit
 
 ## Outil
 
-Toute création ou modification d'état passe par [rc_state.py](../scripts/rc_state.py) (`--help`, exemples compris), jamais par un script ad hoc ni à la main. Il contrôle titulaire, révision, verrous et déclarations, sans certifier autorité, revue ni exécution. `init` crée un index ou une vague détachée à la révision 0 avec titulaire ; `init --template program|wave` donne les types ; `--replace-invalid --evidence` remplace seulement un fichier initial écrit hors outil, invalide et sans autre titulaire, en conservant l'ancien. `--expect-revision` est la révision lue pour décider ; une relecture automatique désarme ce contrôle. `check_wave.py` vise seulement le format v1. `ready` donne le travail prêt et les conflits de ressources déclarées, y compris entre vagues admises ; `resume`, les actions de reprise. Un refus se corrige à sa cause, sans contournement ; une suite de commandes s'arrête au premier refus, et aucun lancement ne suit une porte non constatée ; sorties détaillées et refus inexpliqués : [moteur](engine.md).
+Toute création ou modification d'état passe par [rc_state.py](../scripts/rc_state.py) (`--help`, exemples compris), jamais par un script ad hoc ni à la main. Il contrôle titulaire, révision, verrous et déclarations, sans certifier autorité, revue ni exécution. `init` crée un index ou une vague détachée à la révision 0 avec titulaire ; `init --template program|wave` donne les types ; `--replace-invalid --evidence` remplace seulement un fichier initial écrit hors outil, invalide et sans autre titulaire, en conservant l'ancien. `--expect-revision` est la révision lue pour décider ; une relecture automatique désarme ce contrôle. `check_wave.py` vise seulement le format v1. `ready` donne le travail prêt et les conflits de ressources déclarées, y compris entre vagues admises ; `resume`, les actions de reprise. Un refus se corrige à sa cause, sans contournement ; une suite de commandes s'arrête au premier refus, et aucun lancement ne suit une porte non constatée ; sorties détaillées et refus inexpliqués : [moteur](engine.md). [rc_footprint.py](../scripts/rc_footprint.py) mesure l'empreinte d'un candidat et sort des signaux d'examen ; il n'accepte ni ne refuse rien.
 
 ## Fichiers et propriétaires
 
@@ -20,10 +20,7 @@ Le dossier de vague (`wave.json`, mandats sous `socles/`, raccord commun, `super
 
 ## `program.json`
 
-- `schema`, `revision`, `owner`, `mandate` (`ref`, `sha256`, `scope`, `exclusions`, `end_criteria`), `status`, `status_reason`.
-- `skills_consumed` : `{name, sha256}` par skill chargé, empreinte de son `SKILL.md` ; elle identifie la version sans attester une lecture.
-- `outcomes` : `id`, `outcome`, `depends_on`, `status`, `state_ref`, `waiting_on` (`null` ou `{kind, detail, trigger}`), `resources`, `next_action`, `closure` une fois clos (source et reste, ou cause et condition de reprise).
-- `decisions_pending` (`id`, `question`, `option` concrète, `effects`, `suspends`) ; `last_milestone` (`{at, summary, ref}`).
+Champs et types : `init --template program`. `skills_consumed` porte l'empreinte du `SKILL.md` de chaque skill chargé : elle identifie la version sans attester une lecture. Un résultat clos porte `closure` : source et reste, ou cause et condition de reprise. Une décision en attente propose une `option` concrète.
 
 **Prêt** : résultat `pending`, dépendances `accepted`, `waiting_on` nul, aucune décision qui le suspend. `abandoned` ou `accepted_partial` ne satisfont pas une dépendance dure ; une consommation partielle passe par un résultat distinct. Un résultat s'accepte à la clôture de sa vague : un résultat à accepter avant d'autres (contrat consommé, premier de lots sérialisés) a sa propre vague. Un découpage erroné se corrige sans supprimer : le résultat superflu se clôt `abandoned` avec sa source, les nouveaux s'ajoutent. Le programme attend (`waiting_*`) seulement sans travail prêt ni admis hors attente ; il est `completed` quand chaque résultat est accepté ou clos avec sa source.
 
@@ -32,12 +29,10 @@ Le dossier de vague (`wave.json`, mandats sous `socles/`, raccord commun, `super
 Valeur inconnue : `null` avec réserve, jamais un identifiant plausible.
 
 - `mode` : `prepare` (documents et revues documentaires autorisés ; ni champion, ni superviseur, ni intégrateur, ni effet produit) ou `prepare-and-launch` ; activer un skill n'autorise rien.
-- `project` (`root`, `baseline`, `observed_at`), `authorization` (`launch`, `source`, `scope`, `exclusions`), `artifacts` (nom → chemin relatif), `batches` (admissions proposées, pas barrières).
-- `socles` : `id`, `outcome`, `depends_on`, `readiness` (`ready`, `partial` avec `ready_scope`/`blocked_scope`, `blocked`), `resources`, `source_refs`, `prompt_artifact`, `consumption_dependencies`.
-- `reviews` : `artifact`, `sha256`, `status` (`done`, `pending`, `not_executed`, `not_required` motivé), `disposition`, `reference`, `candidate_seq` (absent ou `null` pour une revue documentaire, hors candidat). Une revue disposée (`done`, `not_required`) porte `disposition` (motif) et `reference` (source).
+- Champs et types : `init --template wave`. `batches` propose des admissions, sans faire barrière.
+- `reviews` : `not_required` se motive ; `candidate_seq` est absent ou `null` pour une revue documentaire, hors candidat. Une revue disposée (`done`, `not_required`) porte `disposition` (motif) et `reference` (source).
 - `decisions` : textes courts : découpage, inconnus, chemins suspendus, ce qui continue, règles locales (boucle, section 5) et, quand le pilote supervise, dispositif d'intégration, approbations exigées et leurs octets, chemin des preuves, ressources réservées.
-- `state` : `phase`, `owner`, `next_action`, `blockers`, `consumed` (artefact → `{version, sha256}`), `launch_ready`, `waiting` (`{kind, detail, trigger, resume, from}`).
-- `candidate` (`{seq, ref, artifact, sha256, frozen_at}`, figé), `envelope` (borne de revue et `reason` ; atteinte, elle n'approuve rien), `actors`, `intents`, `revision`, `program_ref`.
+- `candidate` est figé ; `envelope` porte la borne de revue et sa `reason` : atteinte, elle n'approuve rien.
 
 Seul le titulaire met `launch_ready=true` : demande consignée, `project` complet, aucun bloqueur, mandats des lots admis consommés (et `supervisor` s'il existe), revues disposées sur les mêmes empreintes. Tout changement de ces éléments le remet à faux.
 
@@ -57,7 +52,7 @@ Un constat `ouvert` et `bloquant` interdit l'acceptation de sa portée, quels qu
 
 ## Règles communes
 
-- **Faits.** Sépare observé, historique, hypothèse et inconnu. Un ancien acteur ou un numéro de socle n'est pas une activité courante.
+- **Faits.** Sépare observé, historique, hypothèse et inconnu. Un ancien acteur ou un numéro de socle n'est pas une activité courante. Un écrit hérité (document, commentaire, résumé, remise) est un contexte, pas une preuve : en cas d'écart, code, contrôles et état observé priment, et l'écrit se corrige ou se supprime.
 - **Modèles.** Respecte le choix demandé ; vérifie catalogue, paramètres et reçu de lancement. Si le modèle exécuté n'est pas exposé, fournisseur et modèle configuré retournés suffisent, avec réserve ; l'effort reste non attesté. Un modèle indisponible suspend son lancement, sans substitution silencieuse. Si le mandat impose une seule famille, un acteur distinct autorisé remplace la diversité de familles, avec réserve.
 - **Contre-revue documentaire.** Un mandat de champion ou de superviseur séparé est contre-relu par un nouvel acteur seulement s'il ouvre un nouveau domaine, définit ou change une interface partagée, ou touche un chemin sensible ([risque](operating-loop.md#3-livrer-juste)) ; sinon sa revue s'inscrit `not_required` avec ce motif. Une revue interdite ou indisponible est `not_executed`, ne vaut pas accord et reste prérequise au lancement concerné. Un changement de statut n'ouvre ni rédaction ni revue.
 

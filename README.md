@@ -11,11 +11,19 @@ Six skills pour préparer et piloter le développement d’un projet dans T3 Cod
 | `claude-opus-prompt-optimizer` | Dépendance : passe unique sur un prompt destiné à Opus, ou sur la remise d'un enfant à un parent Opus. |
 | `unslop` | Dépendance : passe finale sur un livrable destiné à un humain, invocation explicite seulement. |
 
-Le même pilote coordonne et supervise par défaut. Le paquet fournit aussi `rc_state.py` pour l'état durable du programme, les événements et la reprise ; `tools/rc_update.py` met à jour les skills de façon contrôlée.
+Le même pilote coordonne et supervise par défaut. Le paquet fournit aussi `rc_state.py` pour l'état durable du programme, les événements et la reprise, et `rc_footprint.py` pour mesurer ce qu'un candidat ajoute ; `tools/rc_update.py` met à jour les skills de façon contrôlée.
 
 ## Version
 
-Ce dépôt contient la **v9.1.2**, généralisation de la v9.1.1 sans changement de moteur, de format ou de conduite. Les noms `rc-*` restent un préfixe historique pour préserver les installations. La référence v9.1.1 est figée par le tag du même nom dans l’archive privée, sa fixture incluse et `provenance.json`.
+Ce dépôt contient la **v10 « pertinence »**, candidate du 16 novembre 2026. Elle part d'un constat : les agents ajoutent plus de code, de tests, de documents et de commentaires que le mandat n'en demande, et ce qu'ils écrivent en markdown est ensuite suivi comme une règle. Trois changements :
+
+- `rc_footprint.py` mesure ce qu'un candidat ajoute : lignes de produit, de tests et de documents, commentaires, croissance d'un tour de revue à l'autre. L'auteur ne déclare plus ces chiffres ; pilote, auteur et réviseur relancent la même commande.
+- Chaque ajout répond à une exigence du mandat ou à un comportement nommé, sinon il sort du candidat. Le réviseur reçoit un [brief](package/rc-coordinate-development/references/review-brief.md) qui lui demande de chercher ces ajouts, de prouver ses constats bloquants et de proposer le correctif qui retire. Les tours de revue sont plafonnés, et un tour qui a fait grossir le diff commence par couper.
+- Un écrit hérité (document, commentaire, remise) est un contexte, pas une preuve. Le jardin dit quels écrits supprimer, et une règle d'`AGENTS.md` sans commande qui l'applique devient un signal de jardinage.
+
+La lecture obligatoire du pilote reste à 3 953 mots, et `tools/check.py` échoue si elle dépasse ce budget. Formats d'état, `rc_state.py` et dépendances ne changent pas. Aucun pilote n'a encore conduit la v10 : choix et sources dans [sources v10](docs/sources-v10.md), statut dans [qualification](docs/qualification.md).
+
+La **v9.1.2**, version précédente, généralise la v9.1.1 sans changement de moteur, de format ou de conduite. Les noms `rc-*` restent un préfixe historique pour préserver les installations. La référence v9.1.1 est figée par le tag du même nom dans l’archive privée, sa fixture incluse et `provenance.json`.
 
 La **v9.1.1** est le correctif de la v9.1 issu de ses essais de contrôle : la règle « critère ambigu → question » ne se déclenche plus que si le choix change un effet protégé par le mandat (une forme écrite littéralement fait foi), les refus d'une vague v2 ne portent plus le préfixe `v1-fields:`, et `init --template` indique quand `prompt_artifact` devient obligatoire. La v9.1 est une correction de la v9 « jardin » tirée d'une campagne d'essais réels du 11 novembre 2026 : des pilotes et sous-agents `gpt-6.1-sol` ont conduit la v9 sur dix petits programmes. Quatre essais sur dix n'avaient produit aucun code, d'abord parce que la v9 interdisait d'écrire un état à la main sans offrir de commande pour le créer. La v9.1 ajoute `rc_state.py init` (création, squelette typé, remplacement d'un état initial invalide), des refus qui nomment champ et type, et corrige les règles trop coûteuses ou ambiguës relevées par les essais. Campagne, défauts et corrections : [campagne v9.1](docs/campagne-v9.1.md) ; statut, revues et essais rejoués : [qualification](docs/qualification.md). La v9 acceptée le 10 novembre 2026 reste la référence précédente : `provenance.json` (`v9_reference`) et `tests/fixtures/v9/` ; la v8 garde `v8_reference` et `tests/fixtures/v8/`.
 
@@ -31,7 +39,7 @@ Python 3.10 ou ultérieur, bibliothèque standard uniquement. La validation de r
 python -B tools/check.py
 ```
 
-La commande vérifie les empreintes du paquet et de la provenance, lance les suites d'état, de mise à jour (historique v7, distribution à six skills, mises à jour réelles depuis la v8, la v9, la v9.1 et la v9.1.1) et de paquet, puis la validation structurelle. Elle écrit dans un nouveau dossier `.local/` un `summary.json` : identité du candidat, empreintes des entrées, commandes, collectes, skips et journaux. Une étape ne passe que si sa collecte correspond au nombre déclaré, sans échec ni skip non déclaré ; un code de sortie nul ne suffit pas. Elle utilise des fichiers synthétiques et des profils factices, sans réseau ; elle n'installe aucun skill dans les profils actifs.
+La commande vérifie les empreintes du paquet et de la provenance et le budget de lecture du pilote, lance les suites d'état, de mise à jour (historique v7, distribution à six skills, mises à jour réelles depuis la v8, la v9, la v9.1, la v9.1.1 et la v9.1.2), de paquet et d'empreinte, puis la validation structurelle. Elle écrit dans un nouveau dossier `.local/` un `summary.json` : identité du candidat, empreintes des entrées, commandes, collectes, skips et journaux. Une étape ne passe que si sa collecte correspond au nombre déclaré, sans échec ni skip non déclaré ; un code de sortie nul ne suffit pas. Elle utilise des fichiers synthétiques et des profils factices, sans réseau ; elle n'installe aucun skill dans les profils actifs.
 
 ## Installation et usage
 
@@ -45,13 +53,14 @@ Le dossier `package/` utilise des descriptions génériques. Pour chaque projet,
 
 ```text
 package/              Six skills : trois RC et trois dépendances de filtre
-manifest.json         Manifeste v9.1.2 (format rc-update-manifest/2, distribution et rôles)
+manifest.json         Manifeste v10 (format rc-update-manifest/2, distribution et rôles)
 tools/                Vérification, validation structurelle et mise à jour
 tests/state/          Tests de l'état et de la reprise (ceux de la v9 inchangés, plus la v9.1)
-tests/updater/        Tests sur profils factices : historique v7, distribution v8, mises à jour depuis v8, v9, v9.1 et v9.1.1
+tests/updater/        Tests sur profils factices : historique v7, distribution v8, mises à jour depuis v8 à v9.1.2
+tests/footprint/      Tests de rc_footprint.py sur des dépôts git temporaires
 tests/package/        Paquet déplacé, ressources, métadonnées, scripts vendored, scénarios
 tests/qualification/  Scénarios figés de l'épreuve exploratoire ; résultats dans la qualification
-tests/fixtures/       Versions historiques nécessaires aux tests (v7, v8, v9, v9.1, v9.1.1)
+tests/fixtures/       Versions historiques nécessaires aux tests (v7 à v9.1.2)
 docs/                 Installation, dépendances, sources, campagne d'essais, qualification
 provenance.json       Origine et empreintes des fichiers (format 2)
 ```

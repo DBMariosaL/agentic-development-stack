@@ -1,8 +1,8 @@
 {
   "format": "rc-stack-provenance/2",
-  "release": "v9.1.2",
-  "status": "accepted in local implemented scope on 2026-11-12: full offline checks passed on unchanged runtime files; final documentation and provenance sealed and revalidated separately",
-  "scope": "Local implemented scope; installation, runtime resume, relay idempotence, agent behaviour beyond the v9 field campaign, the v9.1 re-trials and controls and the v9.1.1 T01 re-trial, and model gains not qualified",
+  "release": "v10",
+  "status": "candidate on 2026-11-16: full offline checks passed; cross-family review recorded in docs/qualification.md; no pilot trial run on this version",
+  "scope": "Local implemented scope; installation, runtime resume, relay idempotence, agent behaviour under the v10 relevance rules and model gains not qualified",
   "v7_reference": {
     "accepted_snapshot": "v7",
     "commit": "f6558272307309baad6b5c4be7d875f4e382e4a1",
@@ -37,18 +37,18 @@
   "files": [
     {
       "path": "package/rc-coordinate-development/SKILL.md",
-      "source_group": "rc-stack-generic-v9.1.2-20261112",
-      "source": "package/rc-coordinate-development/SKILL.md (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
-      "source_sha256": "773a6ee7c02162091baaab7311e15d8955ef1f6bd1aaff3f05e77abac2c7b08a",
-      "sha256": "4a0f29578d45965f812896c59aedc7604f747d9002a1f49327fe5443bbe3da7b",
-      "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/rc-coordinate-development/SKILL.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "4a0f29578d45965f812896c59aedc7604f747d9002a1f49327fe5443bbe3da7b",
+      "sha256": "66a27847eaa1428b97daa8afe2553305b73f30cf0a1d50c39419bf18809f5ed7",
+      "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/SKILL.md",
-        "source_group": "rc-stack-v9.1-20261111",
-        "source": "package/rc-coordinate-development/SKILL.md (v9, commit e12969aa0ef3df727732a9e2986f31fe58e68935) edited for v9.1",
-        "source_sha256": "b9ed85fe2bfbef5f696857a044616ed3e13f2df47ade5d07a62df3f52fda41fe",
-        "sha256": "773a6ee7c02162091baaab7311e15d8955ef1f6bd1aaff3f05e77abac2c7b08a",
-        "adaptation": "v9.1 edit"
+        "source_group": "rc-stack-generic-v9.1.2-20261112",
+        "source": "package/rc-coordinate-development/SKILL.md (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
+        "source_sha256": "773a6ee7c02162091baaab7311e15d8955ef1f6bd1aaff3f05e77abac2c7b08a",
+        "sha256": "4a0f29578d45965f812896c59aedc7604f747d9002a1f49327fe5443bbe3da7b",
+        "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change"
       }
     },
     {
@@ -69,19 +69,35 @@
     },
     {
       "path": "package/rc-coordinate-development/references/operating-loop.md",
-      "source_group": "rc-stack-v9.1-20261111",
-      "source": "package/rc-coordinate-development/references/operating-loop.md (v9, commit e12969aa0ef3df727732a9e2986f31fe58e68935) edited for v9.1",
-      "source_sha256": "913e3f3f98ee21ccf11d28af770520a731658f255c237428ff7fd1fc0c6ec625",
-      "sha256": "9ff7d5691371dfb52fcd1f2049fb4fb96f854bc98155f939a8d97b2c35b25d07",
-      "adaptation": "v9.1 edit"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/rc-coordinate-development/references/operating-loop.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "9ff7d5691371dfb52fcd1f2049fb4fb96f854bc98155f939a8d97b2c35b25d07",
+      "sha256": "aa503af820b8b1bf800279e4bf3e2712288bc1759ab375909976112eb66e793e",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "package/rc-coordinate-development/references/operating-loop.md",
+        "source_group": "rc-stack-v9.1-20261111",
+        "source": "package/rc-coordinate-development/references/operating-loop.md (v9, commit e12969aa0ef3df727732a9e2986f31fe58e68935) edited for v9.1",
+        "source_sha256": "913e3f3f98ee21ccf11d28af770520a731658f255c237428ff7fd1fc0c6ec625",
+        "sha256": "9ff7d5691371dfb52fcd1f2049fb4fb96f854bc98155f939a8d97b2c35b25d07",
+        "adaptation": "v9.1 edit"
+      }
     },
     {
       "path": "package/rc-coordinate-development/references/program-contract.md",
-      "source_group": "rc-stack-v9.1-20261111",
-      "source": "package/rc-coordinate-development/references/program-contract.md (v9, commit e12969aa0ef3df727732a9e2986f31fe58e68935) edited for v9.1",
-      "source_sha256": "0ea9a787a8bdd22e9814d3f1c1d08e2ed4ec90ccbcf7fe69a218adf0aaea010a",
-      "sha256": "3299f4d4ae36b430651cf8cd812375222989fe80625174aa1c3d518c9d1126c3",
-      "adaptation": "v9.1 edit"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/rc-coordinate-development/references/program-contract.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "3299f4d4ae36b430651cf8cd812375222989fe80625174aa1c3d518c9d1126c3",
+      "sha256": "323856ab9909a5163d504cdfc8a1510846bdcca64f06ebf287dae5ed62575def",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "package/rc-coordinate-development/references/program-contract.md",
+        "source_group": "rc-stack-v9.1-20261111",
+        "source": "package/rc-coordinate-development/references/program-contract.md (v9, commit e12969aa0ef3df727732a9e2986f31fe58e68935) edited for v9.1",
+        "source_sha256": "0ea9a787a8bdd22e9814d3f1c1d08e2ed4ec90ccbcf7fe69a218adf0aaea010a",
+        "sha256": "3299f4d4ae36b430651cf8cd812375222989fe80625174aa1c3d518c9d1126c3",
+        "adaptation": "v9.1 edit"
+      }
     },
     {
       "path": "package/rc-coordinate-development/references/separate-relay.md",
@@ -117,18 +133,18 @@
     },
     {
       "path": "package/rc-prepare-socle-prompts/SKILL.md",
-      "source_group": "rc-stack-generic-v9.1.2-20261112",
-      "source": "package/rc-prepare-socle-prompts/SKILL.md (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
-      "source_sha256": "2321ad1b1d90078045cfd7e695e6155f01a7846aaa181476fa2936827e2ef6e4",
-      "sha256": "90f3fa8a0cf74caa7169f9cd15a69cfc2c4b5ce46546770291c2ea6bd2a6849e",
-      "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/rc-prepare-socle-prompts/SKILL.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "90f3fa8a0cf74caa7169f9cd15a69cfc2c4b5ce46546770291c2ea6bd2a6849e",
+      "sha256": "123e091859b249d84602d03b9bf5ba63f342ef276c76c7cfbdf6d5ad11fdde65",
+      "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-prepare-socle-prompts/SKILL.md",
-        "source_group": "rc-stack-v9.1.1-20261111",
-        "source": "package/rc-prepare-socle-prompts/SKILL.md (v9.1, commit ab6bba737a439ae89ddba9a58faf5b3e10f9d647) edited for v9.1.1",
-        "source_sha256": "d84d40d3b377738ef85dac90c7c482ff6d63f2a82abd1d6ac287e51e63628051",
-        "sha256": "2321ad1b1d90078045cfd7e695e6155f01a7846aaa181476fa2936827e2ef6e4",
-        "adaptation": "v9.1.1 edit"
+        "source_group": "rc-stack-generic-v9.1.2-20261112",
+        "source": "package/rc-prepare-socle-prompts/SKILL.md (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
+        "source_sha256": "2321ad1b1d90078045cfd7e695e6155f01a7846aaa181476fa2936827e2ef6e4",
+        "sha256": "90f3fa8a0cf74caa7169f9cd15a69cfc2c4b5ce46546770291c2ea6bd2a6849e",
+        "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change"
       }
     },
     {
@@ -189,18 +205,18 @@
     },
     {
       "path": "manifest.json",
-      "source_group": "rc-stack-generic-v9.1.2-20261112",
-      "source": "manifest.json (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
-      "source_sha256": "b57501e9de8c7d236375e77af76c1a954c918b8a8a9145f6f92d766150b8aeb7",
-      "sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
+      "sha256": "e142b7b0e57e62009a20109cdea099a5aec13f76703c6adea71a9a99c5e224fa",
+      "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
-        "source_group": "rc-stack-v9.1.1-20261111",
-        "source": "manifest.json (v9.1, commit ab6bba737a439ae89ddba9a58faf5b3e10f9d647) regenerated for v9.1.1",
-        "source_sha256": "93039190fa2748e29d7806b2d07a2afcf1db50b3477d5ec660f98acabc31a702",
-        "sha256": "b57501e9de8c7d236375e77af76c1a954c918b8a8a9145f6f92d766150b8aeb7",
-        "adaptation": "v9.1.1 manifest generated by tools/rc_update.py manifest"
+        "source_group": "rc-stack-generic-v9.1.2-20261112",
+        "source": "manifest.json (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
+        "source_sha256": "b57501e9de8c7d236375e77af76c1a954c918b8a8a9145f6f92d766150b8aeb7",
+        "sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
+        "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change"
       }
     },
     {
@@ -421,18 +437,18 @@
     },
     {
       "path": "tools/check.py",
-      "source_group": "rc-stack-generic-v9.1.2-20261112",
-      "source": "tools/check.py (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
-      "source_sha256": "17d27a51851f126f0f16c84295a25e878f857f12be1f60f3a8cf137f859461f2",
-      "sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
-      "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tools/check.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
+      "sha256": "8755eb3a5efa43451944b96f78c702ee3e1afc6ea0020b31f1072d1625fbf5fb",
+      "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/check.py",
-        "source_group": "rc-stack-v9.1.1-20261111",
-        "source": "tools/check.py (v9.1, commit ab6bba737a439ae89ddba9a58faf5b3e10f9d647) edited for v9.1.1",
-        "source_sha256": "855c4b01a0e0436cf97b2054e056a51dc3f1bbb2fd991d4b7d819c07c939a7f7",
-        "sha256": "17d27a51851f126f0f16c84295a25e878f857f12be1f60f3a8cf137f859461f2",
-        "adaptation": "v9.1.1 edit"
+        "source_group": "rc-stack-generic-v9.1.2-20261112",
+        "source": "tools/check.py (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
+        "source_sha256": "17d27a51851f126f0f16c84295a25e878f857f12be1f60f3a8cf137f859461f2",
+        "sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
+        "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change"
       }
     },
     {
@@ -994,14 +1010,6 @@
       "adaptation": "byte-identical"
     },
     {
-      "path": "tests/updater/test_update_from_v8.py",
-      "source_group": "rc-stack-v9-20261110",
-      "source": "authored for v9",
-      "source_sha256": null,
-      "sha256": "83f65f189bdd1da778c41f36e389bc47698a1ac1d78b85e4168a790e154dc531",
-      "adaptation": "v9 new"
-    },
-    {
       "path": "tests/package/test_qualification_scenarios.py",
       "source_group": "rc-stack-v9-20261110",
       "source": "authored for v9",
@@ -1019,19 +1027,35 @@
     },
     {
       "path": "package/rc-coordinate-development/references/engine.md",
-      "source_group": "rc-stack-v9.1-20261111",
-      "source": "package/rc-coordinate-development/references/engine.md (v9, commit e12969aa0ef3df727732a9e2986f31fe58e68935) edited for v9.1",
-      "source_sha256": "88454800f5efcf68c3a4480e0bdb9a8cba2be1d454a94a10ea131048859f65ce",
-      "sha256": "897f82d2b8b0f6b25fc25c3fb46ef4de77f275c9a9f0cd1a7cca05ba1ee1390c",
-      "adaptation": "v9.1 edit"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/rc-coordinate-development/references/engine.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "897f82d2b8b0f6b25fc25c3fb46ef4de77f275c9a9f0cd1a7cca05ba1ee1390c",
+      "sha256": "4d98bd0e3e291c9d1c6fcf8b6cf8a7854fab36a61caba1678a6058618b85ad12",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "package/rc-coordinate-development/references/engine.md",
+        "source_group": "rc-stack-v9.1-20261111",
+        "source": "package/rc-coordinate-development/references/engine.md (v9, commit e12969aa0ef3df727732a9e2986f31fe58e68935) edited for v9.1",
+        "source_sha256": "88454800f5efcf68c3a4480e0bdb9a8cba2be1d454a94a10ea131048859f65ce",
+        "sha256": "897f82d2b8b0f6b25fc25c3fb46ef4de77f275c9a9f0cd1a7cca05ba1ee1390c",
+        "adaptation": "v9.1 edit"
+      }
     },
     {
       "path": "package/rc-coordinate-development/references/garden.md",
-      "source_group": "rc-stack-v9.1-20261111",
-      "source": "package/rc-coordinate-development/references/garden.md (v9, commit e12969aa0ef3df727732a9e2986f31fe58e68935) edited for v9.1",
-      "source_sha256": "40440cad0dfa12154e71f39ae5fce39a04cbf0377a96b965825a1f3127a114d1",
-      "sha256": "e74daaea279078207eda39f426b915374ec8806eae7250166c0e10d07e8b32b6",
-      "adaptation": "v9.1 edit"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/rc-coordinate-development/references/garden.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "e74daaea279078207eda39f426b915374ec8806eae7250166c0e10d07e8b32b6",
+      "sha256": "d577a3e5f24cbb16d1992cfe24becdec6b4eda8d18f5c7f50fc22c838c00e9cf",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "package/rc-coordinate-development/references/garden.md",
+        "source_group": "rc-stack-v9.1-20261111",
+        "source": "package/rc-coordinate-development/references/garden.md (v9, commit e12969aa0ef3df727732a9e2986f31fe58e68935) edited for v9.1",
+        "source_sha256": "40440cad0dfa12154e71f39ae5fce39a04cbf0377a96b965825a1f3127a114d1",
+        "sha256": "e74daaea279078207eda39f426b915374ec8806eae7250166c0e10d07e8b32b6",
+        "adaptation": "v9.1 edit"
+      }
     },
     {
       "path": "tests/qualification/scenarios-v9-r1.json",
@@ -1130,14 +1154,6 @@
       "adaptation": "v9.1.1 edit"
     },
     {
-      "path": "tests/updater/test_update_from_v9.py",
-      "source_group": "rc-stack-v9.1-20261111",
-      "source": "authored for v9.1",
-      "source_sha256": null,
-      "sha256": "25a74d5db190ff891ac2eeef9ed064c036833bd9e6d8bccfe7c33d8d4c0beee7",
-      "adaptation": "v9.1 new"
-    },
-    {
       "path": "docs/campagne-v9.1.md",
       "source_group": "rc-stack-v9.1-20261111",
       "source": "authored for v9.1",
@@ -1210,22 +1226,6 @@
       "adaptation": "byte-identical"
     },
     {
-      "path": "tests/updater/test_update_from_v9_1.py",
-      "source_group": "rc-stack-v9.1.1-20261111",
-      "source": "authored for v9.1.1",
-      "source_sha256": null,
-      "sha256": "0fdde16733f231988182c541ae56bf31a854a2cd88823d8972f37e2d3bdb5b02",
-      "adaptation": "v9.1.1 new"
-    },
-    {
-      "path": "tests/updater/test_update_from_v9_1_1.py",
-      "source_group": "rc-stack-generic-v9.1.2-20261112",
-      "source": "prepared for generic v9.1.2",
-      "source_sha256": null,
-      "sha256": "dd5e8ee41278e3b1b94cfa5b6b5421b051ebf73bd92aaaf8d055e12144c33909",
-      "adaptation": "generic release preparation"
-    },
-    {
       "path": "tests/fixtures/v9.1.1/manifest.json",
       "source_group": "rc-stack-generic-v9.1.2-20261112",
       "source": "v9.1.1 b12144dc43923e75e777f9fa4d6baf1ec41c6bea",
@@ -1288,6 +1288,62 @@
       "source_sha256": "530fa2f99b51263b92e0c48c5fc6b875aff7550df698a82a5e54c4758137cbfc",
       "sha256": "d48c1c4bc2c60b9615085bbd9ccb0c5d3cc67954ae9693e94228ce1fbced4c3b",
       "adaptation": "generic release preparation"
+    },
+    {
+      "path": "package/rc-coordinate-development/references/review-brief.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "created for v10",
+      "source_sha256": null,
+      "sha256": "ba398c7ed1a1b2bf8064f4f55266368b8ab28198ea2f60c8876d9063c9b9ccea",
+      "adaptation": "v10 creation"
+    },
+    {
+      "path": "package/rc-coordinate-development/scripts/rc_footprint.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "created for v10",
+      "source_sha256": null,
+      "sha256": "7c7a73834c8ab3551ea886002592838f9fdc0b5a6d5520bf0a4989223d632ffe",
+      "adaptation": "v10 creation"
+    },
+    {
+      "path": "tests/footprint/test_rc_footprint.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "created for v10",
+      "source_sha256": null,
+      "sha256": "b3428216993e21187e9aaa54628079cd553c9cdb77b93b1bbae940d78cd477a9",
+      "adaptation": "v10 creation"
+    },
+    {
+      "path": "tests/updater/test_update_from_previous.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "created for v10",
+      "source_sha256": null,
+      "sha256": "574bc37c67467f4c564c5722668b1e9ca079c87f50e98b6922c8c344c582d8f2",
+      "adaptation": "v10 creation"
+    },
+    {
+      "path": "tests/fixtures/v9.1.2/manifest.json",
+      "source_group": "rc-stack-v9.1.2-commit",
+      "source": "v9.1.2 929c5db4c8b12636ec71f101f6293fb9eb49a7ed",
+      "source_sha256": null,
+      "sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
+      "adaptation": "byte-identical historical fixture"
+    },
+    {
+      "path": "tests/fixtures/v9.1.2/package/rc-coordinate-development/SKILL.md",
+      "source_group": "rc-stack-v9.1.2-commit",
+      "source": "v9.1.2 929c5db4c8b12636ec71f101f6293fb9eb49a7ed",
+      "source_sha256": null,
+      "sha256": "4a0f29578d45965f812896c59aedc7604f747d9002a1f49327fe5443bbe3da7b",
+      "adaptation": "byte-identical historical fixture"
+    },
+    {
+      "path": "tests/fixtures/v9.1.2/package/rc-prepare-socle-prompts/SKILL.md",
+      "source_group": "rc-stack-v9.1.2-commit",
+      "source": "v9.1.2 929c5db4c8b12636ec71f101f6293fb9eb49a7ed",
+      "source_sha256": null,
+      "sha256": "90f3fa8a0cf74caa7169f9cd15a69cfc2c4b5ce46546770291c2ea6bd2a6849e",
+      "adaptation": "byte-identical historical fixture"
     }
   ],
   "v9_reference": {
@@ -1322,5 +1378,12 @@
     "unslop_license_sha256": "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e",
     "unslop_original_revision": "unknown; upstream observed for licence and attribution, not a claim of byte identity",
     "license": "MIT"
+  },
+  "v9_1_2_reference": {
+    "accepted_snapshot": "v9.1.2",
+    "commit": "929c5db4c8b12636ec71f101f6293fb9eb49a7ed",
+    "manifest_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
+    "fixture": "tests/fixtures/v9.1.2",
+    "fixture_scope": "manifest and the v9.1.2 RC bytes that neither package/ nor an earlier fixture still carries; a later release that changes another v9.1.2 file freezes its bytes here when the updater test names it"
   }
 }

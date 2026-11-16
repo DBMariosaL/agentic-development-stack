@@ -1,7 +1,8 @@
 """Run the offline repository checks using synthetic files and isolated profiles.
 
 Steps:
-  inventory   manifest.json against package/, provenance.json against every listed file
+  inventory   manifest.json against package/, provenance.json against every listed file,
+              pilot mandatory reading against READING_BUDGET
   state       tests/state, unchanged v7 state regressions
   updater-v7  tests/updater/test_rc_update.py, unchanged, against the frozen v7 fixture
               (31 October -> v7, three RC skills)
@@ -13,6 +14,7 @@ Steps:
               package/: RC files replaced, dependencies untouched
   package     tests/package: moved package, missing resources, dependency metadata,
               vendored scripts, frozen qualification scenarios
+  footprint   tests/footprint: rc_footprint.py on temporary git repositories
   structure   tools/validate_package.py on package/ with provenance
 
 A zero exit code is never enough. A test step passes only if its exit code is 0, its
@@ -39,7 +41,10 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 169, 'updater-v7': 30, 'updater-v8': 28, 'updater-from-v8': 7, 'updater-from-v9': 7, 'updater-from-v9.1': 7, 'updater-from-v9.1.1': 7, 'updater-from-v9.1.2': 7, 'package': 25}
+EXPECTED = {'state': 169, 'updater-v7': 30, 'updater-v8': 28, 'updater-from-v8': 7, 'updater-from-v9': 7, 'updater-from-v9.1': 7, 'updater-from-v9.1.1': 7, 'updater-from-v9.1.2': 7, 'package': 25, 'footprint': 7}
+# What the pilot reads before acting, in words; raising the budget is a decision, never a side effect.
+READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
+READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.
 STEPS = list(EXPECTED) + ['structure']
 # Skips accepted only off Windows (NTFS junction tests); none is accepted on Windows.
@@ -52,6 +57,7 @@ NON_NT_SKIPS = {
     'updater-from-v9.1.1': set(),
     'updater-from-v9.1.2': set(),
     'package': set(),
+    'footprint': set(),
     'state': set(),
 }
 # Deepest synthetic profile path observed below a fixture root, plus margin (characters).
@@ -128,7 +134,11 @@ def inventory():
     unlisted = sorted('package/' + p for p in actual if 'package/' + p not in listed)
     if unlisted:
         problems.append({'check': 'provenance_inventory', 'unlisted': unlisted})
-    identity = {'manifest_sha256': sha_file(manifest_path), 'manifest_format': manifest.get('format'),
+    reading = sum(len((ROOT / 'package/rc-coordinate-development' / name).read_text(encoding='utf-8').split())
+                  for name in READING)
+    if reading > READING_BUDGET:
+        problems.append({'check': 'pilot_reading', 'words': reading, 'budget': READING_BUDGET})
+    identity = {'pilot_reading_words': reading, 'manifest_sha256': sha_file(manifest_path), 'manifest_format': manifest.get('format'),
                 'distribution': manifest.get('distribution', 'rc-core'), 'manifest_digest': manifest.get('digest'),
                 'package_files': len(actual), 'provenance_sha256': sha_file(ROOT / 'provenance.json')}
     return identity, problems
@@ -240,6 +250,9 @@ def main():
             ('package', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/package'), str(ROOT / 'tests/package'),
                          str(out / 'package.json')],
              ROOT, {'RC_PACKAGE_FIXTURES': str(roots['p'])}, out / 'package.json'),
+            ('footprint', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/footprint'),
+                           str(ROOT / 'tests/footprint'), str(out / 'footprint.json')],
+             ROOT, {}, out / 'footprint.json'),
         ]
         for name, command, cwd, extra, results_path in steps:
             step_env = {**env, **extra}

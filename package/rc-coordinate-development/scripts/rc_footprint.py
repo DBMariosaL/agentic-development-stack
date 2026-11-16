@@ -184,8 +184,8 @@ def footprint(args):
     repo = args.repo
     try:
         git(repo, 'rev-parse', '--git-dir')
-    except UsageError:
-        raise UsageError(f'REPO: not a git repository: {repo}') from None
+    except UsageError as exc:
+        raise UsageError(f'REPO: {repo}: {exc}') from None
     base = resolve(repo, args.base, '--base')
     candidate = resolve(repo, args.candidate, '--candidate')
     previous = load_previous(args.previous, base) if args.previous else None

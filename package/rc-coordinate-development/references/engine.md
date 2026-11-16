@@ -1,6 +1,6 @@
 # Mécanique du moteur `rc_state.py`
 
-À lire seulement quand l'outil refuse et que son `error` ne suffit pas, qu'une opération d'écriture reste incertaine, ou pour le détail d'une reprise à froid, d'une adoption ou d'une migration. L'outil applique tout ce qui suit ; rien n'est à refaire à la main. Formats et règles de décision : [contrat d'état](program-contract.md).
+À lire seulement quand l'outil refuse et que son `error` ne suffit pas, qu'une opération d'écriture reste incertaine, ou pour le détail d'une reprise à froid, d'un relais de pilote, d'une adoption ou d'une migration. L'outil applique tout ce qui suit ; rien n'est à refaire à la main. Formats et règles de décision : [contrat d'état](program-contract.md).
 
 ## Sorties
 
@@ -59,6 +59,10 @@ Journaux participants d'un fichier : son journal courant, son journal local et t
 ## Reprise à froid
 
 `resume` donne titulaire, acteurs, intentions non résolues, opérations incertaines, événements reçus non appliqués avec leur vague, candidat, attentes et prochaine action, avec ses `actions`. Une opération incertaine se résout par `reconcile` avant toute écriture du même fichier. Intentions `pending` et acteurs `unknown` se rapprochent avant de relancer leur cible ; un acteur `unknown` sans cible connue bloque les lancements de sa vague jusqu'à son rapprochement.
+
+## Relais de pilote
+
+Relais à un pilote successeur (index sans vague active) : avant l'appel, écris dans l'index `last_milestone` « relais en cours », avec la corrélation passée au lancement (`clientRequestId`) et le chemin du brief ; après le reçu, réécris-le avec la référence retournée. Le successeur reprend par `claim --takeover --evidence`. Un « relais en cours » sans référence se rapproche par la liste des fils et tâches avant tout nouveau lancement.
 
 ## Adoption et migrations
 

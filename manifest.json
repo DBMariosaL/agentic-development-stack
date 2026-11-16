@@ -180,8 +180,8 @@
     },
     {
       "path": "rc-coordinate-development/SKILL.md",
-      "sha256": "4a0f29578d45965f812896c59aedc7604f747d9002a1f49327fe5443bbe3da7b",
-      "bytes": 3327
+      "sha256": "66a27847eaa1428b97daa8afe2553305b73f30cf0a1d50c39419bf18809f5ed7",
+      "bytes": 3401
     },
     {
       "path": "rc-coordinate-development/agents/openai.yaml",
@@ -190,23 +190,28 @@
     },
     {
       "path": "rc-coordinate-development/references/engine.md",
-      "sha256": "897f82d2b8b0f6b25fc25c3fb46ef4de77f275c9a9f0cd1a7cca05ba1ee1390c",
-      "bytes": 11552
+      "sha256": "4d98bd0e3e291c9d1c6fcf8b6cf8a7854fab36a61caba1678a6058618b85ad12",
+      "bytes": 12054
     },
     {
       "path": "rc-coordinate-development/references/garden.md",
-      "sha256": "e74daaea279078207eda39f426b915374ec8806eae7250166c0e10d07e8b32b6",
-      "bytes": 4698
+      "sha256": "d577a3e5f24cbb16d1992cfe24becdec6b4eda8d18f5c7f50fc22c838c00e9cf",
+      "bytes": 6026
     },
     {
       "path": "rc-coordinate-development/references/operating-loop.md",
-      "sha256": "9ff7d5691371dfb52fcd1f2049fb4fb96f854bc98155f939a8d97b2c35b25d07",
-      "bytes": 14651
+      "sha256": "aa503af820b8b1bf800279e4bf3e2712288bc1759ab375909976112eb66e793e",
+      "bytes": 14803
     },
     {
       "path": "rc-coordinate-development/references/program-contract.md",
-      "sha256": "3299f4d4ae36b430651cf8cd812375222989fe80625174aa1c3d518c9d1126c3",
-      "bytes": 9498
+      "sha256": "323856ab9909a5163d504cdfc8a1510846bdcca64f06ebf287dae5ed62575def",
+      "bytes": 8891
+    },
+    {
+      "path": "rc-coordinate-development/references/review-brief.md",
+      "sha256": "ba398c7ed1a1b2bf8064f4f55266368b8ab28198ea2f60c8876d9063c9b9ccea",
+      "bytes": 2227
     },
     {
       "path": "rc-coordinate-development/references/separate-relay.md",
@@ -219,14 +224,19 @@
       "bytes": 17179
     },
     {
+      "path": "rc-coordinate-development/scripts/rc_footprint.py",
+      "sha256": "7c7a73834c8ab3551ea886002592838f9fdc0b5a6d5520bf0a4989223d632ffe",
+      "bytes": 9843
+    },
+    {
       "path": "rc-coordinate-development/scripts/rc_state.py",
       "sha256": "b9057d7c0d1968d7588d08a9ec178532a0a87ede7df54d4c897d1ab8a0cfa4e5",
       "bytes": 108110
     },
     {
       "path": "rc-prepare-socle-prompts/SKILL.md",
-      "sha256": "90f3fa8a0cf74caa7169f9cd15a69cfc2c4b5ce46546770291c2ea6bd2a6849e",
-      "bytes": 7284
+      "sha256": "123e091859b249d84602d03b9bf5ba63f342ef276c76c7cfbdf6d5ad11fdde65",
+      "bytes": 7879
     },
     {
       "path": "rc-prepare-socle-prompts/agents/openai.yaml",
@@ -269,5 +279,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "4fa6d56e7e2a035eb34c659bd1ed74186a7324e79691c2906bdf1993f4775bae"
+  "digest": "357be412fbe04d4a3f102bf293aeb534bc598a659e27fd52676d789501083127"
 }
