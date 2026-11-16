@@ -145,7 +145,7 @@ FABLE_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         ),
         "fable_aggressive_tool_language",
         "Emphatic tool-triggering language. Overtriggering is documented for Opus 4.5 and 4.6, not "
-        "for Fable: test it. Prefer\"Use <tool> when <condition>.\"",
+        "for Fable: test it. Prefer \"Use <tool> when <condition>.\"",
     ),
     (
         re.compile(

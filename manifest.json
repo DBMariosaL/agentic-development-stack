@@ -99,8 +99,8 @@
     },
     {
       "path": "claude-fable-prompt-optimizer/scripts/prompt_lint.py",
-      "sha256": "f1e8644778673c50d1efe03cd8e0c4b00ede43875e2a3fbf8d6acedbdbce3500",
-      "bytes": 21412
+      "sha256": "b085983cb262510d9fee8bef0b6f99575ae62225e2978fa131dd18522b819fb1",
+      "bytes": 21413
     },
     {
       "path": "claude-opus-prompt-optimizer/SKILL.md",
@@ -353,5 +353,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "5a354476dcd8176385e95104ebff5a50429ccde39cad76e55642acd04f2865b2"
+  "digest": "3e47c83e510399a4773d6d16e4629b7bcfa10982e5b965c7ba5c39ddc801969f"
 }

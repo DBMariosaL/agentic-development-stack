@@ -212,7 +212,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "020fd5a6fdb032a55fbb00dff8c71046dbf62d13328fa3450548b7031e6b7d04",
+      "sha256": "4c8c766d3beff6708f734090831f98de4afeefe48a15e4c4509b4accff5180f4",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -1757,9 +1757,9 @@
       "path": "package/claude-fable-prompt-optimizer/scripts/prompt_lint.py",
       "source_group": "rc-stack-v10-20261116",
       "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/scripts/prompt_lint.py (owner profile, 2026-09-03, Fable 5.1)",
-      "bytes": 21412,
+      "bytes": 21413,
       "source_sha256": "547b90dfe90d35b352a6a39291c0a2ac5aa8806e362b6d71a7c83e89c263f5f7",
-      "sha256": "f1e8644778673c50d1efe03cd8e0c4b00ede43875e2a3fbf8d6acedbdbce3500",
+      "sha256": "b085983cb262510d9fee8bef0b6f99575ae62225e2978fa131dd18522b819fb1",
       "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
     },
     {
