@@ -1610,7 +1610,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/installation.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "023bceaa61651e05d34471840fe1b7b4e934bd25524b24997e401a3f5df8810c",
-      "sha256": "bc6990da0deda10c1e8d246351882aef9e9c498fd54a06ecc0ee0ed836ffe4fc",
+      "sha256": "c3c89b07a9965ef93c1886669b437c8635afeec15ff42c706d715ba150327771",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "docs/installation.md",
