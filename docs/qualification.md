@@ -14,12 +14,16 @@ Statut : **candidate**. Aucune installation dans un profil actif, aucun essai de
 - La racine a vérifié ces corrections par le contrôle complet sur l'arbre commité, sans second tour : trois corrections à risque bas, chacune vérifiable par une commande.
 - Retour du réviseur sur le brief : il ne faisait chercher que les ajouts, et c'est l'exigence du mandat qui a fait trouver l'obligation retirée. Le brief demande maintenant aussi ce que le diff retire.
 - Nom du projet d'origine : retiré du dépôt après la revue. Dans les fixtures v7 à v9.1.1 et celle du 31 octobre, il est remplacé par « RC » (26 fichiers) et les six manifestes sont réalignés ; `tools/check.py` reste vert. Les empreintes de manifestes v7 et v8 citées dans les sections archivées ci-dessous sont celles de la lignée privée, plus celles des fixtures.
+- Optimiseur Fable : `claude-fable-prompt-optimizer`, repris du profil du propriétaire (version Fable 5.1 du 3 septembre 2026), est mis à jour pour Fable 5.2 d'après la documentation d'Anthropic lue le 16 novembre et devient la quatrième dépendance (distribution `rc-core-with-dependencies-2`). Le contrat d'état y route les prompts destinés à Fable et les remises à un parent Fable. Deux auteurs Opus 5.5, puis deux revues GPT-6.1 Sol (effort `high`) sur le candidat `90d7c41` :
+  - outil de mise à jour, tests et retrait du nom : aucune exigence manquée, quatre contre-épreuves par mutation, 299 tests. Une phrase périmée de cette page est corrigée ;
+  - faits du skill contre la documentation : 87 affirmations relevées, 79 confirmées, 8 à resserrer, dont deux bloquantes vérifiées par la racine sur les pages citées. Un échec du contrôle de préfixe ne donne pas d'erreur sur Message Batches ; le routage vers le modèle de repli n'est ni permanent ni garanti. Les huit sont corrigées ; la revue n'était pas exhaustive.
 
 Limites :
 
 - Aucun pilote n'a conduit la v10. Les règles de pertinence et de convergence n'ont servi qu'une fois, pour cette revue.
 - La détection des commentaires est une heuristique par extension : docstrings et commentaires de fin de ligne lui échappent.
-- Configuration prévue pour le premier essai réel, non éprouvée : pilote Fable qui décide et encadre, champions Opus, réviseurs GPT-6.1 Sol. Les essais de la v9.1 portaient sur un pilote `gpt-6.1-sol`, et le paquet n'a pas d'optimiseur de prompts pour Fable : la remise d'un enfant à un pilote Fable n'a pas de filtre prévu.
+- Configuration prévue pour le premier essai réel, non éprouvée : pilote Fable qui décide et encadre, champions Opus, réviseurs GPT-6.1 Sol. Les essais de la v9.1 portaient sur un pilote `gpt-6.1-sol`.
+- Le skill Fable porte des faits fournisseurs lus le 16 novembre 2026 ; aucun prompt écrit avec lui n'a été mesuré sur un modèle.
 - Le coût d'administration du moteur ne change pas.
 
 ## Version v9.1.1 (11 novembre 2026)

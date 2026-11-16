@@ -6,6 +6,7 @@ Quatre lectures Opus 5.5 indépendantes le 16 novembre 2026 (tstack, pstack, ski
 - [pstack](https://github.com/cursor/plugins/tree/main/pstack) de Lauren Tan, et sa conférence sur la pyramide inversée (code et contrôles, puis vérification, puis un peu de prose), lue sur [transcription](https://youtu.be/O_zcc6Xl12g).
 - [Skills de Matt Pocock](https://github.com/mattpocock/skills).
 - Sources publiques ouvertes par le lecteur : [Bugbot](https://cursor.com/blog/building-bugbot) (Cursor), [harnais pour longues exécutions](https://www.anthropic.com/engineering/harness-design-long-running-apps) (Anthropic), [évaluation des AGENTS.md](https://arxiv.org/abs/2602.11988) (ETH Zurich), [AGENTS.md et skills](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals) (Vercel).
+- Documentation d'Anthropic sur Fable 5.2, lue le 16 novembre 2026 pour mettre à jour l'optimiseur Fable ; les pages sont listées dans [ses sources officielles](../package/claude-fable-prompt-optimizer/references/official-sources.md).
 
 ## Constats
 

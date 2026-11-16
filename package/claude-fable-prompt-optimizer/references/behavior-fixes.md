@@ -150,11 +150,11 @@ Categories: `cyber`, `bio`, `frontier_llm`, `reasoning_extraction`, `general_har
 
 ## History edits
 
-Fable 5.2 returns 400 whenever a request fails the prefix check, where Fable 5.1 might not [W][X]. Append assistant turns exactly; keep `system` and `tools` fixed; put every update in a new message. Change patterns are in `references/fable-configuration.md`. To find edits: run with `thinking-binding-controls-2026-08-01` and `"drop_block"` and log `input_transformations` [M]. If you use the MCP connector without pinning the tool list, test against `claude-fable-5-2` specifically [M].
+On the Messages API with `prefix_mismatch_behavior` unset, Fable 5.2 returns 400 whenever a request fails the prefix check, where Fable 5.1 might not; Message Batches items get no error, and the API can drop the failing blocks [W][X]. Append assistant turns exactly; keep `system` and `tools` fixed; put every update in a new message. Change patterns are in `references/fable-configuration.md`. To find edits: run with `thinking-binding-controls-2026-08-01` and `"drop_block"` and log `input_transformations` [M]. If you use the MCP connector without pinning the tool list, test against `claude-fable-5-2` specifically [M].
 
 ## Model switches
 
-Only Mythos 5.2 reads Fable 5.2 thinking blocks. A switch to Opus 5.5, Fable 5.1, or a fallback model drops the reasoning for those turns; the first turn after costs more [M]. Keep routers and fallbacks from bouncing conversations off Fable 5.2 casually.
+Only Fable 5.2 and Mythos 5.2 read Fable 5.2 thinking blocks. A switch to Opus 5.5, Fable 5.1, or a fallback model drops the reasoning for those turns; the first turn after costs more [M]. Keep routers and fallbacks from bouncing conversations off Fable 5.2 casually.
 
 ## Tool 400s
 

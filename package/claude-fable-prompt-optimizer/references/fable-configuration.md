@@ -32,7 +32,7 @@ Mythos 5.2 has the same capabilities as Fable 5.2 [W]. On Amazon Bedrock, Fable 
 
 Shared 5.2 specs [W][M]: 1M-token context (default and maximum); 128k max output (no 300k batch beta [T]); adaptive thinking always on; the tokenizer introduced with Opus 4.7; 30-day data retention required, so a Claude API request from an organization or workspace without it returns 400 `invalid_request_error`; not on Priority Tier; its own rate limit, separate from the one Fable 5.1 and Fable 5 share.
 
-Routing: Anthropic recommends starting most workloads on Opus 5.5 and moving to Fable 5.2 for demanding reasoning and long-horizon agentic work, or when Opus 5.5 evals at higher effort still fall short [O][W]. Claude Code defaults to Opus 5.5 on every plan; no Fable model is a default anywhere, and `/model fable` selects Fable 5.2 [CC].
+Routing: Anthropic recommends starting most workloads on Opus 5.5 and moving to Fable 5.2 for demanding reasoning and long-horizon agentic work, or when Opus 5.5 evals at higher effort still fall short [O][W]. In Claude Code no account type defaults to a Fable model, though a saved or managed setting can select one; `/model fable` selects Fable 5.2 [CC].
 
 ## Effort
 
@@ -77,7 +77,7 @@ Each thinking block is bound to its prefix: `system`, `tools`, and every earlier
 | Fable 5.2, Mythos 5.2, Mythos 5.1 | 400 `... The block is bound to a different conversation` |
 | Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5 | possible 400, or no error and stale blocks reach the model |
 
-Retrying the same body does not clear the 400 [M]. With beta `thinking-binding-controls-2026-08-01`, set `thinking.block_binding.prefix_mismatch_behavior` to `"error"` or `"drop_block"`; `input_transformations` reports each drop with `reason: "prefix_binding_mismatch"` [X]. Treat `"drop_block"` as a stopgap: the model re-thinks and spends more output tokens [P][W].
+Message Batches items that leave the setting unset get no error, and the API can drop the failing blocks [X]. Retrying the same body does not clear the 400 [M]. With beta `thinking-binding-controls-2026-08-01`, set `thinking.block_binding.prefix_mismatch_behavior` to `"error"` or `"drop_block"`; `input_transformations` reports each drop with `reason: "prefix_binding_mismatch"` [X]. Treat `"drop_block"` as a stopgap: the model re-thinks and spends more output tokens [P][W].
 
 Nothing to change if Claude Code, claude.ai, Managed Agents, or the Agent SDK (with a constant system prompt) owns history [X]. Otherwise keep three habits: send assistant turns back exactly, empty thinking blocks included; build `system` and `tools` once per conversation; append every update at the end and leave it there [X].
 
@@ -95,7 +95,7 @@ Change patterns [C]:
 | Shorten history | Compaction on demand (beta `compact-2026-09-04`) or context editing; a client-side cut needs the kept thinking removed or `"drop_block"` |
 | File other people can edit (`AGENTS.md`, `CLAUDE.md`, memory) | Send its text only in a `tool_result` block, never in `system` or a system message |
 
-Model switching: Fable 5.2 reads blocks from Fable 5.1, Opus 5.5, and the other listed models on the Claude API and Google-managed Google Cloud; only Mythos 5.2 reads Fable 5.2 blocks [W]. Moving off Fable 5.2 (to Opus 5.5, Fable 5.1, or a fallback model) drops its reasoning for the turns that run elsewhere: the request succeeds, dropped blocks are unbilled, the first turn after the switch costs more [M]. Fable 5.2 blocks also work only in the producing account or a linked one [W].
+Model switching: Fable 5.2 reads blocks from Fable 5.1, Opus 5.5, and the other listed models on the Claude API and Google-managed Google Cloud; only Fable 5.2 and Mythos 5.2 read Fable 5.2 blocks [W]. Moving off Fable 5.2 (to Opus 5.5, Fable 5.1, or a fallback model) drops its reasoning for the turns that run elsewhere: the request succeeds, dropped blocks are unbilled, the first turn after the switch costs more [M]. Fable 5.2 blocks also work only in the producing account or a linked one [W].
 
 ## Tool configuration
 
@@ -124,7 +124,7 @@ A decline is HTTP 200 with `stop_reason: "refusal"` and `stop_details.category` 
 | `general_harms` | no | `requires verification` per category |
 | `null` | no | `requires verification` |
 
-Refusals count against rate limits either way; a mid-stream refusal bills what streamed; discard partial output [R]. Server-side fallback: `fallbacks: "default"` with beta `server-side-fallback-2026-07-01`, Claude API and Anthropic-managed Google Cloud only; permitted targets for Fable 5.2 are `claude-opus-4-8` and `claude-opus-5`; later requests in a fallen-back conversation go straight to the fallback model; batches cannot use it; the fallback model does not receive Fable 5.2 thinking [R][M]. `fallbacks` does not carry over to model calls made inside tool execution, so subagent calls need their own [R]. In Claude Code, flagged requests re-run on Opus 5 (bio) or Opus 4.8 (cyber), and a subagent does not pause to ask at a flagged request [CC].
+Refusals count against rate limits either way; a mid-stream refusal bills what streamed; discard partial output [R]. Server-side fallback: `fallbacks: "default"` with beta `server-side-fallback-2026-07-01`, Claude API and Anthropic-managed Google Cloud only; permitted targets for Fable 5.2 are `claude-opus-4-8` and `claude-opus-5`; later requests in a fallen-back conversation go straight to the fallback model only when they also send `fallbacks`, for about an hour and best-effort, so keep `fallbacks` on every call and handle the requested model being tried again; batches cannot use it; the fallback model does not receive Fable 5.2 thinking [R][M]. `fallbacks` does not carry over to model calls made inside tool execution, so subagent calls need their own [R]. In Claude Code, flagged requests re-run on Opus 5 (bio) or Opus 4.8 (cyber); a subagent never pauses to ask at a flagged request: it switches model or, with the "Ask each time" setting, fails [CC].
 
 `frontier_llm` is a named category in the current table; benign machine-learning work can trigger it [R]. The launch post reports fewer unnecessary cyber and bio blocks than Fable 5.1. Organizations blocked on legitimate work can apply to the Cyber or Life Sciences Verification Programs [P].
 

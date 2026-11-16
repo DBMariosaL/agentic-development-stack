@@ -20,13 +20,13 @@ Default to Fable 5.2 when the user says "Fable" without a version. Facts below r
 | Default effort | `high` on the API; `medium` in Claude Code and apps | `high` | `high` | `medium` |
 | "Answer directly without deliberating" | no effect at `medium`+ | usually followed | — | documented option at low effort |
 | Forced `tool_choice` | 400 | 400 | accepted | 400 |
-| Failed prefix check | always 400 | possible 400 | — | possible 400 |
-| Who reads its thinking blocks | only Mythos 5.2 | — | — | — |
+| Failed prefix check (Messages API, setting unset) | 400 | possible 400 | — | possible 400 |
+| Other models that read its thinking blocks | only Mythos 5.2 | — | — | — |
 | `computer_20251124` | 400 outside Bedrock | accepted with beta | accepted with beta | — |
 | Refusal categories | `cyber`, `bio`, `frontier_llm`, `reasoning_extraction`, `general_harms` | same | — | — |
 | Main documented fixes | finishing work, approvals, ownership, silence, delegation cost, cautions, reports | batching, density, formatting, quoting, scope, search, rewrites | progress claims, boundaries, memory, send-to-user | unattended stops, time signals, settled answers, pasted content |
 
-Anthropic routes most work to Opus 5.5 first and to Fable 5.2 for demanding reasoning and long-horizon agentic work, or when Opus 5.5 at higher effort still falls short. Claude Code never defaults to Fable; `/model fable` selects 5.2.
+Anthropic routes most work to Opus 5.5 first and to Fable 5.2 for demanding reasoning and long-horizon agentic work, or when Opus 5.5 at higher effort still falls short. No Claude Code account type defaults to Fable; `/model fable` selects 5.2.
 
 ## Remove before you add
 
@@ -49,7 +49,7 @@ Many reported Fable problems are harness defects: check `thinking.display`, mess
 
 ## The two jobs this skill serves most
 
-**1. A prompt or mandate for a Fable model, especially a lead that decides and delegates.** Fable earns its price on decomposition, judgment, and acceptance. Anthropic documents that it delegates as much as the harness invites, reviews its own work with subagents at `xhigh`/`max`, and that as orchestrator in Opus 5.5's place it cost 19% more for about the same score on one benchmark. The mandate needs a delegation contract (what is worth delegating and what a subagent costs; model and effort per role; brief contents, because the subagent sees only its brief; ownership; non-blocking returns; caps set in the harness; steps that need no approval), return semantics (a missing or partial report is not done; evidence beats the summary; open the diff), a continue-or-stop rule, and the acceptance check the lead runs itself. Use `references/orchestration-and-handoffs.md`.
+**1. A prompt or mandate for a Fable model, especially a lead that decides and delegates.** Fable earns its price on decomposition, judgment, and acceptance. Anthropic documents that it delegates as much as the harness invites, reviews its own work with subagents at `xhigh`/`max`, and that as orchestrator in Opus 5.5's place it cost 19% more for about the same score on one benchmark. The mandate needs a delegation contract (what is worth delegating and what a subagent costs; model and effort per role; brief contents, because the subagent sees none of the lead's conversation; ownership; non-blocking returns; caps set in the harness; steps that need no approval), return semantics (a missing or partial report is not done; evidence beats the summary; open the diff), a continue-or-stop rule, and the acceptance check the lead runs itself. Use `references/orchestration-and-handoffs.md`.
 
 **2. The final report a subagent hands to a Fable parent.** Only the final message reaches the parent. Write status first (`done`, `partial`, `blocked`) with any decision needed, then what changed with checkable pointers, then deviations and what was not done, then unverified claims, then the model and checks used. No narrative of the work, no reasoning transcript, no invented labels. The contract and a brief line to request it are in `references/orchestration-and-handoffs.md`.
 

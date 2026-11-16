@@ -34,8 +34,8 @@
   "files": [
     {
       "path": "claude-fable-prompt-optimizer/SKILL.md",
-      "sha256": "e4fbab9f01dc263cf73ec54bfe90b84b99305360ae26a5033ae513cc2c5f002d",
-      "bytes": 16730
+      "sha256": "c6d9093f22e3263a2f8c73477fbac53352667e6a4bc519743c706c7988913006",
+      "bytes": 16793
     },
     {
       "path": "claude-fable-prompt-optimizer/agents/openai.yaml",
@@ -49,13 +49,13 @@
     },
     {
       "path": "claude-fable-prompt-optimizer/references/agentic-scaffolding.md",
-      "sha256": "4c724900faa82b4afcb9d1fd9dc65dc2f804b8bf6661ddaae3d4dc024461588f",
-      "bytes": 7074
+      "sha256": "256d6692ea3c7c759a7fe393f715758c07e1a658819335b7f124a3e9a55eff98",
+      "bytes": 7168
     },
     {
       "path": "claude-fable-prompt-optimizer/references/behavior-fixes.md",
-      "sha256": "bd3c1db84f4fcb6c89f9b72b65da79297f6a471671a89e095fc2920e34a3e275",
-      "bytes": 25157
+      "sha256": "6b29f18adc4845f7b91e24ce1bd167aac579b614f113958782bfb98f8bd401ad",
+      "bytes": 25306
     },
     {
       "path": "claude-fable-prompt-optimizer/references/evaluation-playbook.md",
@@ -64,8 +64,8 @@
     },
     {
       "path": "claude-fable-prompt-optimizer/references/fable-configuration.md",
-      "sha256": "2d0dfa1d3c381f662d5a2dd6231b51fffd902b2cdf2de41b787f4b4fff9fb5b7",
-      "bytes": 14060
+      "sha256": "6cc1270a4ca05ff8ec565f28e72351301149094db8a48fb30ef7f8fde62b0df6",
+      "bytes": 14414
     },
     {
       "path": "claude-fable-prompt-optimizer/references/hardening-matrix.md",
@@ -79,13 +79,13 @@
     },
     {
       "path": "claude-fable-prompt-optimizer/references/orchestration-and-handoffs.md",
-      "sha256": "312aab40cf6f1b2a078d0cc3186a2a1ffb8ea5060e01166e1c86e1226f38c174",
-      "bytes": 11487
+      "sha256": "3d2cc175515308f31b62589f16fc7763bee91a84a6253096542e46a315c2d298",
+      "bytes": 11597
     },
     {
       "path": "claude-fable-prompt-optimizer/references/prompt-patterns.md",
-      "sha256": "2654fd69024b7fc9c3708c2fae38db5cc5030e89144b1d5c2f5f12b585d23f00",
-      "bytes": 9757
+      "sha256": "9fcf90583f1eae668ba3467d5d5fe13199282f8d435e88a269054ae3343b5dfe",
+      "bytes": 9789
     },
     {
       "path": "claude-fable-prompt-optimizer/scripts/fable_api_check.py",
@@ -99,8 +99,8 @@
     },
     {
       "path": "claude-fable-prompt-optimizer/scripts/prompt_lint.py",
-      "sha256": "641c4c5012b8a8684199a85b8cad8d7b0cf21d24f8eef3d6c88ca8b45c4f6183",
-      "bytes": 21403
+      "sha256": "f1e8644778673c50d1efe03cd8e0c4b00ede43875e2a3fbf8d6acedbdbce3500",
+      "bytes": 21412
     },
     {
       "path": "claude-opus-prompt-optimizer/SKILL.md",
@@ -353,5 +353,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "cb0892878883537f3916508f4495ac50348054a1f7d318c5649466fc5fe07ab5"
+  "digest": "5a354476dcd8176385e95104ebff5a50429ccde39cad76e55642acd04f2865b2"
 }

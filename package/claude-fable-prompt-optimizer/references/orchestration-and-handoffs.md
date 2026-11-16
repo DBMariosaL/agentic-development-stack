@@ -29,10 +29,10 @@ Consequence for a pilot that mostly decides and delegates (`workload recommendat
 | Default caps: nesting depth 3 (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`), 20 concurrent (`CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`), no spend cap unless `maxBudgetUsd` / `max_budget_usd` is set | [SDK] |
 | Subagent model order: per-call `model`, then the definition's `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the parent's model; aliases include `fable`, `opus`, `sonnet`, `haiku`, `inherit` | [SUB][SDK] |
 | With a Fable parent, the built-in Explore agent runs on Opus with a subscription, Console account, or gateway, and stays on Fable on Bedrock, Google Cloud, and Foundry | [SUB] |
-| A subagent does not pause to ask at a classifier-flagged request; in Claude Code, flagged bio requests re-run on Opus 5 and cyber on Opus 4.8 | [CC] |
+| A subagent never pauses to ask at a classifier-flagged request: in Claude Code it switches model (bio to Opus 5, cyber to Opus 4.8) or, with the "Ask each time" setting, fails | [CC] |
 | API `fallbacks` does not carry over to model calls made inside tool execution | [R] |
 | For dozens to hundreds of agents, the `Workflow` tool moves orchestration into a script outside the conversation | [SDK] |
-| Descriptions route delegation and share a 15,000-token budget; keep them short and put detail in the subagent's own prompt | [SUB] |
+| Descriptions route delegation; custom descriptions past 15,000 tokens in total raise a startup warning, so keep them short and put detail in the subagent's own prompt | [SUB] |
 
 ## A. Writing for a Fable lead
 
@@ -46,7 +46,7 @@ State each item once:
 
 1. **What is worth delegating.** Independent, bounded units, especially work larger than one context window; not a single dependent chain [OPT]. Say what a subagent costs in this harness; that sentence is what cut delegation in Anthropic's test [P].
 2. **Roles and models.** Name the model and effort per role, because the default is the parent's model [SUB]. Example: authors on Opus at `medium`, reviewers on another model family, the lead at `high`.
-3. **Brief contents.** The prompt string is all the subagent gets [SDK], so every brief carries: the goal and why it matters, the exact scope (files or paths owned), inputs and decisions already made, constraints and allowed side effects, the check that proves it done, and the return format in part B.
+3. **Brief contents.** The prompt string is all a non-fork subagent gets from the lead [SDK], so every brief carries: the goal and why it matters, the exact scope (files or paths owned), inputs and decisions already made, constraints and allowed side effects, the check that proves it done, and the return format in part B.
 4. **Ownership.** One writer per file set; reviewers read-only; worktree isolation for parallel writers.
 5. **Non-blocking.** Keep working while subagents run; wait only when the next step needs the report.
 6. **Caps.** Depth (1 is a sensible default when the lead alone coordinates), concurrency, and a spend cap set in the harness; a prompt only steers [SDK].
@@ -80,7 +80,7 @@ You decide, decompose, and accept. Subagents do the bulk work:
 - [role]: [model], effort [level], read-only reviewer
 A subagent costs [what it adds in this harness]. Delegate independent, bounded pieces; do work that is one dependent chain yourself.
 
-Each brief contains: goal and reason, owned scope, inputs and decisions already made, constraints and allowed effects, the check that proves it done, and the report format below. A subagent sees only its brief.
+Each brief contains: goal and reason, owned scope, inputs and decisions already made, constraints and allowed effects, the check that proves it done, and the report format below. A subagent sees none of this conversation.
 
 Keep working while subagents run. A missing or partial report is not done. Accept a result when its cited evidence supports it; open the diff before merging. You may brief, re-task, and message your own subagents without asking. Ask the user before [gated actions].
 

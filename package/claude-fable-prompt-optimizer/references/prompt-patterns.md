@@ -109,7 +109,7 @@ Use the lead skeleton in `references/orchestration-and-handoffs.md`. Its disting
 For a harness where Fable over-delegates. Anthropic documents the content, not the wording: cost, when it is and is not worth it, how to brief [P]. Adapt and test:
 
 ```text
-Starts a subagent with a fresh context. It sees only the prompt you give it and returns only its final report. Each subagent adds [cost or share of session spend] to this session. Delegate when work splits into independent pieces that can run in parallel or would flood your context; do the work yourself when it is one dependent chain, a single file, or a lookup you can run in a few calls. Brief it with the goal and why, the exact scope it owns, the inputs and decisions it needs, its allowed side effects, the check that proves it done, and the report you expect back.
+Starts a subagent with a fresh context. It sees nothing of this conversation except the prompt you give it, and returns only its final report. Each subagent adds [cost or share of session spend] to this session. Delegate when work splits into independent pieces that can run in parallel or would flood your context; do the work yourself when it is one dependent chain, a single file, or a lookup you can run in a few calls. Brief it with the goal and why, the exact scope it owns, the inputs and decisions it needs, its allowed side effects, the check that proves it done, and the report you expect back.
 ```
 
 ## Subagent brief

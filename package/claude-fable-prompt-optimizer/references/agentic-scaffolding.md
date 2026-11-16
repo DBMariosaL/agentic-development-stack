@@ -57,7 +57,7 @@ Skills and prompts written for prior models are often too prescriptive and can d
 2. For each instruction, name the behavior it corrects. If you cannot, it is a deletion candidate.
 3. Remove candidates; rerun evals at the default effort.
 4. Re-add only what a measured failure demands, in its smallest form.
-5. Hunt specifically for: reasoning-in-reply requests (refusal risk), standing delegate lines, think-less lines, visible token budgets, hard style limits, absolute "never" rules, stop-at-first-error rules, anti-narration and anti-formatting lines, and aggressive tool language [P][P51].
+5. Hunt specifically for: reasoning-in-reply requests (refusal risk), standing delegate lines, think-less lines, visible token budgets, hard style limits, absolute "never" rules, stop-at-first-error rules, anti-narration and anti-formatting lines [P][P51]; and aggressive tool language (`workload recommendation`: overtriggering is documented for Opus 4.5 and 4.6, not for Fable).
 
 ## Computer use and machine administration
 
