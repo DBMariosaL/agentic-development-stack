@@ -1570,7 +1570,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "README.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "61d499802761a72e9273a2a894efe0ba6b08c80100d3561771a6bdc4c7acc355",
-      "sha256": "c598f71e083ffaa7958cf499c3e257e5f945280e47a4406bed471f9be424c73c",
+      "sha256": "01280d1255c109bd0cac21afbc1fa198b70f98e12e4d49b533a1ed7c6db0bc5c",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "README.md",
@@ -1602,7 +1602,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/dependencies.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "d48c1c4bc2c60b9615085bbd9ccb0c5d3cc67954ae9693e94228ce1fbced4c3b",
-      "sha256": "564b5d4a5d4e5cf6a1ec71c88269b5987649f6178ec58b9f8a96d8025ebd4118",
+      "sha256": "102ae10d91b31499b2f9bfcc43ae3c0620798c4d9821610e934c4dc18ffbbbbd",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "docs/dependencies.md",
@@ -1833,7 +1833,8 @@
     "unslop_license_url": "https://github.com/poteto/plugins/blob/main/pstack/LICENSE",
     "unslop_license_sha256": "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e",
     "unslop_original_revision": "unknown; upstream observed for licence and attribution, not a claim of byte identity",
-    "license": "MIT"
+    "license": "MIT",
+    "owner_declaration_fable": "2026-11-16: claude-fable-prompt-optimizer created by owner"
   },
   "v9_1_2_reference": {
     "accepted_snapshot": "v9.1.2",
