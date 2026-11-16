@@ -53,23 +53,36 @@ RESOURCE = re.compile(r'`((?:references|scripts|assets|agents)/[A-Za-z0-9_.\-/]+
 LINK = re.compile(r'\[[^\]]*\]\(([^)]+)\)')
 REFERENCE = re.compile(r'^ {0,3}\[([^\]^][^\]]*)\]:[ \t]*(\S+)', re.M)
 FENCE = re.compile(r' {0,3}(`{3,}|~{3,})')
+LIST_ITEM = re.compile(r' {0,3}(?:[-*+]|\d+[.)])\s')
 CODE_SPAN = re.compile(r'(`+)(?!`)(.+?)(?<!`)\1(?!`)')
 MACHINE = re.compile(r'[A-Z]:[\\/]|[a-f0-9]{40}')
 
 
 def outside_fences(text):
-    """Text with the lines of fenced code blocks blanked, line numbering kept."""
-    lines, fence = [], None
+    """Text with the lines of fenced and indented code blocks blanked, line numbering kept."""
+    lines, fence, in_list, after_blank, indented = [], None, False, True, False
     for line in text.split('\n'):
         match = FENCE.match(line)
         if fence is None and match:
-            fence = match[1]
+            fence, indented = match[1], False
             line = ''
         elif fence is not None:
             closing = re.fullmatch(r' {0,3}(`{3,}|~{3,})\s*', line)
             if closing and closing[1][0] == fence[0] and len(closing[1]) >= len(fence):
                 fence = None
             line = ''
+        elif not line.strip():
+            lines.append(line)
+            after_blank = True
+            continue
+        elif re.match(r' {4}|\t', line) and not in_list and (after_blank or indented):
+            indented = True
+            line = ''
+        else:
+            indented = False
+            if not line.startswith('    '):
+                in_list = bool(LIST_ITEM.match(line))
+        after_blank = False
         lines.append(line)
     return '\n'.join(lines)
 

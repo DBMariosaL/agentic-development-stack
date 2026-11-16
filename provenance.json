@@ -76,7 +76,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/operating-loop.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "9ff7d5691371dfb52fcd1f2049fb4fb96f854bc98155f939a8d97b2c35b25d07",
-      "sha256": "c873735a850b313ec2211e0499d049c61cc0ce9e8834ec2885220c359f775136",
+      "sha256": "dcf67280ffa56d3085fc9f9663d49cddcc27b03752aaed4bd7b2f74951eaef64",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/operating-loop.md",
@@ -212,7 +212,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "4e450451cf30c6223b1591de4e67f150498006fcc1c80957dde497832944d98d",
+      "sha256": "618077094223520a9856783f09adfff1b8768f8d06e5a9e681365e51ba217e61",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -252,7 +252,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/validate_package.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "1ca84e30385bd92bdbf93def03a98ec39e37131776c352617e8bc042a816d473",
-      "sha256": "f8d1d9e03fb03d1cc941fe6c52800c54f796fd76934b76590a6317aed59f7199",
+      "sha256": "830a0117d3f2d6fe948ec7f9e2d4da1bcfe1a064bfa2f68faa1fdd27ce2bf6a4",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/validate_package.py",
@@ -572,7 +572,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/package/test_package_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
-      "sha256": "fba6b63b1c783d9c6197a8835044d2927f8eb3b8daa5a342e5b1c9c6b9a49fca",
+      "sha256": "79d4ed47c6f9ad95952e35bc785c0b6b76b613934dc6cc371beacd22a62e298b",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/package/test_package_v8.py",

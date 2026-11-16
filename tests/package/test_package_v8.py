@@ -153,9 +153,11 @@ class PackageTests(Base):
         for payload in ('\n[self](<patterns.md>)\n',
                         '\n## Repeated heading\n\n## Repeated heading\n\n[second](#repeated-heading-1)\n',
                         '\n```markdown\n[example](example-only.md)\n```\n',
-                        '\nsyntax: `[example](example-only.md)`\n'):
+                        '\nsyntax: `[example](example-only.md)`\n',
+                        '\ntext\n\n    [example](example-only.md)\n'):
             with self.subTest(payload):
                 self.assertEqual(self.validate_with_payload(payload), (0, {}))
+        self.assertNotEqual(self.validate_with_payload('\n- item\n\n    [dead](absent-list-link.md)\n')[0], 0)
 
     def test_unslop_policy_enforced(self):
         for label, old, new, check in (
