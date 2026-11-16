@@ -13,7 +13,8 @@ import json
 import re
 import subprocess
 import sys
-from pathlib import PurePosixPath
+from collections import namedtuple
+from pathlib import Path, PurePosixPath
 
 sys.dont_write_bytecode = True
 
@@ -47,8 +48,11 @@ class UsageError(Exception):
     pass
 
 
+Repo = namedtuple('Repo', 'path config')
+
+
 def git(repo, *args):
-    cmd = ['git', '--no-optional-locks', '-C', repo, '-c', 'core.quotepath=off', *args]
+    cmd = ['git', '--no-optional-locks', '-C', repo.path, *repo.config, '-c', 'core.quotepath=off', *args]
     proc = subprocess.run(cmd, capture_output=True)
     if proc.returncode:
         raise UsageError(proc.stderr.decode('utf-8', 'replace').strip() or f'git {args[0]} failed')
@@ -67,7 +71,7 @@ def resolve(repo, ref, flag):
     try:
         return git(repo, 'rev-parse', '--verify', '--quiet', ref + '^{commit}').strip()
     except UsageError:
-        raise UsageError(f'{flag}: unknown revision {ref!r} in {repo}') from None
+        raise UsageError(f'{flag}: unknown revision {ref!r} in {repo.path}') from None
 
 
 def classify(path):
@@ -121,9 +125,12 @@ def added_lines(patch):
                 line, new_left = line + 1, new_left - 1
             elif raw.startswith('-'):
                 old_left -= 1
+            elif raw.startswith(' '):
+                line, old_left, new_left = line + 1, old_left - 1, new_left - 1
             continue
         if raw.startswith('+++ '):
-            target = unquote(raw[4:])
+            # git ends the header with a tab when the path contains a space
+            target = unquote(raw[4:].removesuffix('\t'))
             path = target[2:] if target.startswith('b/') else None
         elif match := HUNK.match(raw):
             old_left = int(match.group(1) or 1)
@@ -140,7 +147,7 @@ def is_comment(path, text):
 
 
 def comments(repo, base, candidate):
-    patch = diff(repo, base, candidate, '-U0', '--src-prefix=a/', '--dst-prefix=b/')
+    patch = diff(repo, base, candidate, '-U0', '--inter-hunk-context=0', '--src-prefix=a/', '--dst-prefix=b/')
     found = [{'path': path, 'line': line, 'text': text.strip()[:200]}
              for path, line, text in added_lines(patch)
              if path and classify(path) != 'docs' and is_comment(path, text)]
@@ -151,9 +158,11 @@ def load_previous(path, base):
     try:
         with open(path, encoding='utf-8') as stream:
             previous = json.load(stream)
-        added = {name: int(previous['classes'][name]['added']) for name in CLASSES}
+        added = {name: previous['classes'][name]['added'] for name in CLASSES}
     except (OSError, ValueError, KeyError, TypeError) as exc:
         raise UsageError(f'--previous: unreadable footprint {path}: {exc}') from None
+    if not all(type(count) is int and count >= 0 for count in added.values()):
+        raise UsageError(f'--previous: added counts must be non-negative integers in {path}')
     if previous.get('base') != base:
         raise UsageError(f'--previous: measured on base {previous.get("base")}, not {base}')
     return added
@@ -182,11 +191,12 @@ def signals(rows, classes, comment_info, args, previous):
 
 
 def footprint(args):
-    repo = args.repo
+    config = ['-c', 'safe.directory=' + Path(args.repo).resolve().as_posix()] if args.safe_directory else []
+    repo = Repo(args.repo, config)
     try:
         git(repo, 'rev-parse', '--git-dir')
     except UsageError as exc:
-        raise UsageError(f'REPO: {repo}: {exc}') from None
+        raise UsageError(f'REPO: {repo.path}: {exc}') from None
     base = resolve(repo, args.base, '--base')
     candidate = resolve(repo, args.candidate, '--candidate')
     previous = load_previous(args.previous, base) if args.previous else None
@@ -207,6 +217,9 @@ def build_parser():
     parser.add_argument('--previous', metavar='FILE.json', help='earlier output of this tool on the same base')
     parser.add_argument('--test-ratio', type=float, default=3.0, help='tests_outweigh_product ratio (default: 3)')
     parser.add_argument('--test-slack', type=int, default=100, help='tests_outweigh_product slack (default: 100)')
+    parser.add_argument('--safe-directory', action='store_true',
+                        help='pass -c safe.directory=REPO to every git call, for a repository owned by another '
+                             'account; REPO must be its top-level folder; git configuration files are not changed')
 
     def error(message):
         raise UsageError(message)
