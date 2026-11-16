@@ -84,13 +84,13 @@
     },
     {
       "path": "claude-fable-prompt-optimizer/references/prompt-patterns.md",
-      "sha256": "9fcf90583f1eae668ba3467d5d5fe13199282f8d435e88a269054ae3343b5dfe",
-      "bytes": 9789
+      "sha256": "fc3b3d96d69fe9514de1341ccce9a342b90ce75b0a17b55abd84acd6059f546e",
+      "bytes": 9892
     },
     {
       "path": "claude-fable-prompt-optimizer/scripts/fable_api_check.py",
-      "sha256": "3a5ac0496b2c4207e48bdb54ba3067c824c333ac8b6311400044ff0484ae76c9",
-      "bytes": 17922
+      "sha256": "6825d1a6b4425361fcd0cd9f42a764b227ac8980a93f91348202cff0e3b1e583",
+      "bytes": 17996
     },
     {
       "path": "claude-fable-prompt-optimizer/scripts/profile_eval_dataset.py",
@@ -264,33 +264,33 @@
     },
     {
       "path": "rc-coordinate-development/references/engine.md",
-      "sha256": "eeef9fd7a2fac68b4e4bea3347d1386190738e1ed11fd982fc4abbf8b9e9786e",
-      "bytes": 14374
+      "sha256": "2f7ffd9ceb45ba1318ea7b94b9f1c62ce64b1089085723e0732d078cd8b10d13",
+      "bytes": 16000
     },
     {
       "path": "rc-coordinate-development/references/garden.md",
-      "sha256": "e37afc65c935274061ccfbf7d45472361b24768c8f151ade16fcc28b9c379076",
-      "bytes": 6282
+      "sha256": "2bf9a4b4ba5b8dca80cebdc64b1f6c8edbd5fd8102ded82b7bd02afad601b833",
+      "bytes": 6356
     },
     {
       "path": "rc-coordinate-development/references/host-t3.md",
-      "sha256": "9c4f7c0048b1f3a091d0517d571c9b9e9b98534a19cfeaba0b7288604c603f5d",
-      "bytes": 3524
+      "sha256": "501dca0740c15101cf22be8328494d8d8cfd8bc2737da2c0a633697f292f4d7a",
+      "bytes": 4252
     },
     {
       "path": "rc-coordinate-development/references/operating-loop.md",
-      "sha256": "2ee6831b0e315385a27ba811411c434d19184b5f98524f127186367591347c0d",
-      "bytes": 14769
+      "sha256": "c873735a850b313ec2211e0499d049c61cc0ce9e8834ec2885220c359f775136",
+      "bytes": 14725
     },
     {
       "path": "rc-coordinate-development/references/program-contract.md",
-      "sha256": "4d94058c2280a804f52dff5a1b50ec4187b4e9d6d34f2e30e502ee8d5f7a56dd",
-      "bytes": 8837
+      "sha256": "111ea326cce8cac348bd6add30be94d85792722efd0b13aad4e221fc49a1f5d4",
+      "bytes": 8912
     },
     {
       "path": "rc-coordinate-development/references/review-brief.md",
-      "sha256": "b823a74c0e8622ca75598ad024af711cd54c7fa84dc92ef79d12c49998a447e4",
-      "bytes": 2408
+      "sha256": "188a79c5932bed01d983556a49eb67bf35d33700781be01c738babb896fc9bda",
+      "bytes": 2657
     },
     {
       "path": "rc-coordinate-development/references/separate-relay.md",
@@ -309,13 +309,13 @@
     },
     {
       "path": "rc-coordinate-development/scripts/rc_footprint.py",
-      "sha256": "e98b212d21298e6a73fe1168b539bdfb165d2c41445db30011750f9fd83dccfa",
-      "bytes": 9948
+      "sha256": "5c36e6373ffe4e28082691cb30ef9b402c4bc926bdc3f268a94e26924dbc8b03",
+      "bytes": 10885
     },
     {
       "path": "rc-coordinate-development/scripts/rc_state.py",
-      "sha256": "057517fac907a37f628e833d269d3abd5ad7f8ebb4558a4851f881a9a58f01e8",
-      "bytes": 115264
+      "sha256": "d76f32344255791d377768acdc7da88319944a6483d4fca478bf86c8f05a8ebd",
+      "bytes": 123053
     },
     {
       "path": "rc-prepare-socle-prompts/SKILL.md",
@@ -363,5 +363,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "35b63e0bfaa2f422d5a0633f15f202c93b9e8fa27864fc887910efd20d9429b5"
+  "digest": "63ebd5174f52e3bada7e8c7d8064da34e737b3985b2315bce70c1a989e0580df"
 }

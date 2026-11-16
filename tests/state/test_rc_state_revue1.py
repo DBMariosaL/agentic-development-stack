@@ -149,7 +149,8 @@ class Review1(Base):
                 '--status', 'confirmed', '--result-ref', 'task-A', '--role', 'champion')
         self.refused('is running', 'intent', self.wave_path, 'add', '--actor', OWNER, '--expect-revision', 2,
                      '--correlation', 'a/2', '--op', 'launch', '--target', 'champion-A')
-        ops = json.dumps([{'op': 'update', 'path': 'actors', 'match': {'correlation': 'a/1'}, 'value': {'status': 'interrupted'}}])
+        ops = json.dumps([{'op': 'update', 'path': 'actors', 'match': {'correlation': 'a/1'},
+                           'value': {'status': 'interrupted', 'evidence': 'task_status=interrupted'}}])
         self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 2, '--ops', ops)
         self.ok('intent', self.wave_path, 'add', '--actor', OWNER, '--expect-revision', 3, '--correlation', 'a/2',
                 '--op', 'launch', '--target', 'champion-A')

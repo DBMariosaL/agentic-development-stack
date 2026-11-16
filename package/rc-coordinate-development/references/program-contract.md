@@ -22,7 +22,7 @@ Le dossier de vague (`wave.json`, mandats sous `socles/`, raccord commun, `super
 
 Champs et types : `init --template program`. `skills_consumed` porte l'empreinte du `SKILL.md` de chaque skill chargé : elle identifie la version sans attester une lecture. Un résultat clos porte `closure` : source et reste, ou cause et condition de reprise.
 
-**Prêt** : résultat `pending`, dépendances `accepted`, `waiting_on` nul, aucune décision qui le suspend. `abandoned` ou `accepted_partial` ne satisfont pas une dépendance dure ; une consommation partielle passe par un résultat distinct. Un résultat s'accepte à la clôture de sa vague : un résultat à accepter avant d'autres (contrat consommé, premier de lots sérialisés) a sa propre vague. Un découpage erroné se corrige sans supprimer : le résultat superflu se clôt `abandoned` avec sa source, les nouveaux s'ajoutent. Le programme attend (`waiting_*`) seulement sans travail prêt ni admis hors attente ; il est `completed` quand chaque résultat est accepté ou clos avec sa source.
+**Prêt** : résultat `pending`, dépendances `accepted`, `waiting_on` nul, aucune décision qui le suspend. `abandoned` ou `accepted_partial` ne satisfont pas une dépendance dure ; une consommation partielle passe par un résultat distinct. Un résultat s'accepte à la clôture de sa vague, ou hors vague avec une `closure` sourcée : un résultat à accepter avant d'autres (contrat consommé, premier de lots sérialisés) a sa propre vague. Un découpage erroné se corrige sans supprimer : le résultat superflu se clôt `abandoned` avec sa source, les nouveaux s'ajoutent. Le programme attend (`waiting_*`) seulement sans travail prêt ni admis hors attente ; il est `completed` quand chaque résultat est accepté ou clos avec sa source.
 
 ## `wave.json` version 2
 
@@ -36,7 +36,7 @@ Valeur inconnue : `null` avec réserve, jamais un identifiant plausible.
 
 Seul le titulaire met `launch_ready=true` : demande consignée, `project` complet, aucun bloqueur, mandats des lots admis consommés (et `supervisor` s'il existe), revues disposées sur les mêmes empreintes. Tout changement de ces éléments le remet à faux.
 
-Phases terminales : `completed`, `completed_partial`, `failed`, `stopped`, sans relance ; une attente (`waiting_*`, `blocked`) revient à la phase active quittée. `completed` exige un candidat et des revues disposées de son artefact et de son SHA sur ce `candidate_seq`, sans intention `pending` ni acteur vivant ou `unknown` ; `completed_partial` nomme dans `decisions` la portée non qualifiée, `failed` sa cause et sa condition de reprise.
+Phases terminales : `completed`, `completed_partial`, `failed`, `stopped`, sans relance ; une attente (`waiting_*`, `blocked`) revient à la phase active quittée (`preparing` depuis `planning`). `completed` exige un candidat et des revues disposées de son artefact et de son SHA sur ce `candidate_seq`, sans intention `pending` ni acteur vivant ou `unknown` ; `completed_partial` nomme dans `decisions` la portée non qualifiée, `failed` sa cause et sa condition de reprise.
 
 ## Rapport de revue
 

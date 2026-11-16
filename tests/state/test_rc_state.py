@@ -292,7 +292,7 @@ class Transitions(Base):
 
     def test_program_completes_with_decision_that_suspends_nothing(self):
         p = program(outcome_status='accepted')
-        p['outcomes'][0]['state_ref'] = None
+        p['outcomes'][0].update(state_ref=None, closure={'source': 'adopted history', 'remaining': 'none'})
         self.write(self.program_path, p)
         question = {'id': 'D1', 'question': 'Confirm the doc fix?', 'option': 'confirm, else revert it',
                     'effects': 'documentation only'}
@@ -300,7 +300,8 @@ class Transitions(Base):
         self.refused('decisions_pending[0]', 'write', self.program_path, '--actor', OWNER, '--expect-revision', 0,
                      '--ops', ops)
         ops = json.dumps([{'op': 'append', 'path': 'decisions_pending', 'value': dict(question, suspends=[])},
-                          {'op': 'update', 'path': 'outcomes', 'match': {'id': 'B'}, 'value': {'status': 'accepted'}},
+                          {'op': 'update', 'path': 'outcomes', 'match': {'id': 'B'}, 'value': {
+                              'status': 'accepted', 'closure': {'source': 'doc fix confirmed', 'remaining': 'none'}}},
                           {'op': 'set', 'path': 'status', 'value': 'completed'}])
         self.ok('write', self.program_path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)
         self.assertEqual(self.ok('check', self.program_path)['errors'], [])
@@ -331,7 +332,7 @@ class WriteOps(Base):
 
     def test_append_applies_init_defaults(self):
         p = program(outcome_status='accepted')
-        p['outcomes'][0]['state_ref'] = None
+        p['outcomes'][0].update(state_ref=None, closure={'source': 'adopted history', 'remaining': 'none'})
         self.write(self.program_path, p)
         ops = json.dumps([{'op': 'append', 'path': 'outcomes',
                            'value': {'id': 'C', 'outcome': 'Lot C', 'next_action': 'prepare C'}}])
