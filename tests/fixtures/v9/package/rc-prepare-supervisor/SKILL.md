@@ -1,6 +1,6 @@
 ---
 name: rc-prepare-supervisor
-description: "Préparer le mandat d’un superviseur séparé imposé pour une vague Radio Chantier, à partir d’une vague cadrée et de retours d’expérience sourcés. Produit le mandat ou son delta et ses réserves ; ne lance aucun acteur ni travail produit. Quand le pilote supervise lui-même, aucun mandat de supervision n’est rédigé."
+description: "Préparer le mandat d’un superviseur séparé imposé pour une vague RC, à partir d’une vague cadrée et de retours d’expérience sourcés. Produit le mandat ou son delta et ses réserves ; ne lance aucun acteur ni travail produit. Quand le pilote supervise lui-même, aucun mandat de supervision n’est rédigé."
 ---
 
 # Préparer une supervision séparée

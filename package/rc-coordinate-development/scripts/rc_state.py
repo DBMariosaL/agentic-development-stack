@@ -46,6 +46,7 @@ for _wait in WAITLIKE:
     TRANSITIONS[_wait] = (ACTIVE_FROM_WAIT | WAITLIKE | {'failed', 'stopped'}) - {_wait}
 ACTOR_STATUSES = {'running', 'waiting', 'completed', 'failed', 'cancelled', 'interrupted', 'unknown'}
 LIVE_ACTOR = {'running', 'waiting', 'unknown'}
+PRODUCT_ROLE_MARKS = ('champion', 'supervis', 'integrat', 'int\u00e9grat')
 INTENT_OPS = {'launch', 'send', 'write', 'promote'}
 INTENT_STATUSES = {'pending', 'confirmed', 'absent', 'failed'}
 OUTCOME_STATUSES = {'pending', 'admitted', 'accepted', 'accepted_partial', 'failed', 'abandoned', 'blocked'}
@@ -55,6 +56,18 @@ WAIT_KINDS = {'human', 'quota', 'runtime', 'dependency', 'resource'}
 WAVE_WAIT_KINDS = WAIT_KINDS | {'children'}
 MANAGED_PATHS = ('owner', 'revision', 'schema', 'schema_version', 'migrated_from', 'state.owner')
 LAUNCH_CONTEXT = ('project', 'authorization', 'socles', 'batches', 'artifacts', 'reviews', 'candidate')
+CLOSED_KEYS = {
+    'program': {'': {'schema', 'revision', 'owner', 'mandate', 'skills_consumed', 'status', 'status_reason',
+                     'outcomes', 'decisions_pending', 'last_milestone'},
+                'mandate': {'ref', 'sha256', 'scope', 'exclusions', 'end_criteria'}},
+    'wave2': {'': {'schema_version', 'revision', 'mode', 'project', 'authorization', 'socles', 'batches', 'artifacts',
+                   'reviews', 'decisions', 'state', 'program_ref', 'candidate', 'envelope', 'actors', 'intents',
+                   'migrated_from'},
+              'state': {'phase', 'owner', 'next_action', 'blockers', 'runtime_refs', 'consumed', 'launch_ready',
+                        'waiting', 'legacy_runtime_refs'},
+              'project': {'root', 'baseline', 'observed_at'},
+              'authorization': {'launch', 'source', 'scope', 'exclusions'}},
+}
 LIMITS = ('Checks declarations, revisions and local files only. Cannot certify authority, '
           'review quality, runtime delivery, idempotence of runtime calls or execution.')
 
@@ -78,8 +91,21 @@ def relative_ref(value):
     return not (value.startswith('/') or value.startswith('\\'))
 
 
+def product_role(role):
+    return isinstance(role, str) and any(mark in role.lower() for mark in PRODUCT_ROLE_MARKS)
+
+
+def launch_authorized(doc):
+    auth = doc.get('authorization') if isinstance(doc.get('authorization'), dict) else {}
+    return doc.get('mode') == 'prepare-and-launch' and auth.get('launch') is True
+
+
 class StateError(Exception):
     pass
+
+
+class OpenOperation(StateError):
+    """Failure after the prepare line was journaled: the operation stays open until reconcile."""
 
 
 def now():
@@ -106,6 +132,16 @@ def kind_of(doc):
 
 def _items(value):
     return [x for x in value if isinstance(x, dict)] if isinstance(value, list) else []
+
+
+def unknown_keys(doc):
+    """Keys of the closed objects of a program or v2 wave that its format does not define."""
+    out = []
+    for where, known in CLOSED_KEYS.get(kind_of(doc), {}).items():
+        obj = doc.get(where) if where else doc
+        if isinstance(obj, dict):
+            out.extend(f'{where}.{k}' if where else k for k in obj if k not in known)
+    return out
 
 
 # ---------------------------------------------------------------- per-field messages
@@ -263,6 +299,22 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
         target = (Path(directory) / str(artifacts[cand['artifact']]).replace('\\', '/')).resolve()
         require(target.is_file() and sha256_file(target) == cand['sha256'].lower(),
                 'candidate artifact missing or sha256 mismatch with local file')
+    if check_paths and directory is not None and sval(state, 'phase') not in TERMINAL_PHASES:
+        consumed = state.get('consumed') if isinstance(state.get('consumed'), dict) else {}
+        documentary = {}
+        for review in _items(doc.get('reviews')):
+            name = review.get('artifact')
+            if (review.get('candidate_seq') is None and member(name, set(artifacts)) and name not in consumed
+                    and digest(review.get('sha256'))):
+                documentary.setdefault(name, set()).add(review['sha256'].lower())
+        base = Path(directory).resolve()
+        for name, shas in sorted(documentary.items()):
+            if not local_path(artifacts[name]):
+                continue
+            target = (base / artifacts[name].replace('\\', '/')).resolve()
+            if target.is_file() and base in target.parents:
+                require(sha256_file(target) in shas,
+                        f'{name}: no documentary review sha256 matches the local artifact (its reviews cover other bytes)')
     env = doc.get('envelope')
     require(env is None or (isinstance(env, dict) and text(env.get('reason'))), 'envelope must be null or carry a reason')
     require(isinstance(doc.get('actors'), list) and len(actors) == len(doc['actors']), 'actors must be a list of objects')
@@ -271,6 +323,11 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
                 and (actor.get('ref') is None or text(actor.get('ref')))
                 and (actor.get('target') is None or text(actor.get('target'))),
                 f'actors[{index}]: role, correlation, status, ref(text|null), target(text|null) required')
+    if not launch_authorized(doc):
+        for index, actor in enumerate(actors):
+            require(not (product_role(actor.get('role')) and sval(actor, 'status') in LIVE_ACTOR),
+                    f'actors[{index}]: live {actor.get("role")} actor in a wave without launch authorization '
+                    '(mode prepare or authorization.launch=false allows documents and documentary reviews only)')
     correlations = [a.get('correlation') for a in actors if text(a.get('correlation'))]
     require(len(correlations) == len(set(correlations)), 'duplicate actor correlation')
     intents = _items(doc.get('intents'))
@@ -421,8 +478,9 @@ def validate_program(doc, directory=None, check_paths=False, self_path=None):
     require(isinstance(raw_decisions, list) and len(decisions) == len(raw_decisions), 'decisions_pending must be a list of objects')
     for index, dec in enumerate(decisions):
         ok = (all(text(dec.get(k)) for k in ('id', 'question', 'option', 'effects'))
-              and string_list(dec.get('suspends')) and dec.get('suspends') and all(s in by_id for s in dec['suspends']))
-        require(ok, f'decisions_pending[{index}]: id, question, concrete option, effects and known suspends required')
+              and string_list(dec.get('suspends')) and all(s in by_id for s in dec['suspends']))
+        require(ok, f'decisions_pending[{index}]: id, question, concrete option, effects and suspends '
+                    '(list of known outcome ids, empty when the decision suspends nothing) required')
     suspended = _suspended(doc)
     base = Path(directory).resolve() if directory is not None else None
     program_path = Path(self_path).resolve() if self_path is not None else None
@@ -437,12 +495,17 @@ def validate_program(doc, directory=None, check_paths=False, self_path=None):
         require(valid_deps, f'{oid}: invalid depends_on')
         deps = deps if valid_deps else []
         graph[oid].update(deps)
-        require(isinstance(o.get('resources'), list),
-                f'{oid}: resources must be a list, got {got(o.get("resources"), "resources" in o)}')
+        require(string_list(o.get('resources')),
+                f'{oid}: resources must be a list of strings, got {got(o.get("resources"), "resources" in o, items=True)}')
         ref = o.get('state_ref')
         require(ref is None or local_path(ref), f'{oid}: state_ref must be null or a local relative path')
         if st == 'admitted':
             require(text(ref), f'{oid}: admitted requires state_ref')
+        if st in {'accepted', 'accepted_partial'} and not text(ref):
+            closure = o.get('closure')
+            require(isinstance(closure, dict) and text(closure.get('source')) and text(closure.get('remaining')),
+                    f'{oid}: {st} requires state_ref (its closed wave) or, accepted outside any wave, '
+                    'closure {source, remaining} naming that acceptance')
         if st in {'admitted', 'accepted', 'accepted_partial'}:
             for dep in deps:
                 require(sval(by_id[dep], 'status') == 'accepted', f'{oid}: {st} while dependency {dep} is not accepted')
@@ -501,7 +564,7 @@ def validate_program(doc, directory=None, check_paths=False, self_path=None):
     if status == 'completed':
         open_ = [o for o, v in by_id.items() if sval(v, 'status') not in CLOSED_OUTCOMES]
         require(not open_, 'completed with open outcomes: ' + ', '.join(open_))
-        require(not decisions, 'completed with pending decisions')
+        require(not [d for d in decisions if d.get('suspends')], 'completed with pending decisions that suspend outcomes')
     if status == 'active':
         moving = view['ready'] or [o for o in view['admitted'] if not by_id[o].get('waiting_on')]
         require(bool(moving), 'active without ready or unwaited admitted outcomes: declare a waiting status, stopped or completed')
@@ -529,7 +592,35 @@ WRITE_EXAMPLES = '''examples (--ops takes a JSON list; a path names object keys 
   change a list item:   [{"op":"update","path":"outcomes","match":{"id":"B1"},
                           "value":{"status":"admitted","state_ref":"waves/b1/wave.json"}}]
   add a list item:      [{"op":"append","path":"decisions","value":"lot B1 cut in two"}]
-update merges value into the single item whose fields equal match; it refuses zero or several matches.'''
+update merges value into the single item whose fields equal match; it refuses zero or several matches.
+
+actor return in one command (signal receipt, intent resolution and application in a single revision):
+  write FILE --actor A --expect-revision N --resolve-intent CORR --status confirmed --result-ref R
+        --record-event ID --kind K [--candidate-seq S] [--ops ...]
+  ops apply after the resolution, so they can update the actor it creates. The signal is recorded first, as
+  event does; the write runs only when it is new or received but unapplied, otherwise its class is reported,
+  nothing is written and the exit code is 1. A refused write, invalid --ops included, leaves the event recorded
+  and unapplied: rerun the same command once the cause is fixed. A failure after the prepare line leaves the
+  event uncertain: run reconcile, never rerun. Ops are checked against the resolved intent: they cannot
+  reopen it. An actor status change needs a new "evidence" on the actor, or the applied signal.'''
+
+
+COMMAND_EXAMPLES = {
+    'write': WRITE_EXAMPLES,
+    'claim': '''example (--actor, --role and --expect-revision are required; N is the revision you read):
+  claim FILE --actor A --role pilot --expect-revision N
+  claim FILE --actor B --role pilot --expect-revision N --takeover --evidence "stop of A confirmed by task list"''',
+    'transition': '''examples (--to, --actor and --expect-revision are required):
+  transition FILE --actor A --expect-revision N --to preparing --next-action "write the mandates"
+  transition FILE --actor A --expect-revision N --to blocked --waiting-kind dependency --detail "input missing"
+             --trigger "input delivered" --resume "resume preparing"
+  transition FILE --actor A --expect-revision N --to integrating --applies-event task-1:run-1''',
+    'event': '''example (--actor, --id and --kind are required; event takes no --expect-revision):
+  event FILE --actor A --id task-1:run-1 --kind review [--candidate-seq S] [--detail TEXT]
+then apply it: write ... --applies-event task-1:run-1, or ack if it changes nothing.''',
+    'ack': '''example (--actor, --expect-revision and --id are required):
+  ack FILE --actor A --expect-revision N --id task-1:run-1 --reason "signal needs no state change"''',
+}
 
 
 def _list_in_path(path, parts, index):
@@ -582,7 +673,7 @@ def apply_ops(doc, ops):
             target = _get(result, path)
             if not isinstance(target, list):
                 raise StateError(f'{path} is not a list')
-            target.append(copy.deepcopy(op.get('value')))
+            target.append(with_item_defaults(copy.deepcopy(op.get('value')), ITEM_DEFAULTS.get((kind_of(result), path))))
         else:
             target = _get(result, path)
             match = op.get('match')
@@ -603,7 +694,18 @@ def _owner_of(doc):
     return (doc.get('state') or {}).get('owner') if isinstance(doc.get('state'), dict) else None
 
 
-def check_evolution(old, new, owner_change=False):
+def launch_context_changes(old, new):
+    """Launch-context fields changed by a write whose new version declares launch_ready true, whatever the old value."""
+    ostate, nstate = old.get('state'), new.get('state')
+    if not (isinstance(ostate, dict) and isinstance(nstate, dict) and nstate.get('launch_ready') is True):
+        return []
+    changed = [f for f in LAUNCH_CONTEXT if old.get(f) != new.get(f)]
+    if ostate.get('consumed') != nstate.get('consumed'):
+        changed.append('state.consumed')
+    return changed
+
+
+def check_evolution(old, new, owner_change=False, applies_event=None):
     """Invariants between two versions of the same document."""
     errors = []
     k = kind_of(old)
@@ -620,7 +722,12 @@ def check_evolution(old, new, owner_change=False):
         if po in TERMINAL_PHASES:
             errors.append(f'wave is terminal ({po}); record late signals with event, start a new wave to resume')
         elif pn != po and pn not in TRANSITIONS.get(po, set()):
-            errors.append(f'transition {po} -> {pn} not allowed')
+            hint = ('; a wait entered from planning keeps waiting.from=null and resumes to preparing'
+                    if po in WAITLIKE and pn == 'planning' else '')
+            errors.append(f'transition {po} -> {pn} not allowed{hint}')
+        elif pn == 'launched' and nstate.get('launch_ready') is not True and (
+                po == 'ready' or (po in WAITLIKE and (ostate.get('waiting') or {}).get('from') is None)):
+            errors.append('entering launched requires state.launch_ready=true, set by the owner after checking the launch context')
         origin = (ostate.get('waiting') or {}).get('from') if po in WAITLIKE else None
         if po not in WAITLIKE and pn in WAITLIKE:
             entered = (nstate.get('waiting') or {}).get('from') if isinstance(nstate.get('waiting'), dict) else None
@@ -633,12 +740,6 @@ def check_evolution(old, new, owner_change=False):
             errors.append(f'wait was entered from {origin}; resume to {origin}, not {pn}')
         if old.get('program_ref') is not None and new.get('program_ref') != old.get('program_ref'):
             errors.append('program_ref is immutable once set')
-        if ostate.get('launch_ready') is True and nstate.get('launch_ready') is True:
-            changed = [f for f in LAUNCH_CONTEXT if old.get(f) != new.get(f)]
-            if ostate.get('consumed') != nstate.get('consumed'):
-                changed.append('state.consumed')
-            if changed:
-                errors.append('launch_ready must be reset to false when launch context changes: ' + ', '.join(changed))
         oi = {i['correlation']: i for i in _items(old.get('intents')) if text(i.get('correlation'))}
         ni = {i['correlation']: i for i in _items(new.get('intents')) if text(i.get('correlation'))}
         for corr, intent in oi.items():
@@ -662,7 +763,17 @@ def check_evolution(old, new, owner_change=False):
             for field in ('ref', 'target'):
                 if actor.get(field) and na[corr].get(field) != actor.get(field):
                     errors.append(f'actor {corr}: known {field} is immutable')
-        for corr in set(na) - set(oa):
+            evidence = na[corr].get('evidence')
+            if (sval(na[corr], 'status') != sval(actor, 'status') and applies_event is None
+                    and not (text(evidence) and evidence != actor.get('evidence'))):
+                errors.append(f'actor {corr}: {actor.get("status")} -> {na[corr].get("status")} needs its evidence: '
+                              'give the actor a new "evidence" (task status read, delivered signal, file) or apply '
+                              'the signal that proves it with --applies-event')
+        for corr in sorted(set(na) - set(oa)):
+            role = na[corr].get('role')
+            if not launch_authorized(new) and product_role(role):
+                errors.append(f'actor {corr}: role {role!r} refused in a wave without launch authorization (mode '
+                              'prepare or authorization.launch=false): documents and documentary reviews only')
             linked = ni.get(corr)
             if not linked or sval(linked, 'status') != 'confirmed' or linked.get('op') != 'launch':
                 errors.append(f'actor {corr} needs a confirmed launch intent with the same correlation')
@@ -806,6 +917,8 @@ def append_journal(jpath, entry):
         st = os.fstat(fd)
         if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
             raise StateError(f'journal refused: regular file with a single link required ({jpath}, links={st.st_nlink})')
+        if st.st_size and unterminated_journal(jpath):
+            line = b'\n' + line
         view = memoryview(line)
         while view:
             view = view[os.write(fd, view):]
@@ -814,19 +927,43 @@ def append_journal(jpath, entry):
         os.close(fd)
 
 
+def journal_line_error(jpath, number, why):
+    return StateError(f'journal {jpath} line {number} {why} (interrupted write?); move the damaged line aside with its '
+                      'evidence before any other action')
+
+
 def read_journal(jpath):
     if not Path(jpath).is_file():
         return []
     entries = []
-    for number, line in enumerate(Path(jpath).read_text(encoding='utf-8').splitlines(), 1):
+    for number, raw in enumerate(Path(jpath).read_bytes().split(b'\n'), 1):
+        try:
+            line = raw.decode('utf-8')
+        except UnicodeDecodeError:
+            raise journal_line_error(jpath, number, 'is not valid UTF-8')
         if not line.strip():
             continue
         try:
-            entries.append(json.loads(line))
+            entry = json.loads(line)
         except ValueError:
-            raise StateError(f'journal {jpath} line {number} is not valid JSON (interrupted write?); move the '
-                             'damaged line aside with its evidence before any other action')
+            raise journal_line_error(jpath, number, 'is not valid JSON')
+        if not isinstance(entry, dict):
+            raise journal_line_error(jpath, number, f'is a JSON {got(entry)}, not an entry object')
+        entries.append(entry)
     return entries
+
+
+def unterminated_journal(jpath):
+    """True when the journal ends with a complete entry but no line feed; the next append terminates it first."""
+    try:
+        with open(jpath, 'rb') as stream:
+            stream.seek(0, os.SEEK_END)
+            if stream.tell() == 0:
+                return False
+            stream.seek(-1, os.SEEK_END)
+            return stream.read(1) != b'\n'
+    except FileNotFoundError:
+        return False
 
 
 def _carry_events_on_attach(old_j, new_j, entries, idents, actor, file_name):
@@ -901,9 +1038,12 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
             raise StateError(f'actor {actor} is not the owner ({owner}); hand the need to the owner')
         new = mutate(copy.deepcopy(old))
         new['revision'] = old['revision'] + 1
+        reset = launch_context_changes(old, new) if kind_of(old) == 'wave2' else []
+        if reset:
+            new['state']['launch_ready'] = False
         errors = validate_any(new, path.parent, check_paths=False, self_path=path)
         if not errors:
-            errors = check_evolution(old, new, owner_change=owner_change)
+            errors = check_evolution(old, new, owner_change=owner_change, applies_event=applies_event)
         if errors:
             raise StateError('refused: ' + '; '.join(errors))
         old_j, new_j = journal_path(path, old), journal_path(path, new)
@@ -936,6 +1076,12 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
                     raise StateError(f'event {applies_event} was received for {status["wave"]}, not for {ident}')
                 if status['applied']:
                     raise StateError(f'event {applies_event} is already applied')
+                seq = status['received'].get('candidate_seq')
+                current = old['candidate'].get('seq') if isinstance(old.get('candidate'), dict) else None
+                if type(seq) is int and type(current) is int and seq < current:
+                    raise StateError(f'event {applies_event} was received for candidate_seq {seq}, older than the current '
+                                     f'candidate {current}: it is stale and applies to nothing; record it as stale with '
+                                     f'event --id {applies_event}')
             new_bytes = (json.dumps(new, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
             op_id = f'op:{ident}:{new["revision"]}:{secrets.token_hex(4)}'
             tmp = write_exclusive_temp(path.parent, path.name, new_bytes)
@@ -953,9 +1099,13 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
                     if not recorded:
                         os.unlink(tmp)
                         raise
-                    raise StateError(f'operation {op_id} prepared in {recorded[0]} only ({exc}); state not replaced: '
-                                     'run reconcile before any other write')
-            os.replace(tmp, path)
+                    raise OpenOperation(f'operation {op_id} prepared in {recorded[0]} only ({exc}); state not replaced: '
+                                        'run reconcile before any other write')
+            try:
+                os.replace(tmp, path)
+            except OSError as exc:
+                raise OpenOperation(f'operation {op_id} prepared but the state replacement failed ({exc}): '
+                                    'run reconcile before any other write')
             for j in jpaths:
                 try:
                     append_journal(j, {'id': f'write:{idents[j]}:{new["revision"]}', 'at': now(), 'kind': kind,
@@ -963,9 +1113,14 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
                                        'detail': detail, 'applies_event': applies_event if j == jpath else None,
                                        'commits': op_id})
                 except (OSError, StateError) as exc:
-                    raise StateError(f'state committed at revision {new["revision"]} but its journal commit failed in '
-                                     f'{j}: {exc}; operation {op_id} stays unresolved: run reconcile before any other action')
-        return {'written': str(path), 'revision': new['revision']}
+                    raise OpenOperation(f'state committed at revision {new["revision"]} but its journal commit failed in '
+                                        f'{j}: {exc}; operation {op_id} stays unresolved: run reconcile before any other '
+                                        'action')
+        result = {'written': str(path), 'revision': new['revision']}
+        if reset:
+            result['launch_ready_reset'] = {'changed': reset, 'effect': 'launch_ready set to false by this write; '
+                                            'the owner sets it to true again once the launch conditions hold'}
+        return result
 
 
 # ---------------------------------------------------------------- commands
@@ -974,7 +1129,10 @@ def cmd_check(args):
     path = Path(args.file).resolve()
     doc = load(path)
     errors = validate_any(doc, path.parent, args.check_paths, self_path=path)
-    return {'valid': not errors, 'kind': kind_of(doc), 'errors': errors, 'limits': LIMITS}, bool(errors)
+    result = {'valid': not errors, 'kind': kind_of(doc), 'errors': errors, 'limits': LIMITS}
+    if kind_of(doc) in CLOSED_KEYS:
+        result['unknown_keys'] = unknown_keys(doc)
+    return result, bool(errors)
 
 
 def cmd_ready(args):
@@ -1146,6 +1304,18 @@ def cmd_migrate(args):
 INIT_REASON = 'initialized by rc_state.py init'
 OUTCOME_DEFAULTS = {'depends_on': [], 'status': 'pending', 'state_ref': None, 'waiting_on': None, 'resources': []}
 SOCLE_DEFAULTS = {'depends_on': [], 'resources': [], 'source_refs': []}
+REVIEW_DEFAULTS = {'disposition': None, 'reference': None}
+ITEM_DEFAULTS = {('program', 'outcomes'): OUTCOME_DEFAULTS, ('wave2', 'socles'): SOCLE_DEFAULTS,
+                 ('wave2', 'reviews'): REVIEW_DEFAULTS}
+
+
+def with_item_defaults(item, defaults):
+    """List item completed with the defaults init applies to its missing fields."""
+    if not (defaults and isinstance(item, dict)):
+        return item
+    return {**item, **{k: copy.deepcopy(v) for k, v in defaults.items() if k not in item}}
+
+
 INIT_TEMPLATES = {
     'program': {
         'mandate': {'ref': 'required: nonempty text', 'sha256': 'optional: 64 hex characters',
@@ -1155,15 +1325,19 @@ INIT_TEMPLATES = {
                       'next_action': 'required: nonempty text',
                       'depends_on': 'default []: list of outcome ids',
                       'status': 'default "pending": one of ' + ', '.join(sorted(OUTCOME_STATUSES)),
-                      'state_ref': 'default null: null or local relative path of a wave.json (required when admitted)',
+                      'state_ref': 'default null: null or local relative path of a wave.json (required when admitted; '
+                                   'accepted or accepted_partial needs it, or a closure for an acceptance outside '
+                                   'any wave)',
                       'waiting_on': 'default null: null or {kind: one of ' + ', '.join(sorted(WAIT_KINDS)) +
                                     ', detail: text, trigger: text}',
                       'resources': 'default []: list of strings',
-                      'closure': 'when accepted_partial, abandoned or failed: {source: text, remaining: text}'}],
+                      'closure': 'when accepted_partial, abandoned or failed, or accepted without state_ref: '
+                                 '{source: text, remaining: text}'}],
         'skills_consumed': 'default []: list of {name: text, sha256: 64 hex of its SKILL.md}',
         'status': 'default "active": one of ' + ', '.join(sorted(PROGRAM_STATUSES)),
         'status_reason': f'default "{INIT_REASON}": nonempty text',
-        'decisions_pending': 'default []: list of {id, question, option, effects: text, suspends: list of outcome ids}',
+        'decisions_pending': 'default []: list of {id, question, option, effects: text, suspends: list of outcome ids, '
+                             'empty for a decision that suspends nothing and does not prevent completion}',
         'last_milestone': 'default null: null or {at, summary, ref: text}'},
     'wave': {
         'mode': 'default "prepare": one of prepare, prepare-and-launch',
@@ -1180,7 +1354,8 @@ INIT_TEMPLATES = {
         'batches': 'default []: list of lists of socle ids',
         'artifacts': 'default {}: object name -> local relative path',
         'reviews': 'default []: list of {artifact: key of artifacts, sha256: 64 hex, status: one of ' +
-                   ', '.join(sorted(v1.REVIEW_STATUSES)) + ', disposition: text or null, reference: text or null, '
+                   ', '.join(sorted(v1.REVIEW_STATUSES)) + ', disposition: default null: text or null, reference: '
+                   'default null: text or null (both text when status is done or not_required), '
                    'candidate_seq: int or null}',
         'decisions': 'default []: list of strings',
         'envelope': 'default null: null or {reason: text, ...}',
@@ -1189,7 +1364,11 @@ INIT_TEMPLATES = {
 }
 INIT_SET = {
     'program': {'schema': PROGRAM_SCHEMA, 'revision': 0, 'owner': '{role: --role, ref: --actor}'},
-    'wave': {'schema_version': 2, 'revision': 0, 'program_ref': None, 'candidate': None, 'actors': [], 'intents': [],
+    'wave': {'schema_version': 2, 'revision': 0, 'program_ref': None,
+             'candidate': 'null; frozen later with write: {seq: int >= 1, increasing; ref: text, exact reference of the '
+                          'frozen candidate (commit SHA, branch@SHA or manifest name); artifact: key of artifacts naming '
+                          'its manifest; sha256: 64 hex of that artifact}',
+             'actors': [], 'intents': [],
              'state.phase': 'planning', 'state.owner': '{role: --role, ref: --actor}', 'state.launch_ready': False,
              'state.waiting': None, 'state.runtime_refs': None},
 }
@@ -1259,10 +1438,9 @@ def build_initial(kind, spec, actor, role):
     for key, (base, values) in nested.items():
         if isinstance(doc[key], dict):
             doc[key] = {**copy.deepcopy(base), **doc[key], **copy.deepcopy(values)}
-    key, item_defaults = ('outcomes', OUTCOME_DEFAULTS) if kind == 'program' else ('socles', SOCLE_DEFAULTS)
-    if isinstance(doc.get(key), list):
-        doc[key] = [{**item, **{k: copy.deepcopy(v) for k, v in item_defaults.items() if k not in item}}
-                    if isinstance(item, dict) else item for item in doc[key]]
+    for item_kind, defaults in ITEM_DEFAULTS.items():
+        if item_kind[0] == kind_of(managed) and isinstance(doc.get(item_kind[1]), list):
+            doc[item_kind[1]] = [with_item_defaults(item, defaults) for item in doc[item_kind[1]]]
     doc.update(copy.deepcopy(managed))
     return doc
 
@@ -1375,6 +1553,7 @@ def cmd_init(args):
     if exists:
         check_state_file(given)
     errors = validate_any(doc, path.parent, check_paths=False, self_path=path)
+    errors += [f'unknown key {key}' for key in unknown_keys(doc)]
     if errors:
         raise StateError('refused: initial state invalid: ' + '; '.join(errors))
     new_bytes = (json.dumps(doc, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
@@ -1447,10 +1626,52 @@ def cmd_init(args):
             'operation': op_id, 'replaced': replaced}, False
 
 
+def read_ops(args):
+    try:
+        return load(args.ops_file) if args.ops_file else json.loads(args.ops) if args.ops is not None else None
+    except (OSError, ValueError) as exc:
+        raise StateError(f'--ops{"-file" if args.ops_file else ""} unreadable or not valid JSON: {exc}')
+
+
 def cmd_write(args):
-    ops = load(args.ops_file) if args.ops_file else json.loads(args.ops)
-    return guarded_write(args.file, args.actor, args.expect_revision, lambda d: apply_ops(d, ops),
-                         detail=args.reason, applies_event=args.applies_event), False
+    def mutate(doc):
+        mid = resolve_intent(doc, args.resolve_intent, args) if args.resolve_intent else doc
+        new = apply_ops(mid, ops) if ops is not None else mid
+        created = [k for k in unknown_keys(new) if k not in unknown_keys(doc)]
+        if created:
+            raise StateError(f'refused: unknown key {", ".join(created)}: the {kind_of(doc)} format does not define it. '
+                             'A path joins object keys with ".", never "/" (state.next_action, not state/next_action); '
+                             'see write --help and init --template')
+        if mid is not doc and ops is not None:
+            errors = check_evolution(mid, new, applies_event=applies)
+            if errors:
+                raise StateError('refused: ops after the intent resolution: ' + '; '.join(errors))
+        return new
+
+    event, applies = None, args.applies_event
+    if args.record_event:
+        event, _ = cmd_event(argparse.Namespace(file=args.file, actor=args.actor, id=args.record_event, kind=args.kind,
+                                                candidate_seq=args.candidate_seq, detail=None, attach_legacy=False,
+                                                evidence=None))
+        if event['classification'] not in {'new', 'unapplied'}:
+            return {'event': event, 'written': None}, True
+        applies = args.record_event
+    detail = {'reason': args.reason, 'correlation': args.resolve_intent, 'status': args.status} \
+        if args.resolve_intent else args.reason
+    try:
+        ops = read_ops(args)
+        result = guarded_write(args.file, args.actor, args.expect_revision, mutate, detail=detail, applies_event=applies)
+    except OpenOperation as exc:
+        if event is None:
+            raise
+        raise OpenOperation(f'{exc}; event {args.record_event} is now uncertain: run reconcile, do not rerun this '
+                            'command')
+    except StateError as exc:
+        if event is None:
+            raise
+        raise StateError(f'{exc}; event {args.record_event} is recorded and stays unapplied: rerun this command '
+                         'once the cause is fixed')
+    return dict(result, event=event) if event else result, False
 
 
 def cmd_claim(args):
@@ -1506,6 +1727,18 @@ def cmd_transition(args):
                          detail={'to': args.to}, applies_event=args.applies_event), False
 
 
+def resolve_intent(doc, correlation, args):
+    wave_only(doc, 'intent')
+    doc = apply_ops(doc, [{'op': 'update', 'path': 'intents', 'match': {'correlation': correlation},
+                           'value': {'status': args.status, 'result_ref': args.result_ref, 'resolved_at': now()}}])
+    intent = next(i for i in doc['intents'] if i['correlation'] == correlation)
+    if args.status == 'confirmed' and intent['op'] == 'launch':
+        doc['actors'].append({'role': args.role or 'unspecified', 'model': args.model, 'ref': args.result_ref,
+                              'correlation': correlation, 'status': 'running',
+                              'target': intent['target'], 'candidate_seq': None})
+    return doc
+
+
 def cmd_intent(args):
     if args.action == 'add':
         def mutate(doc):
@@ -1527,15 +1760,7 @@ def cmd_intent(args):
         detail = {'correlation': args.correlation, 'op': args.op}
     else:
         def mutate(doc):
-            wave_only(doc, 'intent')
-            doc = apply_ops(doc, [{'op': 'update', 'path': 'intents', 'match': {'correlation': args.correlation},
-                                   'value': {'status': args.status, 'result_ref': args.result_ref, 'resolved_at': now()}}])
-            intent = next(i for i in doc['intents'] if i['correlation'] == args.correlation)
-            if args.status == 'confirmed' and intent['op'] == 'launch':
-                doc['actors'].append({'role': args.role or 'unspecified', 'model': args.model, 'ref': args.result_ref,
-                                      'correlation': args.correlation, 'status': 'running',
-                                      'target': intent['target'], 'candidate_seq': None})
-            return doc
+            return resolve_intent(doc, args.correlation, args)
         detail = {'correlation': args.correlation, 'status': args.status}
     return guarded_write(args.file, args.actor, args.expect_revision, mutate, kind='intent', detail=detail), False
 
@@ -1656,16 +1881,17 @@ def cmd_reconcile(args):
                     if e.get('kind') == 'prepare' and e.get('id') == args.op and e.get('wave') == wid:
                         copies[j] = e
                 if j in copies:
-                    for e in entries:
-                        if args.op in (e.get('commits'), e.get('resolves')):
-                            closures[j] = e
+                    found = [e for e in entries if args.op in (e.get('commits'), e.get('resolves'))]
+                    if found:
+                        closures[j] = found
             if not copies:
                 raise StateError(f'no operation {args.op} on {ident} in its participating journals')
             op = next(iter(copies.values()))
             if any(c.get(k) != op.get(k) for c in copies.values()
                    for k in ('old_sha256', 'new_sha256', 'revision', 'actor', 'file', 'op_kind')):
                 raise StateError(f'operation {args.op} differs between journals: inspect them before reconciling')
-            recorded = {('committed' if e.get('commits') else e.get('outcome')) for e in closures.values()}
+            recorded = {('committed' if e.get('commits') else e.get('outcome')) for found in closures.values()
+                        for e in found}
             if len(recorded) > 1:
                 raise StateError(f'operation {args.op} has contradictory closures {sorted(recorded)}: inspect the journals')
             recorded = next(iter(recorded)) if recorded else None
@@ -1798,7 +2024,7 @@ def build_parser():
              ('event', cmd_event, 'classify and journal a received signal'),
              ('ack', cmd_ack, 'mark a received event applied without state change'))
     for name, func, help_ in specs:
-        p = sub.add_parser(name, help=help_, epilog=WRITE_EXAMPLES if name == 'write' else None,
+        p = sub.add_parser(name, help=help_, epilog=COMMAND_EXAMPLES.get(name),
                            formatter_class=argparse.RawDescriptionHelpFormatter)
         p.add_argument('file')
         p.add_argument('--actor', required=True, help='runtime reference of the acting owner')
@@ -1808,10 +2034,21 @@ def build_parser():
         if name in {'write', 'transition'}:
             p.add_argument('--applies-event', help='id of the received event this write applies')
         if name == 'write':
-            group = p.add_mutually_exclusive_group(required=True)
+            group = p.add_mutually_exclusive_group()
             group.add_argument('--ops', help='JSON list of {op:set|append|update, path, value, match}')
             group.add_argument('--ops-file')
             p.add_argument('--reason')
+            p.add_argument('--resolve-intent', metavar='CORRELATION',
+                           help='resolve this pending intent in the same write, as intent resolve does')
+            p.add_argument('--status', choices=['confirmed', 'absent', 'failed'])
+            p.add_argument('--result-ref')
+            p.add_argument('--role', help='actor role recorded when a launch is confirmed')
+            p.add_argument('--model')
+            p.add_argument('--record-event', metavar='ID',
+                           help='record this signal as event does, then write only if it is new or unapplied, '
+                                'applying it')
+            p.add_argument('--kind', help='signal kind, with --record-event')
+            p.add_argument('--candidate-seq', type=int, help='with --record-event')
         elif name == 'claim':
             p.add_argument('--role', required=True)
             p.add_argument('--takeover', action='store_true')
@@ -1854,6 +2091,16 @@ def main(argv=None):
             parser.error('intent add needs --op and --target')
         if args.action == 'resolve' and not args.status:
             parser.error('intent resolve needs --status')
+    if args.command == 'write':
+        if args.ops is None and args.ops_file is None and not args.resolve_intent:
+            parser.error('write needs --ops, --ops-file or --resolve-intent')
+        if bool(args.resolve_intent) != bool(args.status) or \
+                (not args.resolve_intent and (args.result_ref or args.role or args.model)):
+            parser.error('--resolve-intent goes with --status; --result-ref, --role and --model need --resolve-intent')
+        if bool(args.record_event) != bool(args.kind) or (args.candidate_seq is not None and not args.record_event):
+            parser.error('--record-event goes with --kind; --candidate-seq needs --record-event')
+        if args.record_event and args.applies_event:
+            parser.error('--record-event already applies the event it records; drop --applies-event')
     if args.command == 'init':
         if args.template and any((args.file, args.kind, args.actor, args.role, args.spec, args.replace_invalid)):
             parser.error('init --template only prints a template; it takes no FILE or other option')

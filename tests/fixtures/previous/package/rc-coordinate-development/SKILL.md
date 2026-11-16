@@ -1,6 +1,6 @@
 ---
 name: rc-coordinate-development
-description: Choisir et préparer une vague de socles Radio Chantier selon leurs dépendances et ressources, faire préparer les prompts puis relayer au superviseur. Utiliser pour organiser une prochaine vague ou reprendre une coordination ; le lancement dépend du mandat applicable.
+description: Choisir et préparer une vague de socles RC selon leurs dépendances et ressources, faire préparer les prompts puis relayer au superviseur. Utiliser pour organiser une prochaine vague ou reprendre une coordination ; le lancement dépend du mandat applicable.
 ---
 
 # Coordonner une vague de développement

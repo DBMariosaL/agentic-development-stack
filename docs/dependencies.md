@@ -1,28 +1,29 @@
 # Dépendances de filtre
 
-Les skills RC routent leurs livrables vers trois filtres (section « Filtres » du contrat d'état). Depuis la v8, ces trois skills sont livrés dans `package/` pour que le paquet fonctionne sans le profil personnel d'origine.
+Les skills RC routent leurs livrables vers des filtres (section « Filtres » du contrat d'état). Depuis la v8, ces skills sont livrés dans `package/` pour que le paquet fonctionne sans le profil personnel d'origine ; la v10 ajoute `claude-fable-prompt-optimizer` aux trois premiers.
 
 | Skill | Fichiers | Usage dans la stack |
 |---|---|---|
 | `gpt-prompt-optimizer` | 15 | Prompt destiné à GPT ; remise d'un enfant à un parent GPT. |
 | `claude-opus-prompt-optimizer` | 15 | Prompt destiné à Opus ; remise d'un enfant à un parent Opus. |
+| `claude-fable-prompt-optimizer` | 14 | Prompt destiné à Fable ; remise d'un enfant à un parent Fable. |
 | `unslop` | 4 | Livrable destiné à un humain ; invocation explicite seulement. |
 
 ## Origine
 
-- Source : profil Codex de l'utilisateur (`%USERPROFILE%\.codex\skills`), instantané du 9 novembre 2026 à 09:29 UTC, copié octet pour octet. `provenance.json` donne pour chaque fichier la source, l'empreinte source et l'empreinte de la copie.
+- Source des trois premiers : profil Codex de l'utilisateur (`%USERPROFILE%\.codex\skills`), instantané du 9 novembre 2026 à 09:29 UTC, copié octet pour octet. `provenance.json` donne pour chaque fichier la source, l'empreinte source et l'empreinte de la copie.
+- `claude-fable-prompt-optimizer` : repris du profil Claude du propriétaire (`%USERPROFILE%\.claude\skills`, version du 3 septembre 2026 écrite pour Fable 5.1), puis mis à jour dans ce dépôt le 16 novembre 2026 pour Fable 5.2 et Mythos 5.2, d'après la documentation d'Anthropic lue ce jour-là. Ce n'est donc pas une copie octet pour octet : ce dépôt en est la source, et `provenance.json` garde l'empreinte de chaque fichier d'origine.
 - Exclus : `gpt-prompt-optimizer/scripts/__pycache__/` (cache), archives `.zip` du profil, tout autre skill.
-- Droits et origine déclarée le 12 novembre 2026 : les deux optimiseurs ont été créés par le propriétaire du dépôt ; Unslop est une adaptation de pstack de Lauren Tan (Poteto), sous MIT. Voir [la notice tierce](../THIRD_PARTY_NOTICES.md). La révision initialement reprise d’Unslop n’est pas connue ; le rapprochement et la licence amont vérifiée sont consignés dans `provenance.json`. Les 34 fichiers de dépendances restent identiques à la v9.1.1.
+- Droits et origine déclarés : les optimiseurs GPT et Opus (12 novembre 2026) et l'optimiseur Fable (16 novembre 2026) ont été créés par le propriétaire du dépôt ; Unslop est une adaptation de pstack de Lauren Tan (Poteto), sous MIT. Voir [la notice tierce](../THIRD_PARTY_NOTICES.md). La révision initialement reprise d’Unslop n’est pas connue ; le rapprochement et la licence amont vérifiée sont consignés dans `provenance.json`. Les 34 fichiers des trois premières dépendances restent identiques à la v9.1.1.
 
 ## Ce qui est contrôlé
 
 `tools/validate_package.py` vérifie sur ces copies, sans les réécrire : nom et description, sous-ensemble de `agents/openai.yaml` effectivement utilisé, icônes résolues depuis la racine du skill, politique d'invocation enregistrée (Unslop non implicite et sans `default_prompt`), liens Markdown et ancres, chemins `references/`, `scripts/` et `assets/` cités, compilation et imports de bibliothèque standard des scripts. Avec `--provenance`, toute modification d'octet est détectée.
 
-`tests/package/` exécute en plus `--help` et une entrée synthétique de chacun des cinq scripts, hors ligne, sans écriture. Ces contrôles ne mesurent pas la qualité des optimiseurs ; un lint de prompt ne certifie pas un prompt.
+`tests/package/` exécute en plus `--help` et une entrée synthétique de chacun des huit scripts, hors ligne, sans écriture. Ces contrôles ne mesurent pas la qualité des optimiseurs ; un lint de prompt ne certifie pas un prompt.
 
 ## Renvois externes et limites
 
-- L'optimiseur Opus renvoie vers `claude-fable-prompt-optimizer` pour une cible Fable ou Mythos. Ce skill n'est pas inclus : la stack n'emploie pas ces modèles. S'il devient nécessaire, il reste une dépendance externe à déclarer.
 - Les optimiseurs portent des faits fournisseurs datés : par exemple, la cible maintenue de `gpt-prompt-optimizer` est celle de sa référence `current-model.md` à la date de la copie, distincte du modèle du pilote. Le contrat demande de nommer le modèle réellement visé ; la copie n'est pas corrigée sur place.
 - Une consigne générale d'une dépendance ne prime ni le mandat ni les règles RC : un filtre ne remplace pas l'action demandée, ne change pas de modèle et ne supprime pas une revue exigée.
 

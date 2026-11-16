@@ -1,4 +1,4 @@
-"""Tests de distribution v8 de rc_update.py : trois skills RC -> six skills, sur profils factices.
+"""Tests de distribution v8 de rc_update.py : trois skills RC -> sept skills, sur profils factices.
 
 Lancer depuis la racine du dépôt :
   python -B tools/check.py                       (avec les autres suites)
@@ -48,7 +48,7 @@ NEW_PKG, NEW_MANIFEST = ROOT / 'package', ROOT / 'manifest.json'
 PREVIOUS = ROOT / 'tests' / 'fixtures' / 'previous'
 # Listes figées ici, indépendantes de l'outil éprouvé (un outil v7 échoue alors cas par cas).
 RC = ('rc-coordinate-development', 'rc-prepare-socle-prompts', 'rc-prepare-supervisor')
-DEPS = ('gpt-prompt-optimizer', 'claude-opus-prompt-optimizer', 'unslop')
+DEPS = ('gpt-prompt-optimizer', 'claude-opus-prompt-optimizer', 'claude-fable-prompt-optimizer', 'unslop')
 ALL = RC + DEPS
 UNKNOWN = {'rc-coordinate-development/notes-locales.md': b'notes locales\n'}
 OUTSIDE = {'autre-skill/SKILL.md': b'skill sans rapport\n'}
@@ -206,7 +206,7 @@ class ManifestV2Tests(Base):
     def test_manifest_v2_matches_package(self):
         doc = json.loads(NEW_MANIFEST.read_text(encoding='utf-8'))
         self.assertEqual(doc['format'], 'rc-update-manifest/2')
-        self.assertEqual(doc['distribution'], 'rc-core-with-dependencies')
+        self.assertEqual(doc['distribution'], 'rc-core-with-dependencies-2')
         self.assertEqual({s['name']: s['role'] for s in doc['skills']},
                          {**{s: 'rc' for s in RC}, **{d: 'dependency' for d in DEPS}})
         self.assertEqual(rc_update.compute_manifest(NEW_PKG), self.new)
@@ -268,12 +268,12 @@ class ManifestV2Tests(Base):
 
 
 class PlanV8Tests(Base):
-    def test_three_to_six_plan(self):
+    def test_three_to_seven_plan(self):
         before = self.trees()
         code, out = self.preflight(cli=True)
         self.assertEqual(code, 0, out)
         self.assertEqual(self.trees(), before)  # le préflight n'écrit rien dans les cibles
-        self.assertEqual(out['distributions'], {'previous': 'rc-core', 'new': 'rc-core-with-dependencies'})
+        self.assertEqual(out['distributions'], {'previous': 'rc-core', 'new': 'rc-core-with-dependencies-2'})
         plan = self.plan_doc()
         self.assertEqual(plan['format'], 'rc-update-plan/2')
         expected = {}
@@ -294,8 +294,6 @@ class PlanV8Tests(Base):
             got = {f['path']: f['decision'] for s in t['skills'] for f in s['files']}
             self.assertEqual(got, expected)
             self.assertNotIn('autre-skill/SKILL.md', t['observed'])
-        creates = sum(1 for r in self.new if r.split('/')[0] in DEPS)
-        self.assertEqual(creates, 34)
         self.assertEqual(len(plan['actions']), 2 * sum(v != 'unchanged' and v != 'preserve-unknown'
                                                         for v in expected.values()))
         self.assertFalse(plan['blocked'])
@@ -333,6 +331,22 @@ class PlanV8Tests(Base):
         self.assert_new(self.targets[0])
         self.assert_new(self.targets[1], tuple(s for s in ALL if s != 'gpt-prompt-optimizer'))
         self.assertEqual(self.run_main('verify', '--plan', self.plan)[0], 0)
+
+    def test_allow_blocked_reports_unmigrated_skills(self):
+        self.install_dep(self.targets[1], 'gpt-prompt-optimizer')
+        custom = self.targets[1] / 'gpt-prompt-optimizer' / 'SKILL.md'
+        custom.write_bytes(custom.read_bytes() + b'\n<!-- personnalisation locale -->\n')
+        self.assertEqual(self.preflight()[0], 2)
+        left = [{'root': str(self.targets[1].resolve()), 'skill': 'gpt-prompt-optimizer',
+                 'status': 'conflict', 'target_status': 'ok'}]
+        code, out = self.apply('--allow-blocked')
+        self.assertEqual(code, 0, out)
+        self.assertEqual(out['status'], 'complete')
+        self.assertEqual((out['not_migrated'], out['migration_complete']), (left, False))
+        code, rep = self.run_cli('verify', '--plan', self.plan)
+        self.assertEqual(code, 0, rep)
+        self.assertTrue(rep['ok'])
+        self.assertEqual((rep['not_migrated'], rep['migration_complete']), (left, False))
 
     def test_partial_dependency_conflict(self):
         (self.targets[1] / 'unslop').mkdir()
@@ -415,6 +429,29 @@ class ApplyV8Tests(Base):
                 self.assertIn(f'{prof}/skills/{d}', made)
         code, rep = self.run_cli('verify', '--plan', self.plan)
         self.assertEqual(code, 0, rep)
+        self.assertEqual((rep['not_migrated'], rep['migration_complete']), ([], True))
+
+    def test_preflight_refuses_missing_plan_folder(self):
+        plan = self.dir / 'etat-neuf' / 'plan.json'
+        code, out = self.preflight(plan=plan)
+        self.assertEqual(code, 1, out)
+        self.assertIn(str(plan.parent), out['error'])
+        self.assertNotIn('FileNotFoundError', out['error'])
+        self.assertFalse(plan.parent.exists())
+
+    def test_apply_refuses_hard_linked_destination(self):
+        dest = self.targets[0] / 'rc-coordinate-development' / 'SKILL.md'
+        old = dest.read_bytes()
+        self.assertEqual(self.preflight()[0], 0)
+        alias = self.dir / 'alias-hors-cible.md'
+        os.link(dest, alias)
+        before = self.trees()
+        code, out = self.apply()
+        self.assertEqual(code, 1, out)
+        self.assertIn('Lien physique', out['error'])
+        self.assertEqual(self.trees(), before)
+        self.assertEqual((dest.read_bytes(), alias.read_bytes(), os.stat(dest).st_nlink), (old, old, 2))
+        self.assertFalse(self.state.exists())
 
     def test_verify_detects_tampered_dependency(self):
         self.preflight()
@@ -519,6 +556,26 @@ class RollbackV8Tests(Base):
         self.assertEqual(code, 1, out)
         self.assertEqual(self.trees(), before)
         self.assertEqual(mine.read_bytes(), b'ajout tiers apres installation\n')
+
+    def test_rollback_keeps_unpublished_file_with_package_bytes(self):
+        self.preflight()
+        first = next(a for a in self.plan_doc()['actions'] if a['op'] == 'create')
+        real_publish = rc_update.publish
+
+        def failing_publish(*args):
+            if args[4]:
+                raise OSError('panne injectée avant la première création')
+            return real_publish(*args)
+        with mock.patch.object(rc_update, 'publish', failing_publish):
+            self.assertEqual(self.apply()[0], 1)
+        dest = self.targets[first['target']].joinpath(*first['path'].split('/'))
+        self.assertFalse(dest.exists())
+        dest.write_bytes((NEW_PKG / first['path']).read_bytes())
+        before = self.trees()
+        code, out = self.rollback()
+        self.assertEqual(code, 1, out)
+        self.assertEqual(self.trees(), before)
+        self.assertEqual(sha(dest.read_bytes()), first['after'])
 
     def test_rollback_refuses_edited_dependency(self):
         self.preflight()

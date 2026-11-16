@@ -1,6 +1,6 @@
 # RC — stack de pilotage agentique
 
-Six skills pour préparer et piloter le développement d’un projet dans T3 Code, avec un pilote GPT et des champions Opus : trois skills RC et les trois skills de filtre qu'ils appellent.
+Sept skills pour préparer et piloter le développement d’un projet dans T3 Code, avec un pilote GPT et des champions Opus : trois skills RC et les quatre skills de filtre qu'ils appellent.
 
 | Skill | Rôle |
 |---|---|
@@ -9,13 +9,22 @@ Six skills pour préparer et piloter le développement d’un projet dans T3 Cod
 | `rc-prepare-supervisor` | Préparer un mandat de supervision qui soutient les champions et conserve les limites de la mission. |
 | `gpt-prompt-optimizer` | Dépendance : passe unique sur un prompt destiné à GPT, ou sur la remise d'un enfant à un parent GPT. |
 | `claude-opus-prompt-optimizer` | Dépendance : passe unique sur un prompt destiné à Opus, ou sur la remise d'un enfant à un parent Opus. |
+| `claude-fable-prompt-optimizer` | Dépendance : passe unique sur un prompt destiné à Fable, ou sur la remise d'un enfant à un parent Fable. |
 | `unslop` | Dépendance : passe finale sur un livrable destiné à un humain, invocation explicite seulement. |
 
-Le même pilote coordonne et supervise par défaut. Le paquet fournit aussi `rc_state.py` pour l'état durable du programme, les événements et la reprise ; `tools/rc_update.py` met à jour les skills de façon contrôlée.
+Le même pilote coordonne et supervise par défaut. Le paquet fournit aussi `rc_state.py` pour l'état durable du programme, les événements et la reprise, et `rc_footprint.py` pour mesurer ce qu'un candidat ajoute ; `tools/rc_update.py` met à jour les skills de façon contrôlée.
 
 ## Version
 
-Ce dépôt contient la **v9.1.2**, généralisation de la v9.1.1 sans changement de moteur, de format ou de conduite. Les noms `rc-*` restent un préfixe historique pour préserver les installations. La référence v9.1.1 est figée par le tag du même nom dans l’archive privée, sa fixture incluse et `provenance.json`.
+Ce dépôt contient la **v10 « pertinence »**, candidate du 16 novembre 2026. Elle part d'un constat : les agents ajoutent plus de code, de tests, de documents et de commentaires que le mandat n'en demande, et ce qu'ils écrivent en markdown est ensuite suivi comme une règle. Trois changements :
+
+- `rc_footprint.py` mesure ce qu'un candidat ajoute : lignes de produit, de tests et de documents, commentaires, croissance d'un tour de revue à l'autre. L'auteur ne déclare plus ces chiffres ; pilote, auteur et réviseur relancent la même commande.
+- Chaque ajout répond à une exigence du mandat ou à un comportement nommé, sinon il sort du candidat. Le réviseur reçoit un [brief](package/rc-coordinate-development/references/review-brief.md) qui lui demande de chercher ces ajouts, de prouver ses constats bloquants et de proposer le correctif qui retire. Les tours de revue sont plafonnés, et un tour qui a fait grossir le diff commence par couper.
+- Un écrit hérité (document, commentaire, remise) est un contexte, pas une preuve. Le jardin dit quels écrits supprimer, et une règle d'`AGENTS.md` sans commande qui l'applique devient un signal de jardinage.
+
+La lecture obligatoire du pilote ne dépasse pas 3 953 mots, hors annexes lues à leur déclencheur (l'annexe T3 Code en ajoute environ 650), et `tools/check.py` échoue si elle dépasse ce budget. Les formats d'état ne changent pas ; `rc_state.py` refuse les clés que le format ne connaît pas et ramène le retour d'un acteur à une commande ; `claude-fable-prompt-optimizer` devient la quatrième dépendance. Deux configurations de pilotes ont conduit la v10 sur deux petits programmes, puis une campagne de trente agents l'a éprouvée et fait corriger ; la configuration retenue est un pilote Fable qui décide et encadre, des champions Opus et des réviseurs GPT : choix et sources dans [sources v10](docs/sources-v10.md), statut dans [qualification](docs/qualification.md).
+
+La **v9.1.2**, version précédente, généralise la v9.1.1 sans changement de moteur, de format ou de conduite. Les noms `rc-*` restent un préfixe historique pour préserver les installations. La référence v9.1.1 est figée par le tag du même nom dans l’archive privée, sa fixture incluse et `provenance.json`.
 
 La **v9.1.1** est le correctif de la v9.1 issu de ses essais de contrôle : la règle « critère ambigu → question » ne se déclenche plus que si le choix change un effet protégé par le mandat (une forme écrite littéralement fait foi), les refus d'une vague v2 ne portent plus le préfixe `v1-fields:`, et `init --template` indique quand `prompt_artifact` devient obligatoire. La v9.1 est une correction de la v9 « jardin » tirée d'une campagne d'essais réels du 11 novembre 2026 : des pilotes et sous-agents `gpt-6.1-sol` ont conduit la v9 sur dix petits programmes. Quatre essais sur dix n'avaient produit aucun code, d'abord parce que la v9 interdisait d'écrire un état à la main sans offrir de commande pour le créer. La v9.1 ajoute `rc_state.py init` (création, squelette typé, remplacement d'un état initial invalide), des refus qui nomment champ et type, et corrige les règles trop coûteuses ou ambiguës relevées par les essais. Campagne, défauts et corrections : [campagne v9.1](docs/campagne-v9.1.md) ; statut, revues et essais rejoués : [qualification](docs/qualification.md). La v9 acceptée le 10 novembre 2026 reste la référence précédente : `provenance.json` (`v9_reference`) et `tests/fixtures/v9/` ; la v8 garde `v8_reference` et `tests/fixtures/v8/`.
 
@@ -31,31 +40,32 @@ Python 3.10 ou ultérieur, bibliothèque standard uniquement. La validation de r
 python -B tools/check.py
 ```
 
-La commande vérifie les empreintes du paquet et de la provenance, lance les suites d'état, de mise à jour (historique v7, distribution à six skills, mises à jour réelles depuis la v8, la v9, la v9.1 et la v9.1.1) et de paquet, puis la validation structurelle. Elle écrit dans un nouveau dossier `.local/` un `summary.json` : identité du candidat, empreintes des entrées, commandes, collectes, skips et journaux. Une étape ne passe que si sa collecte correspond au nombre déclaré, sans échec ni skip non déclaré ; un code de sortie nul ne suffit pas. Elle utilise des fichiers synthétiques et des profils factices, sans réseau ; elle n'installe aucun skill dans les profils actifs.
+La commande vérifie les empreintes du paquet et de la provenance et le budget de lecture du pilote, lance les suites d'état, de mise à jour (historique v7, distribution à sept skills, mises à jour réelles depuis la v8, la v9, la v9.1, la v9.1.1 et la v9.1.2), de paquet et d'empreinte, puis la validation structurelle. Elle écrit dans un nouveau dossier `.local/` un `summary.json` : identité du candidat, empreintes des entrées, commandes, collectes, skips et journaux. Une étape ne passe que si sa collecte correspond au nombre déclaré, sans échec ni skip non déclaré ; un code de sortie nul ne suffit pas. Elle utilise des fichiers synthétiques et des profils factices, sans réseau ; elle n'installe aucun skill dans les profils actifs.
 
 ## Installation et usage
 
-Les six dossiers à installer sont dans `package/`. Lire [les instructions d'installation](docs/installation.md) avant de modifier un profil existant : une dépendance déjà présente et personnalisée n'est jamais écrasée.
+Les sept dossiers à installer sont dans `package/`. Lire [les instructions d'installation](docs/installation.md) avant de modifier un profil existant : une dépendance déjà présente et personnalisée n'est jamais écrasée.
 
-Dans T3 Code, le pilote a besoin d'un mandat qui précise les résultats attendus, les autorisations, les ressources disponibles et les critères de fin. Les skills utilisent les outils réellement exposés par le runtime ; ils ne créent pas à eux seuls de service de réveil ni d'ordonnanceur. Les copies des optimiseurs portent des faits fournisseurs datés : nommer le modèle réellement visé. Un skill qu'elles citent hors du paquet (l'optimiseur Fable notamment) reste externe.
+Dans T3 Code, le pilote a besoin d'un mandat qui précise les résultats attendus, les autorisations, les ressources disponibles et les critères de fin. Les skills utilisent les outils réellement exposés par le runtime ; ils ne créent pas à eux seuls de service de réveil ni d'ordonnanceur. Les copies des optimiseurs portent des faits fournisseurs datés : nommer le modèle réellement visé. Un skill qu'elles citent hors du paquet reste externe.
 
 Le dossier `package/` utilise des descriptions génériques. Pour chaque projet, fournir son mandat, ses instructions, son backlog et ses autorisations ; aucun profil privé supplémentaire n’est nécessaire. La généralisation des descriptions ne qualifie pas un nouveau runtime ou un autre modèle.
 
 ## Organisation
 
 ```text
-package/              Six skills : trois RC et trois dépendances de filtre
-manifest.json         Manifeste v9.1.2 (format rc-update-manifest/2, distribution et rôles)
+package/              Sept skills : trois RC et quatre dépendances de filtre
+manifest.json         Manifeste v10 (format rc-update-manifest/2, distribution et rôles)
 tools/                Vérification, validation structurelle et mise à jour
 tests/state/          Tests de l'état et de la reprise (ceux de la v9 inchangés, plus la v9.1)
-tests/updater/        Tests sur profils factices : historique v7, distribution v8, mises à jour depuis v8, v9, v9.1 et v9.1.1
+tests/updater/        Tests sur profils factices : historique v7, distribution v8, mises à jour depuis v8 à v9.1.2
+tests/footprint/      Tests de rc_footprint.py sur des dépôts git temporaires
 tests/package/        Paquet déplacé, ressources, métadonnées, scripts vendored, scénarios
 tests/qualification/  Scénarios figés de l'épreuve exploratoire ; résultats dans la qualification
-tests/fixtures/       Versions historiques nécessaires aux tests (v7, v8, v9, v9.1, v9.1.1)
+tests/fixtures/       Versions historiques nécessaires aux tests (v7 à v9.1.2)
 docs/                 Installation, dépendances, sources, campagne d'essais, qualification
 provenance.json       Origine et empreintes des fichiers (format 2)
 ```
 
-Les journaux T3, données métier, profils actifs, secrets, archives complètes de développement et textes complets des sources de recherche ne font pas partie de ce dépôt. Ce dépôt est distribué sous licence MIT : [LICENSE](LICENSE). Unslop est adapté de pstack de Lauren Tan (Poteto) ; sa notice MIT est conservée dans [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Les deux optimiseurs ont été créés par le propriétaire du dépôt, selon sa déclaration du 12 novembre 2026.
+Les journaux T3, données métier, profils actifs, secrets, archives complètes de développement et textes complets des sources de recherche ne font pas partie de ce dépôt. Ce dépôt est distribué sous licence MIT : [LICENSE](LICENSE). Unslop est adapté de pstack de Lauren Tan (Poteto) ; sa notice MIT est conservée dans [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Les trois optimiseurs ont été créés par le propriétaire du dépôt, selon ses déclarations du 12 novembre 2026 (GPT, Opus) et du 16 novembre 2026 (Fable, mis à jour dans ce dépôt : [dépendances](docs/dependencies.md)).
 
-Les noms Radio Chantier et les résultats datés restent dans les archives de qualification et les fixtures historiques, conservées à l’octet près. Les anciens SHA de commits dans la provenance identifient la lignée privée : ils ne seront pas présents dans l’historique neuf du dépôt public. Les fixtures incluses et leurs empreintes permettent de refaire les contrôles sans accès à cet historique.
+Le nom du projet d’origine est retiré de ce dépôt : dans les fixtures historiques (v7 à v9.1.1), il est remplacé par « RC » et leurs manifestes sont réalignés. Ces fixtures ne sont donc plus les octets de la lignée privée ; les empreintes de manifestes citées dans les archives de qualification et les anciens SHA de commits de la provenance identifient cette lignée, absente de l’historique du dépôt public. Les fixtures incluses et leurs empreintes permettent de refaire les contrôles sans accès à cet historique.

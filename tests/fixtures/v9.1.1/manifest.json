@@ -180,13 +180,13 @@
     },
     {
       "path": "rc-coordinate-development/SKILL.md",
-      "sha256": "773a6ee7c02162091baaab7311e15d8955ef1f6bd1aaff3f05e77abac2c7b08a",
-      "bytes": 3332
+      "sha256": "7c4749c57ef1f71b1994f98ebb8dc7467c7980e42a14c36eefcc49fda3d79a4b",
+      "bytes": 3320
     },
     {
       "path": "rc-coordinate-development/agents/openai.yaml",
-      "sha256": "c9a994fcfdc90abdee7d82eae8eb80492df82400fc5f327e5988e651c25a80b1",
-      "bytes": 282
+      "sha256": "1ed00bbc211f6a95a92d09c5fd586ab48d6ef346e6a8ba32604ae275b67a8c88",
+      "bytes": 258
     },
     {
       "path": "rc-coordinate-development/references/engine.md",
@@ -220,28 +220,28 @@
     },
     {
       "path": "rc-coordinate-development/scripts/rc_state.py",
-      "sha256": "8bb47630d09f197f52a7cb0ae6e216092da5d5643530b5b043ededa5f1ca2b81",
-      "bytes": 108113
+      "sha256": "580401796a3f27f613fee219e241f0cee899532acb5c547cbecd39511488841c",
+      "bytes": 108101
     },
     {
       "path": "rc-prepare-socle-prompts/SKILL.md",
-      "sha256": "2321ad1b1d90078045cfd7e695e6155f01a7846aaa181476fa2936827e2ef6e4",
-      "bytes": 7289
+      "sha256": "468ea3e9d8af2aef149ca90092ae96ac06dab44e9ba6307303b9385bcb9e222f",
+      "bytes": 7277
     },
     {
       "path": "rc-prepare-socle-prompts/agents/openai.yaml",
-      "sha256": "02cbf371a305ae470a86987565f67cdcaf54825b5256792c5117af55433a0805",
-      "bytes": 283
+      "sha256": "32e8f349108b938ee34e7245251e43d9ab4644422426412c3f12cd0277cd5683",
+      "bytes": 271
     },
     {
       "path": "rc-prepare-supervisor/SKILL.md",
-      "sha256": "28167ae5e4a1cf3427b77f52e622be4d7f37f63a01752a0ec06746880aa42592",
-      "bytes": 3997
+      "sha256": "0074c5e9e895030831bcb4d6bdc91f2de1d5c361a871e405f40a345783ddf897",
+      "bytes": 3985
     },
     {
       "path": "rc-prepare-supervisor/agents/openai.yaml",
-      "sha256": "e600c35c2c5c4eca6687b69cb2b85037fcfa1002cfaee15421684717cbb0621d",
-      "bytes": 326
+      "sha256": "e5664dd0581617e834872edacfea2e4a108d53dd78f8a940bfe87c1f64475e78",
+      "bytes": 314
     },
     {
       "path": "rc-prepare-supervisor/references/supervisor-template.md",
@@ -269,5 +269,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "0880942c029553f78c1f05cd43271703006c4dcffc823ca58391f5dda5a9135f"
+  "digest": "3b6b5fe8ea0204caa89fb8066b97e67194a4642edb210ecf9b4884216ddf9481"
 }

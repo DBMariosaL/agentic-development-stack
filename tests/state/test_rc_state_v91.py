@@ -83,6 +83,11 @@ class Init(InitBase):
         self.assertTrue(self.ok('check', path)['valid'])
         self.assertEqual(self.journal(path.parent)[-1]['wave'], 'wave.json')
         self.ok('transition', path, '--actor', OWNER, '--expect-revision', 0, '--to', 'preparing')
+        stray = self.fresh / 'waves/c/stray.json'
+        code, result = self.init(stray, 'wave', dict(WAVE_SPEC, **{'state/launch_ready': True}))
+        self.assertEqual(code, 1, result)
+        self.assertIn('unknown key state/launch_ready', result['error'])
+        self.assertFalse(stray.exists())
 
     def test_init_wave_then_program_then_attach(self):
         wave_path = self.fresh / 'waves/c/wave.json'
@@ -148,7 +153,11 @@ class Init(InitBase):
         result = self.ok('init', '--template', 'program')
         self.assertEqual(result['spec']['mandate']['scope'], 'required: list of strings')
         self.assertEqual(result['spec']['mandate']['end_criteria'], 'required: nonempty text')
-        self.assertIn('candidate_seq: int or null', self.ok('init', '--template', 'wave')['spec']['reviews'])
+        wave = self.ok('init', '--template', 'wave')
+        self.assertIn('candidate_seq: int or null', wave['spec']['reviews'])
+        for field in ('seq: int >= 1', 'ref: text, exact reference of the frozen candidate', 'artifact: key of artifacts',
+                      'sha256: 64 hex'):
+            self.assertIn(field, wave['set_by_init']['candidate'])
         self.assertEqual(list(self.fresh.iterdir()), [])
         self.usage_error('init', '--template', 'wave', self.fresh / 'wave.json')
         self.usage_error('init', self.fresh / 'wave.json', '--kind', 'wave', '--actor', OWNER)

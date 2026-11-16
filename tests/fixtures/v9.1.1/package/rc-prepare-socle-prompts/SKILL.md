@@ -1,6 +1,6 @@
 ---
 name: rc-prepare-socle-prompts
-description: Préparer un ou plusieurs prompts de champions Radio Chantier depuis un besoin et l’état du projet, avec domaines, interfaces communes, budget d’autonomie, critères de simplicité et preuves attendues, et entretenir l’AGENTS.md court du projet produit. Utiliser pour rédiger ou harmoniser ces mandats, sans lancer développement ni superviseur.
+description: Préparer un ou plusieurs prompts de champions RC depuis un besoin et l’état du projet, avec domaines, interfaces communes, budget d’autonomie, critères de simplicité et preuves attendues, et entretenir l’AGENTS.md court du projet produit. Utiliser pour rédiger ou harmoniser ces mandats, sans lancer développement ni superviseur.
 ---
 
 # Préparer les prompts des socles

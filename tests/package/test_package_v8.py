@@ -42,7 +42,11 @@ DEPS = rc_update.DEPENDENCIES
 SCRIPTS = ['gpt-prompt-optimizer/scripts/prompt_lint.py', 'gpt-prompt-optimizer/scripts/profile_eval_dataset.py',
            'claude-opus-prompt-optimizer/scripts/prompt_lint.py',
            'claude-opus-prompt-optimizer/scripts/profile_eval_dataset.py',
-           'claude-opus-prompt-optimizer/scripts/opus_api_check.py']
+           'claude-opus-prompt-optimizer/scripts/opus_api_check.py',
+           'claude-fable-prompt-optimizer/scripts/prompt_lint.py',
+           'claude-fable-prompt-optimizer/scripts/profile_eval_dataset.py',
+           'claude-fable-prompt-optimizer/scripts/fable_api_check.py']
+MAINTAINED_HERE = {'claude-fable-prompt-optimizer'}
 
 
 def failing(result):
@@ -68,7 +72,7 @@ class PackageTests(Base):
     def test_real_package_validates(self):
         result = validator.validate(PACKAGE, PROVENANCE)
         self.assertEqual(failing(result), {})
-        self.assertEqual(result['distribution'], 'rc-core-with-dependencies')
+        self.assertEqual(result['distribution'], 'rc-core-with-dependencies-2')
         names = {c['check'] for c in result['checks']}
         for dep in DEPS:  # les contrôles propres aux dépendances ont bien tourné
             self.assertIn(f'{dep}:ui_invocation_policy', names)
@@ -123,6 +127,37 @@ class PackageTests(Base):
         path.write_bytes(path.read_bytes() + b'\nSee [missing](#no-such-section).\n')
         bad = failing(validator.validate(copy))
         self.assertEqual(list(bad.values()), ['#no-such-section'])
+
+    def validate_with_payload(self, payload):
+        copy = self.copy()
+        path = copy / 'unslop' / 'references' / 'patterns.md'
+        path.write_bytes(path.read_bytes() + payload.encode('utf-8'))
+        out = self.dir / 'structure.json'
+        proc = subprocess.run([sys.executable, '-B', str(ROOT / 'tools' / 'validate_package.py'), str(copy),
+                               '--output', str(out)], capture_output=True, text=True, encoding='utf-8', timeout=90)
+        result = json.loads(out.read_text(encoding='utf-8'))
+        shutil.rmtree(copy)
+        return proc.returncode, failing(result)
+
+    def test_reference_link_to_missing_file_red(self):
+        code, bad = self.validate_with_payload('\n[missing][dead]\n\n[dead]: does-not-exist.md\n')
+        self.assertEqual(code, 1)
+        self.assertEqual(list(bad.values()), ['does-not-exist.md'])
+
+    def test_windows_machine_path_red(self):
+        code, bad = self.validate_with_payload('\nmachine path: C:\\private\\example.txt\n')
+        self.assertEqual(code, 1)
+        self.assertEqual(list(bad), [os.path.join('unslop', 'references', 'patterns.md') + ':no_machine_snapshot'])
+
+    def test_valid_link_forms_accepted(self):
+        for payload in ('\n[self](<patterns.md>)\n',
+                        '\n## Repeated heading\n\n## Repeated heading\n\n[second](#repeated-heading-1)\n',
+                        '\n```markdown\n[example](example-only.md)\n```\n',
+                        '\nsyntax: `[example](example-only.md)`\n',
+                        '\ntext\n\n    [example](example-only.md)\n'):
+            with self.subTest(payload):
+                self.assertEqual(self.validate_with_payload(payload), (0, {}))
+        self.assertNotEqual(self.validate_with_payload('\n- item\n\n    [dead](absent-list-link.md)\n')[0], 0)
 
     def test_unslop_policy_enforced(self):
         for label, old, new, check in (
@@ -186,10 +221,12 @@ class DependencyRecordTests(Base):
         provenance = json.loads(PROVENANCE.read_text(encoding='utf-8'))
         records = [f for f in provenance['files'] if f['path'].split('/')[1:2] and f['path'].split('/')[1] in DEPS]
         counts = {d: sum(1 for f in records if f['path'].split('/')[1] == d) for d in DEPS}
-        self.assertEqual(counts, {'gpt-prompt-optimizer': 15, 'claude-opus-prompt-optimizer': 15, 'unslop': 4})
+        self.assertEqual(counts, {'gpt-prompt-optimizer': 15, 'claude-opus-prompt-optimizer': 15,
+                                  'claude-fable-prompt-optimizer': 14, 'unslop': 4})
         for f in records:
-            self.assertEqual(f['adaptation'], 'byte-identical', f['path'])
-            self.assertEqual(f['sha256'], f['source_sha256'], f['path'])
+            if f['path'].split('/')[1] not in MAINTAINED_HERE:
+                self.assertEqual(f['adaptation'], 'byte-identical', f['path'])
+                self.assertEqual(f['sha256'], f['source_sha256'], f['path'])
             data = (ROOT / f['path']).read_bytes()
             self.assertEqual(hashlib.sha256(data).hexdigest(), f['sha256'], f['path'])
             self.assertEqual(len(data), f['bytes'], f['path'])
@@ -219,7 +256,7 @@ class VendoredScriptTests(Base):
         (self.dir / 'h.py').write_text('client.messages.create(model="claude-opus-5-5", max_tokens=10)\n',
                                        encoding='utf-8')
         cases = [(SCRIPTS[0], 'p.txt'), (SCRIPTS[2], 'p.txt'), (SCRIPTS[1], 'd.jsonl'), (SCRIPTS[3], 'd.jsonl'),
-                 (SCRIPTS[4], 'h.py')]
+                 (SCRIPTS[4], 'h.py'), (SCRIPTS[5], 'p.txt'), (SCRIPTS[6], 'd.jsonl'), (SCRIPTS[7], 'h.py')]
         before = sorted(p.name for p in self.dir.iterdir())
         for rel, arg in cases:
             with self.subTest(rel):
@@ -284,6 +321,40 @@ class RunnerR1Tests(Base):
         proc, report = self.collect_synthetic(unexpected_success=True)
         self.assertNotEqual(proc.returncode, 0)
         self.assertEqual(len(report['unexpected_successes']), 1)
+
+
+class CheckPreflightTests(Base):
+    @unittest.skipUnless(os.name == 'nt', 'the fixture root length preflight applies to Windows only')
+    def test_preflight_refusal_writes_summary(self):
+        """R08-02 : un refus de préflight laisse le summary.json annoncé, sans lancer d'étape."""
+        repo = self.dir / 'repo'
+        (repo / 'tools').mkdir(parents=True)
+        (repo / 'tests').mkdir()
+        shutil.copyfile(ROOT / 'tools' / 'check.py', repo / 'tools' / 'check.py')
+        entries = []
+        for name in ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md'):
+            path = repo / 'package' / 'rc-coordinate-development' / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'mot\n')
+            entries.append({'path': 'rc-coordinate-development/' + name,
+                            'sha256': hashlib.sha256(b'mot\n').hexdigest(), 'bytes': 4})
+        (repo / 'manifest.json').write_text(json.dumps({'files': entries}), encoding='utf-8')
+        (repo / 'provenance.json').write_text(json.dumps({'files': [
+            {'path': 'package/' + e['path'], 'sha256': e['sha256']} for e in entries]}), encoding='utf-8')
+        long_root = self.dir / ('x' * 100)
+        proc = subprocess.run([sys.executable, '-B', str(repo / 'tools' / 'check.py')], cwd=repo,
+                              env={**os.environ, 'RC_CHECK_FIXTURES_ROOT': str(long_root)},
+                              capture_output=True, text=True, encoding='utf-8', timeout=60)
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        summaries = list((repo / '.local').glob('*/summary.json'))
+        self.assertEqual(len(summaries), 1, proc.stdout)
+        summary = json.loads(summaries[0].read_text(encoding='utf-8'))
+        self.assertEqual(summary['inventory_problems'], [])
+        self.assertEqual(summary['candidate']['package_files'], 3)
+        self.assertTrue(str(summary['preflight_problem']['root']).startswith(str(long_root)))
+        self.assertEqual(summary['results'], [])
+        self.assertFalse(summary['all_passed'])
+        self.assertFalse(long_root.exists())
 
 
 class QualificationScenarioTests(unittest.TestCase):

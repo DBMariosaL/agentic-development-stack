@@ -1,24 +1,21 @@
 """Run the offline repository checks using synthetic files and isolated profiles.
 
 Steps:
-  inventory   manifest.json against package/, provenance.json against every listed file
+  inventory   manifest.json against package/, provenance.json against every listed file,
+              pilot mandatory reading against READING_BUDGET
   state       tests/state, unchanged v7 state regressions
   updater-v7  tests/updater/test_rc_update.py, unchanged, against the frozen v7 fixture
               (31 October -> v7, three RC skills)
-  updater-v8  tests/updater/test_rc_update_v8.py: three -> six skills and dependencies
-  updater-from-v8
-              tests/updater/test_update_from_v8.py: an installed v8 (compact frozen reference
-              tests/fixtures/v8) updated to package/: RC files replaced, dependencies untouched
-  updater-from-v9
-              tests/updater/test_update_from_v9.py: the same for an installed v9 (compact frozen
-              reference tests/fixtures/v9)
-  updater-from-v9.1
-              tests/updater/test_update_from_v9_1.py: the same for an installed v9.1 (compact
-              frozen reference tests/fixtures/v9.1)
-  updater-from-v9.1.1
-              tests/updater/test_update_from_v9_1_1.py: the same for installed v9.1.1
+  updater-v8  tests/updater/test_rc_update_v8.py: three -> seven skills and dependencies
+  updater-from-<version>
+              tests/updater/test_update_from_previous.py, one step per origin version
+              (v8, v9, v9.1, v9.1.1, v9.1.2) selected by RC_UPDATE_FROM: an installed
+              version (compact frozen reference tests/fixtures/<version>) updated to
+              package/: RC files replaced, dependencies untouched, claude-fable-prompt-optimizer
+              installed
   package     tests/package: moved package, missing resources, dependency metadata,
               vendored scripts, frozen qualification scenarios
+  footprint   tests/footprint: rc_footprint.py on temporary git repositories
   structure   tools/validate_package.py on package/ with provenance
 
 A zero exit code is never enough. A test step passes only if its exit code is 0, its
@@ -28,7 +25,8 @@ records candidate identity, input digests, commands, working directories, releva
 environment, log hashes, collections and skips. Results go to a new .local/ folder.
 Fixture roots are short folders under RC_CHECK_FIXTURES_ROOT (default: the system temp
 folder), outside the clone, so a deep clone path cannot exceed the legacy Windows
-260-character limit; a preflight refuses a base that is still too long. Only empty fixture
+260-character limit; a preflight refuses a base that is still too long, records the refusal
+in summary.json and runs no step. Only empty fixture
 roots are removed.
 Nothing is installed in an active profile and no network access is used.
 """
@@ -45,7 +43,9 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 169, 'updater-v7': 30, 'updater-v8': 28, 'updater-from-v8': 7, 'updater-from-v9': 7, 'updater-from-v9.1': 7, 'updater-from-v9.1.1': 7, 'package': 25}
+EXPECTED = {'state': 197, 'updater-v7': 30, 'updater-v8': 32, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 29, 'footprint': 11}
+READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
+READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.
 STEPS = list(EXPECTED) + ['structure']
 # Skips accepted only off Windows (NTFS junction tests); none is accepted on Windows.
@@ -56,13 +56,15 @@ NON_NT_SKIPS = {
     'updater-from-v9': set(),
     'updater-from-v9.1': set(),
     'updater-from-v9.1.1': set(),
-    'package': set(),
+    'updater-from-v9.1.2': set(),
+    'package': {'test_preflight_refusal_writes_summary'},
+    'footprint': set(),
     'state': set(),
 }
 # Deepest synthetic profile path observed below a fixture root, plus margin (characters).
 FIXTURE_DEPTH_MARGIN = 175
 ENV_KEYS = ('RC_STATE_PACKAGE', 'RC_UPDATE_LOT', 'RC_UPDATE_PREVIOUS', 'RC_UPDATE_CANDIDATE',
-            'RC_UPDATE_MODULE', 'RC_UPDATE_FIXTURES', 'RC_PACKAGE_FIXTURES')
+            'RC_UPDATE_MODULE', 'RC_UPDATE_FIXTURES', 'RC_UPDATE_FROM', 'RC_PACKAGE_FIXTURES')
 
 
 def sha(data):
@@ -133,7 +135,11 @@ def inventory():
     unlisted = sorted('package/' + p for p in actual if 'package/' + p not in listed)
     if unlisted:
         problems.append({'check': 'provenance_inventory', 'unlisted': unlisted})
-    identity = {'manifest_sha256': sha_file(manifest_path), 'manifest_format': manifest.get('format'),
+    reading = sum(len((ROOT / 'package/rc-coordinate-development' / name).read_text(encoding='utf-8').split())
+                  for name in READING)
+    if reading > READING_BUDGET:
+        problems.append({'check': 'pilot_reading', 'words': reading, 'budget': READING_BUDGET})
+    identity = {'pilot_reading_words': reading, 'manifest_sha256': sha_file(manifest_path), 'manifest_format': manifest.get('format'),
                 'distribution': manifest.get('distribution', 'rc-core'), 'manifest_digest': manifest.get('digest'),
                 'package_files': len(actual), 'provenance_sha256': sha_file(ROOT / 'provenance.json')}
     return identity, problems
@@ -205,15 +211,20 @@ def main():
                'expected_collections': EXPECTED, 'results': []}
     summary['inputs_digest'] = sha(canonical(summary['inputs']))
     print('inventory: ' + ('passed' if not problems else 'FAILED'), flush=True)
+    preflight = None
     if not problems:
         # Short fixture roots outside the clone keep NTFS paths below the legacy 260-character limit.
         base = Path(os.environ.get('RC_CHECK_FIXTURES_ROOT') or tempfile.gettempdir()) / ('rcchk-' + uuid.uuid4().hex[:6])
         if os.name == 'nt' and len(str(base)) + FIXTURE_DEPTH_MARGIN > 259:
+            preflight = {'check': 'fixture_root_length', 'root': str(base), 'not_run': STEPS}
+            summary['preflight_problem'] = preflight
             print(f'preflight: FAILED fixture root {base} is too long for 260-character paths; '
                   'set RC_CHECK_FIXTURES_ROOT to a short folder (for example C:\\rc)', flush=True)
-            return 1
+    if not problems and preflight is None:
         base.mkdir(parents=True)
-        roots = {k: base / k for k in ('f', 'g', 'h', 'i', 'j', 'k', 'p')}
+        from_steps = [n for n in EXPECTED if n.startswith('updater-from-')]
+        roots = {k: base / k for k in ('f', 'g', 'p')}
+        roots.update({n: base / f'h{i}' for i, n in enumerate(from_steps)})
         for r in roots.values():
             r.mkdir()
         env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8',
@@ -233,25 +244,19 @@ def main():
             ('updater-v8', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'), str(ROOT / 'tests/updater'),
                             str(out / 'updater-v8.json'), 'test_rc_update_v8.py'],
              ROOT, {'RC_UPDATE_FIXTURES': str(roots['g'])}, out / 'updater-v8.json'),
-            ('updater-from-v8', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'),
-                                 str(ROOT / 'tests/updater'), str(out / 'updater-from-v8.json'),
-                                 'test_update_from_v8.py'],
-             ROOT, {'RC_UPDATE_FIXTURES': str(roots['h'])}, out / 'updater-from-v8.json'),
-            ('updater-from-v9', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'),
-                                 str(ROOT / 'tests/updater'), str(out / 'updater-from-v9.json'),
-                                 'test_update_from_v9.py'],
-             ROOT, {'RC_UPDATE_FIXTURES': str(roots['i'])}, out / 'updater-from-v9.json'),
-            ('updater-from-v9.1', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'),
-                                   str(ROOT / 'tests/updater'), str(out / 'updater-from-v9.1.json'),
-                                   'test_update_from_v9_1.py'],
-             ROOT, {'RC_UPDATE_FIXTURES': str(roots['j'])}, out / 'updater-from-v9.1.json'),
-            ('updater-from-v9.1.1', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'),
-                                     str(ROOT / 'tests/updater'), str(out / 'updater-from-v9.1.1.json'),
-                                     'test_update_from_v9_1_1.py'],
-             ROOT, {'RC_UPDATE_FIXTURES': str(roots['k'])}, out / 'updater-from-v9.1.1.json'),
+        ] + [
+            (n, [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'), str(ROOT / 'tests/updater'),
+                 str(out / (n + '.json')), 'test_update_from_previous.py'],
+             ROOT, {'RC_UPDATE_FIXTURES': str(roots[n]), 'RC_UPDATE_FROM': n[len('updater-from-'):]},
+             out / (n + '.json'))
+            for n in from_steps
+        ] + [
             ('package', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/package'), str(ROOT / 'tests/package'),
                          str(out / 'package.json')],
              ROOT, {'RC_PACKAGE_FIXTURES': str(roots['p'])}, out / 'package.json'),
+            ('footprint', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/footprint'),
+                           str(ROOT / 'tests/footprint'), str(out / 'footprint.json')],
+             ROOT, {}, out / 'footprint.json'),
         ]
         for name, command, cwd, extra, results_path in steps:
             step_env = {**env, **extra}
@@ -306,7 +311,7 @@ def main():
         if not any(base.iterdir()):
             base.rmdir()
     summary['finished_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    summary['all_passed'] = not problems and [r['step'] for r in summary['results']] == STEPS \
+    summary['all_passed'] = not problems and preflight is None and [r['step'] for r in summary['results']] == STEPS \
         and all(r['passed'] for r in summary['results']) \
         and not any(summary.get('fixtures_left', {}).values())
     summary['limits'] = ['Offline synthetic checks on this candidate only; no installation, runtime, '

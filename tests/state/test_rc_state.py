@@ -290,6 +290,65 @@ class Transitions(Base):
         self.refused('while outcomes are ready', 'write', self.program_path, '--actor', OWNER, '--expect-revision', 0,
                      '--ops', ops)
 
+    def test_program_completes_with_decision_that_suspends_nothing(self):
+        p = program(outcome_status='accepted')
+        p['outcomes'][0].update(state_ref=None, closure={'source': 'adopted history', 'remaining': 'none'})
+        self.write(self.program_path, p)
+        question = {'id': 'D1', 'question': 'Confirm the doc fix?', 'option': 'confirm, else revert it',
+                    'effects': 'documentation only'}
+        ops = json.dumps([{'op': 'append', 'path': 'decisions_pending', 'value': dict(question, suspends=['ghost'])}])
+        self.refused('decisions_pending[0]', 'write', self.program_path, '--actor', OWNER, '--expect-revision', 0,
+                     '--ops', ops)
+        ops = json.dumps([{'op': 'append', 'path': 'decisions_pending', 'value': dict(question, suspends=[])},
+                          {'op': 'update', 'path': 'outcomes', 'match': {'id': 'B'}, 'value': {
+                              'status': 'accepted', 'closure': {'source': 'doc fix confirmed', 'remaining': 'none'}}},
+                          {'op': 'set', 'path': 'status', 'value': 'completed'}])
+        self.ok('write', self.program_path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)
+        self.assertEqual(self.ok('check', self.program_path)['errors'], [])
+        self.assertEqual(self.ok('ready', self.program_path)['ready'], [])
+
+
+class WriteOps(Base):
+    def test_unknown_key_refused_and_existing_one_reported(self):
+        ops = json.dumps([{'op': 'set', 'path': 'state/next_action', 'value': 'launch A'}])
+        result = self.refused('state/next_action', 'write', self.wave_path, '--actor', OWNER, '--expect-revision', 0,
+                              '--ops', ops)
+        self.assertIn('state.next_action', result['error'])
+        ops = json.dumps([{'op': 'set', 'path': 'state.next_step', 'value': 'launch A'}])
+        self.refused('state.next_step', 'write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)
+        ops = json.dumps([{'op': 'set', 'path': 'mandate/scope', 'value': ['x']}])
+        self.refused('mandate/scope', 'write', self.program_path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)
+        self.assertEqual(self.rev(self.wave_path), 0)
+        w = wave2()
+        w['state/launch_ready'] = True
+        self.write(self.wave_path, w)
+        result = self.ok('check', self.wave_path)
+        self.assertTrue(result['valid'])
+        self.assertEqual(result['unknown_keys'], ['state/launch_ready'])
+        self.assertEqual(self.ok('check', self.program_path)['unknown_keys'], [])
+        ops = json.dumps([{'op': 'set', 'path': 'state.next_action', 'value': 'launch A'},
+                          {'op': 'set', 'path': 'envelope.note', 'value': 'open object'}])
+        self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)
+
+    def test_append_applies_init_defaults(self):
+        p = program(outcome_status='accepted')
+        p['outcomes'][0].update(state_ref=None, closure={'source': 'adopted history', 'remaining': 'none'})
+        self.write(self.program_path, p)
+        ops = json.dumps([{'op': 'append', 'path': 'outcomes',
+                           'value': {'id': 'C', 'outcome': 'Lot C', 'next_action': 'prepare C'}}])
+        self.ok('write', self.program_path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)
+        added = json.loads(self.program_path.read_text(encoding='utf-8'))['outcomes'][-1]
+        self.assertEqual(added, {'id': 'C', 'outcome': 'Lot C', 'next_action': 'prepare C', 'depends_on': [],
+                                 'status': 'pending', 'state_ref': None, 'waiting_on': None, 'resources': []})
+        self.assertEqual(self.ok('ready', self.program_path)['ready'], ['B', 'C'])
+        w = wave2('planning')
+        w.update(mode='prepare', program_ref=None, authorization=dict(w['authorization'], launch=False))
+        self.write(self.wave_path, w)
+        ops = json.dumps([{'op': 'append', 'path': 'socles', 'value': {'id': 'B', 'outcome': 'Lot B', 'readiness': 'ready'}}])
+        self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)
+        added = json.loads(self.wave_path.read_text(encoding='utf-8'))['socles'][-1]
+        self.assertEqual((added['depends_on'], added['resources'], added['source_refs']), ([], [], []))
+
 
 class Events(Base):
     def event(self, eid, seq=None):

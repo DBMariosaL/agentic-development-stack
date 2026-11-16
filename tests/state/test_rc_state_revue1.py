@@ -110,11 +110,22 @@ class Review1(Base):
         self.write(self.wave_path, w)
         self.assertEqual(rc.validate_wave2(w, self.wave_path.parent), [])
         ops = json.dumps([{'op': 'set', 'path': 'project.baseline', 'value': 'changed-base'}])
-        self.refused('launch_ready must be reset', 'write', self.wave_path, '--actor', OWNER, '--expect-revision', 0,
-                     '--ops', ops)
-        ops = json.dumps([{'op': 'set', 'path': 'project.baseline', 'value': 'changed-base'},
-                          {'op': 'set', 'path': 'state.launch_ready', 'value': False}])
-        self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)
+        result = self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)
+        self.assertEqual(result['launch_ready_reset']['changed'], ['project'])
+        self.assertIs(self.wave()['state']['launch_ready'], False)
+        self.assertEqual(self.wave()['project']['baseline'], 'changed-base')
+        self.refused('launch_ready', 'transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1,
+                     '--to', 'launched')
+        ops = json.dumps([{'op': 'set', 'path': 'state.launch_ready', 'value': True}])
+        result = self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--ops', ops)
+        self.assertNotIn('launch_ready_reset', result)
+        self.assertIs(self.wave()['state']['launch_ready'], True)
+        self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 2, '--to', 'launched')
+        ops = json.dumps([{'op': 'set', 'path': 'artifacts.extra', 'value': 'extra.txt'},
+                          {'op': 'set', 'path': 'state.launch_ready', 'value': True}])
+        result = self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 3, '--ops', ops)
+        self.assertEqual(result['launch_ready_reset']['changed'], ['artifacts'])
+        self.assertIs(self.wave()['state']['launch_ready'], False)
 
     def test_F10_blocked_keeps_its_origin(self):
         self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--to', 'blocked',
@@ -138,7 +149,8 @@ class Review1(Base):
                 '--status', 'confirmed', '--result-ref', 'task-A', '--role', 'champion')
         self.refused('is running', 'intent', self.wave_path, 'add', '--actor', OWNER, '--expect-revision', 2,
                      '--correlation', 'a/2', '--op', 'launch', '--target', 'champion-A')
-        ops = json.dumps([{'op': 'update', 'path': 'actors', 'match': {'correlation': 'a/1'}, 'value': {'status': 'interrupted'}}])
+        ops = json.dumps([{'op': 'update', 'path': 'actors', 'match': {'correlation': 'a/1'},
+                           'value': {'status': 'interrupted', 'evidence': 'task_status=interrupted'}}])
         self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 2, '--ops', ops)
         self.ok('intent', self.wave_path, 'add', '--actor', OWNER, '--expect-revision', 3, '--correlation', 'a/2',
                 '--op', 'launch', '--target', 'champion-A')

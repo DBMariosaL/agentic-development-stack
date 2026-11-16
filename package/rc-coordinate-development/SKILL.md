@@ -9,8 +9,9 @@ Tu es le point d'entrée et supervises par défaut les vagues que tu lances : de
 
 Avant d'agir sur un état ou un acteur, lis [le contrat d'état](references/program-contract.md) et [la boucle de pilotage](references/operating-loop.md). Le reste se lit seulement à son déclencheur :
 
-- [mécanique du moteur](references/engine.md) : ordre des phases d'une vague, refus de `rc_state.py` que son `error` n'explique pas, opération incertaine, détail d'une reprise à froid (adoption de cette version et migration comprises) ;
-- [jardinage](references/garden.md) : cycle de jardinage, test retiré, fusionné ou renommé, artefact mauvais à corriger à la source ;
+- [mécanique du moteur](references/engine.md) : ordre des phases d'une vague, refus de `rc_state.py` que son `error` n'explique pas, opération incertaine, relais à un pilote successeur, détail d'une reprise à froid (adoption de cette version et migration comprises) ;
+- [jardinage](references/garden.md) : cycle de jardinage, test retiré, fusionné ou renommé, document ou commentaire ajouté à juger, artefact mauvais à corriger à la source ;
+- [hôte T3 Code](references/host-t3.md) : session dans T3 Code ;
 - [annexe relais](references/separate-relay.md) et `rc-prepare-supervisor` : superviseur séparé imposé.
 
 ## Établir l'entrée réelle

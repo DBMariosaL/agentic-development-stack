@@ -1,0 +1,13 @@
+interface:
+  display_name: "Claude Fable Prompt Optimizer"
+  short_description: "Optimise prompts et scaffolding d'agents pour Claude Fable 5.2 / Mythos 5.2"
+  icon_small: "assets/icon.svg"
+  icon_large: "assets/icon.svg"
+  default_prompt: "Utilise $claude-fable-prompt-optimizer pour auditer ou réécrire ce prompt pour Claude Fable 5.2."
+policy:
+  products:
+    - "chatgpt"
+    - "codex"
+    - "api"
+    - "atlas"
+  allow_implicit_invocation: true

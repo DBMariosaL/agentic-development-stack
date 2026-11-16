@@ -6,9 +6,12 @@ Distributions reconnues (liste fermée, définie ici et non par un manifeste) :
   rc-core                     les trois skills RC (manifestes historiques, format 1) ;
   rc-core-with-dependencies   les trois skills RC et les trois dépendances de filtre
                               (gpt-prompt-optimizer, claude-opus-prompt-optimizer, unslop),
-                              manifeste au format 2 qui déclare distribution et rôles.
-Transitions acceptées : rc-core -> rc-core, rc-core -> rc-core-with-dependencies et
-rc-core-with-dependencies -> rc-core-with-dependencies. Un retour vers rc-core passe par
+                              manifeste au format 2 qui déclare distribution et rôles ;
+  rc-core-with-dependencies-2 les trois skills RC et quatre dépendances (les trois précédentes
+                              et claude-fable-prompt-optimizer), manifeste au format 2.
+Transitions acceptées : rc-core -> rc-core, rc-core -> rc-core-with-dependencies,
+rc-core-with-dependencies -> rc-core-with-dependencies, et vers rc-core-with-dependencies-2
+depuis rc-core, rc-core-with-dependencies et elle-même. Un retour en arrière passe par
 ``rollback`` du plan appliqué : l'outil ne retire jamais une dépendance installée par
 simple changement de distribution.
 
@@ -59,14 +62,18 @@ import stat  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 SKILLS = ('rc-coordinate-development', 'rc-prepare-socle-prompts', 'rc-prepare-supervisor')
-DEPENDENCIES = ('gpt-prompt-optimizer', 'claude-opus-prompt-optimizer', 'unslop')
+DEPENDENCIES = ('gpt-prompt-optimizer', 'claude-opus-prompt-optimizer', 'claude-fable-prompt-optimizer', 'unslop')
 ALL_SKILLS = SKILLS + DEPENDENCIES
 DISTRIBUTIONS = {
     'rc-core': {s: 'rc' for s in SKILLS},
-    'rc-core-with-dependencies': {**{s: 'rc' for s in SKILLS}, **{d: 'dependency' for d in DEPENDENCIES}},
+    'rc-core-with-dependencies': {**{s: 'rc' for s in SKILLS},
+                                  **{d: 'dependency' for d in DEPENDENCIES if d != 'claude-fable-prompt-optimizer'}},
+    'rc-core-with-dependencies-2': {**{s: 'rc' for s in SKILLS}, **{d: 'dependency' for d in DEPENDENCIES}},
 }
 TRANSITIONS = {('rc-core', 'rc-core'), ('rc-core', 'rc-core-with-dependencies'),
-               ('rc-core-with-dependencies', 'rc-core-with-dependencies')}
+               ('rc-core-with-dependencies', 'rc-core-with-dependencies'),
+               ('rc-core', 'rc-core-with-dependencies-2'), ('rc-core-with-dependencies', 'rc-core-with-dependencies-2'),
+               ('rc-core-with-dependencies-2', 'rc-core-with-dependencies-2')}
 TMP_PREFIX = '.rc-update-'
 REPARSE_ATTR = 0x400  # FILE_ATTRIBUTE_REPARSE_POINT
 PLAN_FORMAT = 'rc-update-plan/2'
@@ -172,6 +179,11 @@ def single_link_or_none(path):
     if st.st_nlink != 1:
         raise UpdateError(f'Lien physique refusé ({st.st_nlink} liens) : {path}')
     return st
+
+
+def dest_sha_or_none(path):
+    """Empreinte d'une destination écrite ou supprimée : lien unique exigé ; None si absente."""
+    return None if single_link_or_none(path) is None else sha256(Path(path).read_bytes())
 
 
 def file_sha_or_none(path):
@@ -584,6 +596,13 @@ class Journal:
     def created_dirs(self):
         return [e for e in self.events if e['event'] == 'mkdir']
 
+    def published_here(self, step, path):
+        """True si path est le temporaire de cible consigné pour step, publié sous son identité."""
+        st = single_link_or_none(path)
+        return st is not None and any(
+            e['event'] == 'tmp-created' and e['step'] == step and e.get('kind') == 'target'
+            and tuple(e['ident']) == (st.st_dev, st.st_ino) for e in self.events)
+
     def pending_temps(self):
         """Temporaires consignés comme créés et pas encore consignés comme disparus."""
         gone = {e['path'] for e in self.events if e['event'] == 'tmp-gone'}
@@ -744,7 +763,7 @@ def publish(dest, data, expected_before, plan_id, exclusive, journal, step, targ
     ident = _journaled_tmp(tmp, data, journal, step, kind='target', target=target)
     how = 'abandoned'
     try:
-        if file_sha_or_none(dest) != expected_before:
+        if dest_sha_or_none(dest) != expected_before:
             raise UpdateError(f'Changement concurrent détecté, écriture annulée : {dest}')
         _swap(tmp, dest, exclusive)
         how = 'published'
@@ -873,6 +892,20 @@ def check_progress(plan, allow_after=True, ignore=None):
         raise UpdateError(f'État inattendu, aucune écriture : {sorted(problems)}')
 
 
+def check_destinations(plan):
+    """Avant toute écriture : chaque destination existante du plan est à lien unique."""
+    skills = plan_skills(plan)
+    for a in plan['actions']:
+        single_link_or_none(dest_path(plan['targets'][a['target']]['root'], a['path'], skills))
+
+
+def not_migrated(plan):
+    """Skills que le plan laisse dans leur état observé (conflit, profil refusé)."""
+    return [{'root': t['root'], 'skill': s['name'], 'status': s['status'], 'target_status': t['status']}
+            for t in plan['targets'] for s in t['skills']
+            if t['status'] != 'ok' or s['status'] not in NEW_STATUSES]
+
+
 def run_steps(plan, state, journal):
     pkg = Path(plan['new_package'])
     verified = journal.verified_steps()
@@ -880,7 +913,7 @@ def run_steps(plan, state, journal):
     for a in plan['actions']:
         root = plan['targets'][a['target']]['root']
         dest = dest_path(root, a['path'], skills)
-        cur = file_sha_or_none(dest)
+        cur = dest_sha_or_none(dest)
         if a['id'] in verified:
             if cur != a['after']:
                 raise UpdateError(f"Étape déjà vérifiée altérée depuis : {a['id']}")
@@ -902,7 +935,7 @@ def run_steps(plan, state, journal):
             publish(dest, data, a['before'], plan['plan_id'], a['op'] == 'create', journal, a['id'], a['target'])
             journal.append('written', a['id'], sha256=a['after'])
         else:
-            if file_sha_or_none(dest) != a['before']:
+            if dest_sha_or_none(dest) != a['before']:
                 raise UpdateError(f'Changement concurrent détecté : {dest}')
             os.remove(dest)
             journal.append('removed', a['id'])
@@ -946,6 +979,9 @@ def verify_plan(plan, expect):
         report['targets'].append({'root': t['root'], 'status': t['status'], 'checked': checked,
                                   'mismatches': mismatches})
         report['ok'] = report['ok'] and not mismatches
+    if expect == 'new':
+        report['not_migrated'] = not_migrated(plan)
+        report['migration_complete'] = report['ok'] and not report['not_migrated']
     return report
 
 
@@ -959,6 +995,9 @@ def cmd_manifest(args):
 
 
 def cmd_preflight(args):
+    plan_dir = Path(os.path.abspath(args.plan_out)).parent
+    if not plan_dir.is_dir():
+        raise UpdateError(f'Dossier du plan absent : {plan_dir} ; le créer avant le préflight')
     prev = load_manifest(args.previous_manifest)
     new = load_manifest(args.new_manifest) if args.new_manifest else compute_manifest(args.new_package)
     check_layout(args.target, args.new_package, extra_paths=[args.plan_out])
@@ -1005,6 +1044,7 @@ def cmd_apply(args):
     fresh = build_plan(prev, new, package, targets, plan_format=plan['format'])
     if fresh['fingerprint'] != plan['fingerprint']:
         raise StalePlan('Plan périmé : l\'état observé ne correspond plus à l\'empreinte ; refaire le préflight')
+    check_destinations(plan)
     state.mkdir(parents=True)
     write_json(state / 'plan.json', plan)
     journal = Journal(state / 'journal.jsonl')
@@ -1019,7 +1059,8 @@ def cmd_apply(args):
             raise
         report = _final(plan, state, journal, 'apply')
     return {'plan_id': plan['plan_id'], 'state': str(state), 'status': 'complete',
-            'actions': len(plan['actions']), 'verify': report}, 0
+            'actions': len(plan['actions']), 'not_migrated': report['not_migrated'],
+            'migration_complete': report['migration_complete'], 'verify': report}, 0
 
 
 def _open_state(args):
@@ -1046,6 +1087,7 @@ def cmd_resume(args):
         leftovers, ignore = own_leftover_temps(plan, state, journal)
         check_package(package, new)
         check_progress(plan, ignore=ignore)
+        check_destinations(plan)
         removed = remove_own_temps(leftovers, journal, 'resume')
         journal.append('resume-begin', cleaned=removed)
         set_status(state, 'in-progress')
@@ -1057,7 +1099,8 @@ def cmd_resume(args):
             raise
         report = _final(plan, state, journal, 'resume')
     return {'plan_id': plan['plan_id'], 'state': str(state), 'status': 'complete',
-            'cleaned_temps': removed, 'verify': report}, 0
+            'cleaned_temps': removed, 'not_migrated': report['not_migrated'],
+            'migration_complete': report['migration_complete'], 'verify': report}, 0
 
 
 def cmd_rollback(args):
@@ -1070,9 +1113,11 @@ def cmd_rollback(args):
         todo = []
         for a in reversed(plan['actions']):
             dest = dest_path(plan['targets'][a['target']]['root'], a['path'], plan_skills(plan))
-            cur = file_sha_or_none(dest)
+            cur = dest_sha_or_none(dest)
             if cur == a['before']:
                 continue
+            if a['op'] == 'create' and not journal.published_here(a['id'], dest):
+                raise UpdateError(f"Fichier non publié par ce plan, aucune suppression : {dest}")
             data = None
             if a['op'] in ('replace', 'remove'):
                 bp = backup_path(state, a)
@@ -1086,7 +1131,7 @@ def cmd_rollback(args):
         set_status(state, 'rolling-back')
         for a, dest, cur, data in todo:
             if a['op'] == 'create':
-                if file_sha_or_none(dest) != cur:
+                if dest_sha_or_none(dest) != cur or not journal.published_here(a['id'], dest):
                     raise UpdateError(f'Changement concurrent détecté : {dest}')
                 os.remove(dest)
             else:

@@ -45,11 +45,60 @@ NAMES = _registry.SKILLS  # RC skills, historical rules
 DEPENDENCY_POLICY = {
     'gpt-prompt-optimizer': {'allow_implicit_invocation': True, 'default_prompt': True},
     'claude-opus-prompt-optimizer': {'allow_implicit_invocation': True, 'default_prompt': True},
+    'claude-fable-prompt-optimizer': {'allow_implicit_invocation': True, 'default_prompt': True},
     'unslop': {'allow_implicit_invocation': False, 'default_prompt': False},
 }
 TEXT_SUFFIXES = {'.md', '.py', '.yaml', '.yml', '.svg', '.txt', '.json'}
 RESOURCE = re.compile(r'`((?:references|scripts|assets|agents)/[A-Za-z0-9_.\-/]+)`')
 LINK = re.compile(r'\[[^\]]*\]\(([^)]+)\)')
+REFERENCE = re.compile(r'^ {0,3}\[([^\]^][^\]]*)\]:[ \t]*(\S+)', re.M)
+FENCE = re.compile(r' {0,3}(`{3,}|~{3,})')
+LIST_ITEM = re.compile(r' {0,3}(?:[-*+]|\d+[.)])\s')
+CODE_SPAN = re.compile(r'(`+)(?!`)(.+?)(?<!`)\1(?!`)')
+MACHINE = re.compile(r'[A-Z]:[\\/]|[a-f0-9]{40}')
+
+
+def outside_fences(text):
+    """Text with the lines of fenced and indented code blocks blanked, line numbering kept."""
+    lines, fence, in_list, after_blank, indented = [], None, False, True, False
+    for line in text.split('\n'):
+        match = FENCE.match(line)
+        if fence is None and match:
+            fence, indented = match[1], False
+            line = ''
+        elif fence is not None:
+            closing = re.fullmatch(r' {0,3}(`{3,}|~{3,})\s*', line)
+            if closing and closing[1][0] == fence[0] and len(closing[1]) >= len(fence):
+                fence = None
+            line = ''
+        elif not line.strip():
+            lines.append(line)
+            after_blank = True
+            continue
+        elif re.match(r' {4}|\t', line) and not in_list and (after_blank or indented):
+            indented = True
+            line = ''
+        else:
+            indented = False
+            if not line.startswith('    '):
+                in_list = bool(LIST_ITEM.match(line))
+        after_blank = False
+        lines.append(line)
+    return '\n'.join(lines)
+
+
+def link_targets(text):
+    """Destinations of inline links, then of reference definitions, outside code blocks and spans."""
+    prose = CODE_SPAN.sub('code', outside_fences(text))
+    targets = LINK.findall(prose) + [m[2] for m in REFERENCE.finditer(prose)]
+    out = []
+    for raw in targets:
+        raw = raw.strip()
+        if raw.startswith('<') and '>' in raw:
+            out.append(raw[1:raw.index('>')])
+        else:
+            out.append(raw.split()[0] if raw else raw)
+    return out
 
 
 def scalar(value):
@@ -138,7 +187,14 @@ def slug(heading):
 
 
 def anchors(text):
-    return {slug(m[1]) for m in re.finditer(r'^#{1,6}\s+(.+?)\s*#*\s*$', text, re.M)}
+    """Heading anchors in document order; a repeated heading gets -1, -2, ... as on GitHub."""
+    seen, found = {}, set()
+    for m in re.finditer(r'^#{1,6}\s+(.+?)\s*#*\s*$', outside_fences(text), re.M):
+        base = slug(m[1])
+        count = seen.get(base, 0)
+        seen[base] = count + 1
+        found.add(f'{base}-{count}' if count else base)
+    return found
 
 
 def stdlib_imports(source, filename):
@@ -253,7 +309,7 @@ def validate(root, provenance=None):
         rel = path.relative_to(root)
         if path.is_file() and path.suffix == '.md':
             body = path.read_text(encoding='utf-8')
-            check(f'{rel}:no_machine_snapshot', not re.search(r'[A-Z]:[\/]|[a-f0-9]{40}', body))
+            check(f'{rel}:no_machine_snapshot', not MACHINE.search(body))
         if path.is_file() and path.suffix == '.py':
             try:
                 source = path.read_text(encoding='utf-8')
@@ -275,7 +331,7 @@ def validate(root, provenance=None):
             if path.suffix == '.md':
                 text = data.decode('utf-8')
                 skill_dir = root / rel.parts[0]
-                for index, target in enumerate(LINK.findall(text)):
+                for index, target in enumerate(link_targets(text)):
                     if re.match(r'^[a-z][a-z0-9+.-]*://', target) or target.startswith('mailto:'):
                         continue
                     file_part, _, anchor = target.partition('#')
