@@ -158,17 +158,20 @@ class PrepareMode(Campaign):
                 '--op', 'launch', '--target', 'product')
         resolve = ('intent', wave, 'resolve', '--actor', OWNER, '--expect-revision', 1, '--correlation', 'l1',
                    '--status', 'confirmed', '--result-ref', 'task-1')
-        for role in ('champion', 'Superviseur', 'integrator-B'):
+        for role in ('champion', 'Superviseur', 'integrator-B', 'builder', 'reviewer-champion', 'legacy'):
             with self.subTest(role=role):
-                self.refused(f'live {role} actor in a wave without launch authorization', *resolve, '--role', role)
+                self.refused(f"live actor with role '{role}' in a wave without launch authorization",
+                             *resolve, '--role', role)
+        with self.subTest(role=None):
+            self.refused("live actor with role 'unspecified' in a wave without launch authorization", *resolve)
         done = [{'op': 'update', 'path': 'actors', 'match': {'correlation': 'l1'},
                  'value': {'status': 'completed', 'evidence': 'report r.md'}}]
         self.refused("actor l1: role 'champion' refused in a wave without launch authorization", 'write', wave,
                      '--actor', OWNER, '--expect-revision', 1, '--resolve-intent', 'l1', '--status', 'confirmed',
                      '--result-ref', 'task-1', '--role', 'champion', '--ops', json.dumps(done))
         self.assertEqual((self.doc(wave)['revision'], self.doc(wave)['actors']), (1, []))
-        self.ok(*resolve, '--role', 'reviewer')
-        self.assertEqual([(a['role'], a['status']) for a in self.doc(wave)['actors']], [('reviewer', 'running')])
+        self.ok(*resolve, '--role', 'Reviewer')
+        self.assertEqual([(a['role'], a['status']) for a in self.doc(wave)['actors']], [('Reviewer', 'running')])
 
     def test_R01_03_live_champion_invalid_once_authorization_is_withdrawn(self):
         w = wave2()
@@ -176,9 +179,69 @@ class PrepareMode(Campaign):
                         'status': 'running', 'target': 'A'}]
         self.write(self.wave_path, w)
         self.assertEqual(self.ok('check', self.wave_path)['errors'], [])
-        self.refused('live champion actor in a wave without launch authorization', 'write', self.wave_path,
-                     '--actor', OWNER, '--expect-revision', 0, '--ops',
+        self.refused("live actor with role 'champion' in a wave without launch authorization", 'write',
+                     self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops',
                      json.dumps([{'op': 'set', 'path': 'authorization.launch', 'value': False}]))
+
+    def test_authorized_wave_runs_only_documentary_reviews_before_launched(self):
+        self.write(self.wave_path, wave2('preparing'))
+        self.ok('intent', self.wave_path, 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'l1',
+                '--op', 'launch', '--target', 'A')
+        resolve = ('intent', self.wave_path, 'resolve', '--actor', OWNER, '--expect-revision', 1,
+                   '--correlation', 'l1', '--status', 'confirmed', '--result-ref', 'task-1')
+        self.refused("live actor with role 'champion' in a wave not launched yet (phase preparing)",
+                     *resolve, '--role', 'champion')
+        self.ok(*resolve, '--role', 'reviewer')
+        champion = {'role': 'champion', 'model': None, 'ref': 'task-2', 'correlation': 'l2', 'status': 'running',
+                    'target': 'B'}
+        wait = {'kind': 'quota', 'detail': 'rate limit', 'trigger': 'capacity', 'resume': 'resume'}
+        for phase, origin, valid in (('ready', None, False), ('waiting_quota', 'preparing', False),
+                                     ('launched', None, True), ('waiting_quota', 'launched', True)):
+            with self.subTest(phase=phase, origin=origin):
+                w = wave2(phase)
+                w['actors'] = [champion]
+                if origin:
+                    w['state']['waiting'] = dict(wait, **{'from': origin})
+                self.write(self.wave_path, w)
+                code, result = self.run_cli('check', self.wave_path)
+                self.assertEqual(code == 0, valid, result)
+                if not valid:
+                    self.assertIn(f'not launched yet (phase {phase})', ' '.join(result['errors']))
+
+    def test_unnamed_live_actor_of_an_older_prepare_wave_is_refused_then_closed_by_write(self):
+        w = wave2('planning')
+        w.update(mode='prepare', program_ref=None, authorization=dict(w['authorization'], launch=False))
+        w['actors'] = [{'role': 'unspecified', 'model': None, 'ref': 'task-1', 'correlation': 'l1',
+                        'status': 'running', 'target': 'A'}]
+        self.write(self.wave_path, w)
+        code, result = self.run_cli('check', self.wave_path)
+        self.assertEqual(code, 1, result)
+        self.assertIn("actors[0]: live actor with role 'unspecified'", ' '.join(result['errors']))
+        self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', json.dumps(
+            [{'op': 'update', 'path': 'actors', 'match': {'correlation': 'l1'},
+              'value': {'status': 'interrupted', 'evidence': 'task_status=interrupted'}}]))
+        self.assertEqual(self.ok('check', self.wave_path)['errors'], [])
+
+    def test_migrated_legacy_actor_stays_valid_in_a_prepare_wave(self):
+        source = self.root / 'v1.json'
+        v1 = wave2('preparing')
+        v1.update(schema_version=1, mode='prepare', authorization=dict(v1['authorization'], launch=False))
+        for key in ('revision', 'program_ref', 'candidate', 'envelope', 'actors', 'intents'):
+            v1.pop(key)
+        v1['state'].pop('waiting')
+        v1['state']['runtime_refs'] = ['task-old']
+        self.write(source, v1)
+        dest = self.root / 'migrated.json'
+        self.ok('migrate', source, dest)
+        doc = self.doc(dest)
+        self.assertEqual([(a['role'], a['status'], a['correlation']) for a in doc['actors']],
+                         [('legacy', 'unknown', 'legacy/0')])
+        self.assertEqual(self.ok('check', dest)['errors'], [])
+        doc['actors'][0]['ref'] = 'task-other'
+        self.write(dest, doc)
+        code, result = self.run_cli('check', dest)
+        self.assertEqual(code, 1, result)
+        self.assertIn("live actor with role 'legacy'", ' '.join(result['errors']))
 
 
 class LaunchReady(Campaign):
@@ -290,7 +353,13 @@ class Journal(Campaign):
 
     def test_R02_03_and_R03_06_unusable_line_reported_by_number(self):
         for name, damage, fragment in (('utf8', b'\xff\n', 'line 3 is not valid UTF-8'),
-                                       ('array', b'[]\n', 'line 3 is a JSON list, not an entry object')):
+                                       ('array', b'[]\n', 'line 3 is a JSON list, not an entry object'),
+                                       ('noid', b'{"kind": "event:review", "wave": "wave.json"}\n',
+                                        'line 3 has no text id (got missing)'),
+                                       ('listid', b'{"id": ["x"], "kind": "event:review"}\n',
+                                        'line 3 has no text id (got list)'),
+                                       ('commits', b'{"id": "w", "kind": "write", "commits": ["op"]}\n',
+                                        'line 3 has malformed fields: commits (list)')):
             with self.subTest(damage=damage):
                 wave, code, result = self.init(name, 'wave', WAVE_SPEC)
                 with (wave.parent / 'journal.jsonl').open('ab') as stream:
@@ -299,6 +368,79 @@ class Journal(Campaign):
                                       json.dumps([{'op': 'set', 'path': 'state.next_action', 'value': 'x'}]))
                 self.assertIn('move the damaged line aside', result['error'])
                 self.assertEqual(self.doc(wave)['revision'], 0)
+
+
+    def test_event_without_id_reported_by_number_by_every_reader(self):
+        with (self.root / 'journal.jsonl').open('ab') as stream:
+            stream.write(b'{"kind": "event:review", "wave": "waves/a/wave.json"}\n')
+        argvs = (('event', self.wave_path, '--actor', OWNER, '--id', EVENT, '--kind', 'review'),
+                 ('resume', self.program_path),
+                 ('ack', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--id', EVENT),
+                 ('reconcile', self.wave_path, '--actor', OWNER, '--op', 'op:none', '--evidence', 'check'))
+        for argv in argvs:
+            with self.subTest(command=argv[0]):
+                result = self.refused('line 1 has no text id', *argv)
+                self.assertIn('move the damaged line aside', result['error'])
+                self.assertNotIn('internal', result)
+
+
+class MalformedState(Campaign):
+    def test_malformed_fields_refused_by_name_without_internal_error(self):
+        blocked = {'kind': 'dependency', 'detail': 'd', 'trigger': 't', 'resume': 'r'}
+        cases = (('state.owner', 'thread:x', 'owner is malformed (got str',
+                  ('write', '--actor', OWNER, '--expect-revision', 0, '--ops',
+                   json.dumps([{'op': 'set', 'path': 'state.next_action', 'value': 'n'}]))),
+                 ('state.owner', ['x'], 'owner is malformed (got list',
+                  ('event', '--actor', OWNER, '--id', EVENT, '--kind', 'review')),
+                 ('intents', {'c': 1}, 'intents must be a list, got object',
+                  ('intent', 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'c',
+                   '--op', 'send', '--target', 'T')),
+                 ('state.waiting', 'from launched', 'refused',
+                  ('transition', '--actor', OWNER, '--expect-revision', 0, '--to', 'launched')),
+                 ('candidate.seq', 'one', None,
+                  ('event', '--actor', OWNER, '--id', EVENT, '--kind', 'review', '--candidate-seq', 1)),
+                 ('actors', 'none', 'actors must be a list, got str',
+                  ('intent', 'resolve', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'p1',
+                   '--status', 'confirmed', '--result-ref', 'task-1', '--role', 'reviewer')),
+                 ('state', 'broken', 'state must be an object, got str',
+                  ('claim', '--actor', 'other', '--role', 'pilot', '--expect-revision', 0, '--takeover',
+                   '--evidence', 'stop confirmed')))
+        for field, value, fragment, argv in cases:
+            with self.subTest(field=field, command=argv[0]):
+                w = wave2('blocked')
+                w['state']['waiting'] = dict(blocked, **{'from': 'launched'})
+                w['candidate'] = {'seq': 1, 'ref': 'm1', 'artifact': 'manifest', 'sha256': 'a' * 64}
+                w['intents'] = [{'correlation': 'p1', 'op': 'launch', 'target': 'T1', 'status': 'pending',
+                                 'result_ref': None}]
+                node, *keys = field.split('.')
+                if keys:
+                    w[node][keys[0]] = value
+                else:
+                    w[node] = value
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                head, rest = argv[0], argv[1:]
+                if head == 'intent':
+                    head, rest = ('intent', rest[0]), rest[1:]
+                else:
+                    head = (head,)
+                code, result = self.run_cli(head[0], self.wave_path, *head[1:], *rest)
+                self.assertNotIn('internal', result)
+                if fragment is None:
+                    self.assertEqual((code, result['classification']), (0, 'new'), result)
+                else:
+                    self.assertEqual(code, 1, result)
+                    self.assertIn(fragment, result['error'])
+
+    def test_malformed_owner_recorded_again_by_claim_takeover(self):
+        w = wave2()
+        w['state']['owner'] = 'thread:x'
+        self.write(self.wave_path, w)
+        claim = ('claim', self.wave_path, '--actor', OWNER, '--role', 'pilot', '--expect-revision', 0)
+        self.refused('takeover requires --takeover and --evidence', *claim)
+        self.ok(*claim, '--takeover', '--evidence', 'owner field hand-edited; previous pilot stopped')
+        self.assertEqual(self.doc(self.wave_path)['state']['owner'], {'role': 'pilot', 'ref': OWNER})
+        self.assertEqual(self.journal(self.program_path)[-1]['kind'], 'claim')
 
 
 class Phases(Campaign):
