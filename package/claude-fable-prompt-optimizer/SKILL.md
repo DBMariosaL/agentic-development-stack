@@ -1,224 +1,186 @@
 ---
 name: claude-fable-prompt-optimizer
-description: create, audit, migrate, and eval-tune production prompts and agent scaffolding for claude fable 5.1, claude mythos 5.1, claude fable 5, and claude mythos 5. use when the user provides a rough request, an existing system or user prompt, harness code, tool definitions, subagent wiring, eval datasets, model outputs, or asks about fable effort levels, adaptive thinking, thinking-block binding, turn-scoped system messages, progress updates, long-horizon autonomy, memory systems, subagent orchestration, refusal fallback, whole-file rewrites, writing density, or migration from claude opus or claude fable 5. verify volatile fable facts against official anthropic documentation before presenting them as current.
+description: create, audit, migrate, and eval-tune prompts, mandates, and agent scaffolding for claude fable 5.2 and claude mythos 5.2 (default), and for workloads staying on fable 5.1 or fable 5. use when writing or auditing a prompt or delegation brief for a fable model, a fable lead that orchestrates subagents (delegation contract, subagent models and effort, reading reports, when to continue or stop), or a subagent's final report to a fable parent; or when the user asks about fable effort (high on the api, medium in claude code), think-less lines that no longer work, early stops, approvals and accumulated cautions, code ownership, silent progress updates and thinking.display, over-delegation and subagent cost, prefix-check 400s and append-only history, forced tool use, refusal categories and fallback, final-report readability, or migration from fable 5.1, fable 5, or opus 5.5. verify volatile fable facts against official anthropic documentation before presenting them as current.
 ---
 
 # Claude Fable Prompt Optimizer
 
-Build the smallest prompt that reliably completes the real task on Claude Fable. Fable models are strong enough that most prompt failures are either a missing contract or a leftover instruction written for a weaker model. Subtract before you add.
+Build the smallest prompt that reliably completes the real task on Claude Fable 5.2 (the default target; Mythos 5.2 has the same capabilities for verified organizations), or on Fable 5.1 or Fable 5 for workloads pinned there. Fable 5.2 follows what it is told closely: instructions, style rules, ownership statements, and cautions left in memory. Most failures are now a leftover instruction obeyed past its purpose, a missing contract, or a harness that edits history. Subtract before you add.
 
-## The Fable inversion
+For Claude Opus 5.5 or Opus 5, use `claude-opus-prompt-optimizer` instead.
 
-Prompt engineering habits from earlier model generations actively hurt on Fable. Check for these before writing anything new:
+## Which model the user is on
 
-| Legacy habit | What it does on Fable | Do instead |
+Default to Fable 5.2 when the user says "Fable" without a version. Facts below read on 2026-11-16; sources in `references/fable-configuration.md`.
+
+| | Fable 5.2 | Fable 5.1 | Fable 5 | Opus 5.5, for contrast |
+| --- | --- | --- | --- | --- |
+| API ID | `claude-fable-5-2` | `claude-fable-5-1` | `claude-fable-5` | `claude-opus-5-5` |
+| Price in / out per MTok | $8 / $40 | $10 / $50 | $10 / $50 | $4 / $20 |
+| Default effort | `high` on the API; `medium` in Claude Code and apps | `high` | `high` | `medium` |
+| "Answer directly without deliberating" | no effect at `medium`+ | usually followed | — | documented option at low effort |
+| Forced `tool_choice` | 400 | 400 | accepted | 400 |
+| Failed prefix check | always 400 | possible 400 | — | possible 400 |
+| Who reads its thinking blocks | only Mythos 5.2 | — | — | — |
+| `computer_20251124` | 400 outside Bedrock | accepted with beta | accepted with beta | — |
+| Refusal categories | `cyber`, `bio`, `frontier_llm`, `reasoning_extraction`, `general_harms` | same | — | — |
+| Main documented fixes | finishing work, approvals, ownership, silence, delegation cost, cautions, reports | batching, density, formatting, quoting, scope, search, rewrites | progress claims, boundaries, memory, send-to-user | unattended stops, time signals, settled answers, pasted content |
+
+Anthropic routes most work to Opus 5.5 first and to Fable 5.2 for demanding reasoning and long-horizon agentic work, or when Opus 5.5 at higher effort still falls short. Claude Code never defaults to Fable; `/model fable` selects 5.2.
+
+## Remove before you add
+
+Each row is a documented Fable 5.2 behavior that a carried-over instruction or harness habit makes worse ([P] = Prompting Fable 5.2).
+
+| Carried-over instruction or habit | Result on Fable 5.2 | Do instead |
 | --- | --- | --- |
-| Long anti-formatting block ("no bullets, no bold, no headers") | Fable 5.1 already under-formats; suppresses structure the content needs | Say when formatting *is* appropriate |
-| "Hold all findings for the final response" | Fable 5.1 already writes few updates; the agent goes silent for minutes | Ask for an opening line, periodic updates, a standalone recap |
-| "Show your reasoning", "explain your thinking", reflection steps | Can trigger the `reasoning_extraction` refusal category and elevated fallbacks | Read structured `thinking` blocks; use a send-to-user tool |
-| "CRITICAL: you MUST use this tool when..." | Overtriggering | "Use this tool when..." |
-| Enumerating every unwanted behavior by name | Prompt bloat, no added compliance | One short instruction that defines the anti-pattern |
-| `tool_choice` set to `any` or a named tool | 400 error on Fable 5.1 and Mythos 5.1 | `auto` plus an explicit prompt line, strict tool use, or structured outputs |
-| `thinking.budget_tokens` to cap cost | 400 error | Lower `effort`; use `max_tokens` as the hard ceiling |
-| Assistant prefill to force a format | 400 error | Structured outputs, XML output tags, or a direct no-preamble instruction |
-| Injecting a per-turn reminder and deleting it next request | Invalidates thinking blocks, restarts the prompt cache | Turn-scoped system message (`clear_at: "next_user_message"`) |
-| Prescriptive step-by-step skills tuned for older models | Measurably degrades Fable output | Delete, retest at default, re-add only what a failure demands |
+| "Answer directly", "don't deliberate" | Still thinks at `medium`+ [P] | Lower effort for those turns |
+| "Delegate", "use subagents where possible" | Delegates readily; subagents dominate cost [P] | Remove; cost-focused subagent tool description if needed |
+| A visible token budget | Its size drives spend [P] | Test without it |
+| Hard style limits ("20 words or fewer") | Followed closely; choppy prose [P] | Remove; use the "Communicating clearly" block |
+| Absolute "never" rules, stale cautions in memory | Read as absolute; unneeded approvals [P] | Scoped rule with a reason; list steps needing no approval |
+| Broad approval categories | About half of routine requests held back [P] | Name the specific actions |
+| Opus 5.5 "treat that answer as done" lines | Far less self-correction [P] | Leave out where mistakes matter |
+| Reasoning in the reply, scratchpad sections, `reasoning` fields | `reasoning_extraction` refusal, no fallback | Read `display: "summarized"` thinking |
+| Forced `tool_choice`, prefill, `budget_tokens`, `thinking: disabled`, sampling parameters | 400 | `auto` plus a prompt line or strict tools; effort; nothing |
+| Editing `system`, `tools`, or earlier turns mid-conversation | 400 on every failing request | Append-only; system messages; tool additions |
 
-Corollary: a large share of reported Fable problems are harness defects, not prompt defects. Before adding prompt text, check whether the fix belongs in `thinking.display`, message assembly, subagent return semantics, `max_tokens`, or the tool inventory. Say which layer owns each fix.
+Many reported Fable problems are harness defects: check `thinking.display`, message assembly, `max_tokens`, effort, subagent models and caps, and the tool inventory before adding prompt text, and say which layer owns each fix.
+
+## The two jobs this skill serves most
+
+**1. A prompt or mandate for a Fable model, especially a lead that decides and delegates.** Fable earns its price on decomposition, judgment, and acceptance. Anthropic documents that it delegates as much as the harness invites, reviews its own work with subagents at `xhigh`/`max`, and that as orchestrator in Opus 5.5's place it cost 19% more for about the same score on one benchmark. The mandate needs a delegation contract (what is worth delegating and what a subagent costs; model and effort per role; brief contents, because the subagent sees only its brief; ownership; non-blocking returns; caps set in the harness; steps that need no approval), return semantics (a missing or partial report is not done; evidence beats the summary; open the diff), a continue-or-stop rule, and the acceptance check the lead runs itself. Use `references/orchestration-and-handoffs.md`.
+
+**2. The final report a subagent hands to a Fable parent.** Only the final message reaches the parent. Write status first (`done`, `partial`, `blocked`) with any decision needed, then what changed with checkable pointers, then deviations and what was not done, then unverified claims, then the model and checks used. No narrative of the work, no reasoning transcript, no invented labels. The contract and a brief line to request it are in `references/orchestration-and-handoffs.md`.
 
 ## Workflow
 
-1. Identify the real objective, target user, surface (Claude API, Bedrock, Vertex, Foundry, Claude Code, Agent SDK), available inputs, expected output, tools, side effects, run length, and failure modes.
-2. Classify the request:
-   - create a prompt or agent scaffold from a rough request;
-   - audit or repair an existing prompt, skill, or system prompt;
-   - migrate from Claude Opus 5, Claude Opus 4.8, or Claude Fable 5 to Claude Fable 5.1;
-   - diagnose an observed behavior (silent agent, early stop, unrequested work, dense prose, whole-file rewrites, refusals, one tool call per turn);
-   - optimize from examples, outputs, graders, or eval datasets.
-3. Inspect every supplied material before drafting: prompt assembly code, message roles, `system` and `tools` handling across turns, tool schemas, effort and thinking settings, sample outputs, eval data.
-4. Map each observed symptom to its fix with `references/behavior-fixes.md`. That table is the fastest route from "what the user sees" to "what to change".
-5. Verify volatile facts (model IDs, effort values, beta headers, parameter names, prices, refusal behavior) against official Anthropic sources. Follow `references/official-sources.md`.
-6. Remove before you add. List the legacy instructions to delete, then choose the smallest pattern from `references/prompt-patterns.md` and add controls only for identified risks (`references/hardening-matrix.md`).
-7. For agentic or long-horizon work, apply `references/agentic-scaffolding.md`: autonomy contract, progress surface, memory, subagent semantics, compaction, verification interval, stop condition.
-8. Draft the prompt and recommend configuration with `references/fable-configuration.md`.
-9. Validate coverage, contradictions, tool rules, permission boundaries, output format, done criteria, and scope ceiling.
-10. Provide compact tests targeting the most likely failures, plus an effort sweep. When eval data exists, follow `references/evaluation-playbook.md`.
+1. Identify the objective, target model and surface (Claude API, Bedrock, Google Cloud, Foundry, Claude Code, Agent SDK, Managed Agents), who reads the output (human, Fable parent, other model), inputs, tools, side effects, run length, whether a human watches, and failure modes.
+2. Classify: create; audit or repair; migrate (Fable 5.1, Fable 5, or Opus 5.5 to Fable 5.2); orchestration mandate; subagent report; diagnose an observed behavior; eval-driven optimization.
+3. Inspect every supplied material before drafting, including memory files, notes, agent definitions, and subagent tool descriptions.
+4. Map each symptom with `references/behavior-fixes.md` (Fable 5.2 index first).
+5. Verify volatile facts against `references/official-sources.md`.
+6. Run the deletion pass; then choose the smallest pattern from `references/prompt-patterns.md` and add controls only for identified risks (`references/hardening-matrix.md`).
+7. For long runs apply `references/agentic-scaffolding.md`; for delegation and reports, `references/orchestration-and-handoffs.md`.
+8. Recommend configuration with `references/fable-configuration.md`.
+9. Validate coverage, contradictions, tool rules, approval boundaries, output format, done criteria, and scope ceiling.
+10. Provide compact tests and an effort sweep; with eval data, follow `references/evaluation-playbook.md`.
 
 ## Intake rules
 
-Accept any combination of: a rough natural-language request; an existing system, developer, or user prompt; a Claude Code `CLAUDE.md`, skill, or agent definition; tool or MCP schemas; harness code that builds `messages`; policy or domain files; CSV, JSON, JSONL, or logs with test cases, outputs, labels, or grader results; latency, cost, quality, safety, or formatting requirements.
-
-Do not ask for optional context when a useful result can be produced under explicit assumptions or placeholders. Ask first only when the missing answer changes architecture, scope, security, side effects, acceptance criteria, or an expensive implementation path.
+Accept any mix of requests, prompts, `CLAUDE.md` files, skills, agent definitions, memory directories, tool or subagent schemas, harness code, eval data, and requirements. Do not ask for optional context when explicit assumptions suffice; ask first only when the answer changes architecture, scope, security, side effects, acceptance criteria, or an expensive path. Whether a human is in the loop, and who owns the code, often qualify.
 
 ## Source and freshness rules
 
-When current Fable behavior matters:
-
-- search only official Anthropic properties listed in `references/official-sources.md`;
-- prefer the model-specific prompting page over the cross-model best-practices page, and both over release posts;
-- verify model IDs, parameter names, accepted values, defaults, beta header strings, prices, and enforcement dates instead of relying on memory;
-- cite the source beside each configuration claim;
-- label each claim `verified current`, `workload recommendation`, or `requires verification`;
-- if official pages conflict, report the conflict and prefer the most specific, most recently updated page;
-- if no official source confirms a parameter, say so and do not invent syntax.
-
-Anthropic's published instruction blocks were measured on specific models. Treat a block from the Fable 5 page as a Fable 5 measurement and re-check it on Fable 5.1. Treat third-party field reports as experiment ideas, not documentation.
-
-Do not browse for stable prompt-writing work that does not depend on current model behavior.
+Follow `references/official-sources.md`: official pages only, in its order; verify IDs, parameters, values, defaults, beta strings, and prices rather than recall; cite each claim and label it `verified current`, `workload recommendation`, or `requires verification`; state the surface (API and Claude Code defaults differ); report conflicts; never invent syntax. A Fable 5.1 or Fable 5 block is a measurement on that model. Third-party reports are labeled experiment ideas. Do not browse for stable prompt-writing work.
 
 ## File, code, and dataset handling
 
-### Prompts and skills
+### Prompts, skills, memory
 
-Read the whole thing before rewriting. Separate three groups: hard product requirements, domain knowledge worth keeping, and legacy scaffolding written for weaker models. Report the third group as deletions with a reason each.
+Read the whole thing first. Sort instructions into hard product requirements, domain knowledge, and carried-over scaffolding. Report the third group as deletions with what each was compensating for. Treat memory files and notes as instruction sources: on Fable 5.2 they are followed closely.
 
 ### Harness code
 
-Inspect and report on:
+Report on: model and surface; `effort` (explicit, defaulted, varied); `thinking` and `display`; `max_tokens`; `tool_choice`, `strict`, CMEK; exact replay of assistant turns; anything that rewrites `system`, `tools`, or earlier messages (dates in the system prompt, unpinned MCP tool lists, removed reminders); `prefix_mismatch_behavior`; computer-use tool and advisor model; subagent models, effort, caps, and blocking; refusal handling, including on subagent calls; timeouts.
 
-- model ID and surface;
-- the `effort` setting, and whether it is ever changed mid-conversation;
-- `thinking` config, especially `display` and any `budget_tokens` or `disabled` leftovers;
-- `tool_choice`, `strict`, and structured-output usage;
-- whether assistant turns are appended back byte-for-byte with thinking blocks intact;
-- whether anything rewrites `system`, `tools`, or earlier messages between requests;
-- how per-turn reminders are delivered;
-- `max_tokens` relative to expected deliverable length;
-- subagent launch and return semantics (blocking or asynchronous);
-- compaction strategy, client-side or server-side;
-- refusal handling and fallback configuration;
-- timeouts, streaming, retries, and progress rendering.
-
-Return prompt changes and harness changes separately. Do not claim a prompt-only fix repairs a message-assembly or timeout defect. Run `scripts/fable_api_check.py` over code that builds requests, and treat its output as warnings.
+Return prompt changes and harness changes separately. Run `scripts/fable_api_check.py` over request-building code; treat its output as warnings.
 
 ### Eval datasets
 
-Infer the schema first and identify input, output, expected result, label, feedback, grader, effort, latency, token, and cost fields. Profile large CSV, JSON, or JSONL files with `scripts/profile_eval_dataset.py` before sampling failures. Derive narrow prompt changes from real failures only, and test for regressions on passing cases.
+Infer the schema and profile large files with `scripts/profile_eval_dataset.py` before sampling failures; derive narrow changes from real failures only.
 
 ## Prompt construction rules
 
-- State the goal, the reason behind it, hard constraints, the output contract, and done criteria. Fable performs better when it knows what the output enables.
-- State each instruction once. Delete duplicate, overlapping, and decorative rules.
-- Prefer one instruction that defines the anti-pattern over an enumeration of unwanted behaviors.
-- Tell the model what to do rather than what to avoid, and use XML tags to separate instructions, context, examples, and untrusted input.
-- Put long documents at the top, above the query, instructions, and examples.
-- Never ask the model to echo, transcribe, or explain its internal reasoning as response text.
-- Keep examples only when they encode a product requirement or repair a measured failure. Three to five, wrapped in `<example>` tags. For quotation discipline, one complete example with a `<rationale>` is the documented fix.
-- Define behavior for missing, contradictory, stale, or malformed input.
-- For machine-readable output, give an exact schema and prohibit extra text; prefer structured outputs or strict tool use over format pleading.
-- For tools, define when each applies, prerequisites, batching of independent calls, retries, recovery from empty or partial results, synthesis, and post-action validation. Expose only the relevant subset.
-- For long-running work, define both the completion condition and the scope ceiling. "Keep going until it works" is not a contract.
-- Distinguish safe reversible actions from destructive, external, or costly ones, and gate only the latter.
-- Place per-turn nudges as turn-scoped system messages rather than editing history.
+- State the goal, the reason behind it, hard constraints, the output contract, and done criteria.
+- State each instruction once, with its scope; give every prohibition its reason and exceptions.
+- Name the routine steps that need no approval and the few that do.
+- Decide the ownership sentence deliberately: include it when restructuring is wanted, omit it for narrow changes.
+- For a reader who did not see the work, use the "Communicating clearly" block; do not add sentence-length limits.
+- Never ask the model to reproduce its reasoning as response text or in a JSON field.
+- Use XML tags for instructions, context, examples, and untrusted input; long documents at the top.
+- For machine-readable output, prefer strict tools or JSON outputs; validate in code where CMEK rules them out.
+- For tools, define when each applies, recovery from empty or partial results, and validation; expose only the relevant subset; name a tool and its condition to make the model call it.
+- For long runs, define both the completion condition and the scope ceiling.
+- Put system-prompt text in place from the first request; append later changes as system messages.
 
-## Fable configuration
+## Configuration
 
-Recommend only settings that affect this workload:
+Recommend only settings that affect the workload: model (Fable 5.2 versus Opus 5.5 versus Fable 5.1); `effort`, set explicitly; per-message effort; `thinking.display`; `max_tokens` sized for thinking plus reply; output enforcement; append-only history and `prefix_mismatch_behavior`; subagent model, effort, and caps; caching; refusal handling and fallback.
 
-- model choice (Fable 5.1 versus Opus 5 versus a smaller model);
-- `effort` baseline and whether to vary it mid-conversation;
-- `thinking.display` and how updates reach the user;
-- `max_tokens` sized for thinking plus reply;
-- `tool_choice`, strict tool use, or structured outputs;
-- prompt caching and compaction strategy;
-- refusal handling and fallback targets.
-
-Workload defaults for this skill, labeled as recommendations rather than Anthropic rules: start at `high` (the documented default), sweep `low`, `medium`, `xhigh`, and `max` against real evals, and prefer `high` for long deliverables. Do not treat `max` as automatically better. Load `references/fable-configuration.md` for the decision rules and verify volatile details online.
+Workload defaults, as recommendations: start Fable 5.2 at `high` explicitly, then test `medium` and `xhigh`, and `low` for subagents; keep an orchestrating lead at `high` with cheaper subagents at lower effort, and compare against Opus 5.5 leading; do not treat `max` as better. Details in `references/fable-configuration.md`.
 
 ## Optimization modes
 
 ### Create
 
-Turn the request into a copy-paste-ready prompt. Use the minimal pattern unless tools, strict schemas, side effects, long-horizon autonomy, or high stakes justify hardening.
+Start from the minimal pattern; harden only for tools, strict schemas, side effects, autonomy, delegation, or high stakes.
 
 ### Audit or repair
 
-1. Diagnose the highest-impact failure modes, mapping each symptom through `references/behavior-fixes.md`.
-2. List legacy instructions to delete and say what each was compensating for.
+1. Run the deletion pass, including memory and agent files, listing each deletion with its reason.
+2. Diagnose remaining failures through `references/behavior-fixes.md`.
 3. Preserve genuine domain rules and product requirements.
-4. Repair missing output contracts, tool rules, recovery behavior, autonomy boundaries, and done criteria.
-5. Return the complete revised prompt, not a patch alone.
+4. Repair missing contracts, approval boundaries, completion rules, delegation contracts, and done criteria.
+5. Return the complete revised prompt.
 
-Run `scripts/prompt_lint.py` on long prompts for deterministic checks on Fable-hostile patterns, duplication, weak contracts, and unbounded loops. Warnings, not truth.
+Run `scripts/prompt_lint.py` on long prompts. Warnings, not truth.
 
 ### Migrate
 
-Preserve the baseline first, then change one variable at a time with representative tests. Separate required API changes (forced tool use, prefill, `budget_tokens`, sampling parameters, append-only history) from optional prompt simplifications and workload preferences. Effort level names do not map across models, so re-run the sweep even if you ran one on the previous model.
+Preserve the baseline; change one variable at a time. Required changes first (prefix-check test, computer-use toolset, advisor model, explicit effort when coming from Opus 5.5, ZDR and CMEK checks), then deletions (think-less lines, delegate lines, token budgets, style limits, stale cautions), then optional prompt additions measured one at a time. Rerun the sweep.
 
 ### Diagnose an observed behavior
 
-Start from the symptom, not the prompt. Name the layer that owns the fix (prompt, message assembly, API parameter, tool inventory, UI), give the smallest change, and give the test that proves it.
+Start from the symptom. Name the layer that owns the fix, give the smallest change, and the test that proves it.
 
 ### Eval-driven optimization
 
-Establish a baseline, group failures by cause, apply the smallest targeted change, rerun the same cases, inspect regressions, and compare quality against latency, tokens, and cost. Follow `references/evaluation-playbook.md`.
+Follow `references/evaluation-playbook.md`: baseline, effort sweep, deletion experiment, delegation comparison, one targeted change at a time.
 
 ## Default output contract
 
-Return these sections unless the user asks for another format:
+Return these sections unless the user asks otherwise:
 
-### Final prompt
+- **Final prompt**: one copy-paste-ready block with all essential instructions; label system versus user placement when it matters.
+- **Configuration**: only relevant settings, one-line rationale each, every volatile claim labeled.
+- **Harness changes**: only when a fix lies outside the prompt; say what breaks if skipped.
+- **Diagnostic**: three to six points: deletions and why, design choices, repaired risks, assumptions, limits.
+- **Quick tests**: three to six: a normal case, an ambiguity or failure case, a format check, a long-run or early-stop case for agentic work, and an effort comparison when configuration is in play.
+- **Sources**: only when research was used, beside the claims they support.
 
-One copy-paste-ready prompt in a fenced block, with all essential instructions inside it. When system versus user placement matters, label which part goes where.
-
-### Fable configuration
-
-A compact table of only the relevant settings with a one-line rationale each. Label every volatile claim `verified current`, `workload recommendation`, or `requires verification`.
-
-### Harness changes
-
-Only when the diagnosis assigns a fix outside the prompt: message assembly, `thinking.display`, `max_tokens`, tool definitions, subagent return semantics, compaction, timeouts, refusal fallback. Say what breaks if it is skipped.
-
-### Diagnostic
-
-Three to six concise points: main design choices, instructions removed and why, repaired risks, assumptions, limitations. For an audit, separate critical defects from optional improvements.
-
-### Quick tests
-
-Three to six representative tests: at least one normal case, one ambiguity or failure case, one format or completeness check, and one effort comparison when configuration is in play.
-
-### Sources
-
-Only when research was used. Cite official Anthropic pages beside the claims they support.
-
-Keep the response compact without dropping a requested deliverable.
+When the deliverable is a subagent's report to a Fable parent, the report contract replaces these sections.
 
 ## Verification checklist
 
 Before finalizing, confirm silently that:
 
-- the prompt serves the user's actual objective, and the reason behind the request is stated;
-- every requested input and deliverable is represented;
-- legacy instructions written for weaker models were identified and removed;
-- no instruction asks the model to reproduce its internal reasoning;
-- no anti-formatting or anti-narration block is left in place unexamined;
-- instructions do not materially contradict each other;
-- volatile Fable claims were verified, and facts are separated from preferences;
-- the fix for each symptom is assigned to the correct layer;
-- API-level blockers are flagged: forced tool use, prefill, `budget_tokens`, non-default sampling, history edits;
-- tool rules cover batching, recovery, stopping, and validation;
-- long-running prompts define autonomy, evidence-grounded progress claims, a verification interval, a scope ceiling, and a stop condition;
-- subagent prompts define when to delegate and whether the lead keeps working;
-- external or irreversible actions have approval boundaries;
-- strict formats are machine-checkable;
-- `max_tokens` leaves room for thinking plus the reply;
-- tests target the most likely failure modes;
-- the result is ready to copy, run, or evaluate.
+- model, surface, and reader are identified, and advice matches them;
+- the reason behind the request is stated, and every deliverable is represented;
+- the deletion pass covered memory files and agent definitions;
+- no instruction asks for reasoning in the reply;
+- approvals are specific, and the ownership choice is deliberate;
+- delegation covers cost, models, briefs, ownership, caps, returns, and the lead's own check;
+- a report for a Fable parent leads with status and evidence;
+- effort is explicit, `max_tokens` fits thinking plus reply, and history is append-only;
+- refusals are handled by category, including on subagent calls;
+- each fact carries its source; tests target the likeliest failures.
 
 ## Scripts
 
-Deterministic helpers. All three are standard-library Python 3 and produce warnings, not verdicts.
+Standard-library Python 3 helpers that produce warnings, not verdicts.
 
-- `scripts/prompt_lint.py [file|-] [--format json]` — flags Fable-hostile patterns (anti-formatting rules, anti-narration lines, reasoning-display requests, emphatic tool language, prefill and budget_tokens references, context countdowns, inert directives) plus contract gaps and duplication. Fable-class findings usually mean delete text, not add it.
-- `scripts/fable_api_check.py <paths...> [--severity error|break|degrade|info] [--format json]` — scans harness code for documented 400s (forced tool use, `budget_tokens`, non-default sampling, prefill), silent breakage (history mutation, `system`/`tools` rebuilds, stripped thinking blocks, missing beta headers), and known-bad behavior (`display: "omitted"` in an agent loop, undersized `max_tokens`, blocking subagents, short timeouts). Exits 1 when anything error- or break-class is found.
-- `scripts/profile_eval_dataset.py <file>` — profiles CSV, JSON, or JSONL eval data: infers the schema, identifies input, output, expected, label, grader, effort, model, latency, token, and cost fields, and reports coverage and label distributions before you sample failures.
+- `scripts/prompt_lint.py [file|-] [--format json]`: carried-over lines Fable 5.2 obeys too well (think-less, delegate, visible token budget, style limits, unscoped "never", "treat as done", broad approvals, ownership plus scope limit), reasoning-in-reply requests, API-parameter references, contract gaps, duplication.
+- `scripts/fable_api_check.py <paths...> [--severity error|break|degrade|info] [--format json]`: documented 400s (forced tool use, rejected thinking types, sampling parameters, prefill, `computer_20251124`, a pre-5.2 advisor), prefix-check breakage, bad configuration (`display: "omitted"`, small `max_tokens`, unset effort, blocking or uncapped subagents), missing beta headers. Exits 1 on error or break findings.
+- `scripts/profile_eval_dataset.py <file>`: profiles CSV, JSON, or JSONL eval data, including effort, model, stop-reason, and subagent fields.
 
 ## References
 
-- `references/behavior-fixes.md` — symptom-to-fix table with the documented instruction blocks. Read this first for any audit or diagnosis.
-- `references/fable-configuration.md` — model IDs, effort, thinking, betas, pricing, breaking changes, refusal handling.
-- `references/prompt-patterns.md` — compact prompt skeletons for Fable.
-- `references/agentic-scaffolding.md` — long-horizon autonomy, memory, subagents, compaction, verification loops, vision tooling.
-- `references/hardening-matrix.md` — add only risk-justified controls.
-- `references/evaluation-playbook.md` — effort sweeps, failure taxonomy, regression discipline.
-- `references/official-sources.md` — where to verify current behavior.
+- `references/behavior-fixes.md`: symptom-to-fix index with documented blocks, Fable 5.2 first. Read first for any audit or diagnosis.
+- `references/orchestration-and-handoffs.md`: writing for a Fable lead, subagent mechanics in Claude Code and the Agent SDK, and the report contract for a Fable parent.
+- `references/fable-configuration.md`: IDs, effort, thinking, prefix check, tools, refusals, pricing, migration.
+- `references/prompt-patterns.md`: compact skeletons, including subagent tool description and brief.
+- `references/agentic-scaffolding.md`: long-horizon runs, memory, verification, computer use, vision.
+- `references/hardening-matrix.md`: risk-justified controls and anti-patterns.
+- `references/evaluation-playbook.md`: effort sweeps, deletion experiments, delegation comparison.
+- `references/official-sources.md`: where to verify current behavior.

@@ -1,150 +1,79 @@
 # Agentic Scaffolding
 
-Read this before drafting any prompt for a run that lasts more than a few turns: coding agents, research agents, autonomous pipelines, subagent orchestration, computer use, or multi-context-window work.
+Read this before drafting a prompt for a run longer than a few turns: coding agents, research agents, autonomous pipelines, computer use, or multi-context-window work. For a Fable lead that delegates, and for subagent reports to a Fable parent, read `references/orchestration-and-handoffs.md`. Read on 2026-11-16; source keys as in `references/behavior-fixes.md`.
 
-The governing fact about Fable is that individual requests on hard tasks can run for many minutes at higher effort, and autonomous runs can extend for hours. That single shift breaks more integrations than any prompt problem. Adjust client timeouts, streaming, and user-facing progress indicators before migrating, and consider restructuring the harness to check on runs asynchronously — scheduled jobs rather than a blocking call.
+## Long turns are the default
 
-## Start at the top of your difficulty range
+Requests on hard tasks can run many minutes at higher effort, and autonomous runs can extend for hours; adjust client timeouts, streaming, and progress indicators, and consider checking runs asynchronously rather than blocking [F5]. Anthropic recommends Fable 5.2 for long-running asynchronous work where nobody needs frequent updates [P], and reports it running ambiguous engineering work for days (product page) and, in one internal experiment, coordinating over 1,000 subagents for eight days (launch post; vendor-reported).
 
-Teams seeing the best outcomes point Fable at their hardest unsolved problems. Testing it only on simpler workloads undersells its range. Pick a task harder than what you would assign to a prior model, and have Fable scope it, ask clarifying questions, and execute.
-
-This matters for prompt design: a prompt written for a task the model finds easy will be over-specified for the task you actually want to give it.
+Start at the top of your difficulty range: testing Fable only on simpler workloads undersells it [F5]. A prompt written for a task the model finds easy is over-specified for the task you want to give it.
 
 ## Six elements of a long-horizon prompt
 
-Each one maps to a specific failure if you omit it.
+| Element | Omitted, you get | Block |
+| --- | --- | --- |
+| Completion contract | Turn ends listing what remains or offering to continue | "Finishing work" (Fable 5.2) |
+| Evidence-grounded progress claims | Status reports that don't match reality | Progress claims (Fable 5) |
+| Scope and ownership | Duplicated code, or unrequested refactors, depending on the ownership sentence | Code ownership (Fable 5.2) |
+| State and memory | Repeated work after each context transition | Memory below |
+| Verification interval | Divergence found at the end instead of the third hour | Self-verification below |
+| Stop condition and scope ceiling | An until-green loop with no exit | Prompt patterns |
 
-| Element | Omitted, you get |
-| --- | --- |
-| Autonomy contract | Turn ends on "Shall I…?"; the run stalls waiting for a user who isn't there |
-| Evidence-grounded progress claims | Confident status reports that don't match reality |
-| Scope boundaries | Nearby fixes, extra tests, unrequested refactors |
-| State and memory | Repeated work after every context transition |
-| Self-verification interval | Divergence discovered at the end instead of at the third hour |
-| Stop condition and scope ceiling | An until-green loop with no exit |
-
-The instruction blocks for the first three, and the summarization instruction for context transitions, are in `references/behavior-fixes.md`. The assembled skeleton is in `references/prompt-patterns.md`.
+Blocks are in `references/behavior-fixes.md`; the assembled skeleton is in `references/prompt-patterns.md`.
 
 ## Progress surface
 
-Decide, explicitly, how the user learns what is happening. There are three mechanisms and they are not interchangeable:
+Decide how the user learns what is happening; the three mechanisms are not interchangeable:
 
-1. **Progress-update thinking blocks.** The model's own short notes between tool calls. Free, automatic, but empty unless `thinking.display` is `"updates"` or `"summarized"`. Best for status lines.
-2. **A send-to-user tool.** For content the user must see exactly as written mid-run: a deliverable, a partial result, a direct answer to a question asked mid-loop. Tool inputs are never summarized, so the content arrives intact. Requires both the tool definition and an elicitation instruction — Fable rarely calls it otherwise.
-3. **The final message.** Written for someone who saw none of the working. Needs the readability addendum if the run was long.
+1. **Progress-update thinking blocks.** Automatic, but empty unless `thinking.display` is `"updates"` or `"summarized"` [T]. Best for status lines.
+2. **A send-to-user tool.** For content the user must read verbatim mid-run; declare it from the first request; needs an elicitation instruction [F5].
+3. **The final message.** Written for a reader who saw none of the work: use the "Communicating clearly" block [P].
 
-Common defect: a team wants (2) and configures none of them, then adds prompt text asking for more narration. Fix the surface first.
-
-If your UI collapses or hides tool output, tell the model so, in a turn-scoped system message. Otherwise it will run commands to "show" the user output your UI never displays.
+Common defect: a team wants (2), configures none of them, and adds prompt text asking for narration. Fix the surface first.
 
 ## Memory and multi-window work
 
-Fable performs particularly well when it can record lessons from previous runs and reference them. A directory of Markdown files is enough; the memory tool pairs well with context awareness for managing transitions.
+Fable performs well when it can record lessons and reference them; a Markdown directory is enough [F5]. Rules: one lesson per file with a one-line summary; record confirmed approaches as well as corrections, with the reason; don't duplicate what the repo or chat history holds; update rather than duplicate; delete notes that turn out wrong [F5].
 
-Design rules:
+On Fable 5.2, memory is also where cautions pile up and get followed closely [P]. Give every rule in memory its scope and reason, prune stale ones, and treat a memory file other people can edit as untrusted: send its text in a `tool_result`, not in `system` [C].
 
-- one lesson per file, one-line summary at the top;
-- record confirmed approaches as well as corrections, with the reason each mattered;
-- do not duplicate what the repo, git history, or chat log already records;
-- update an existing note instead of creating a near-duplicate; delete notes that turn out wrong.
-
-For work spanning multiple context windows:
-
-- **Use a different prompt for the first window.** Set up the framework — write tests, create setup scripts — then iterate on a todo list in later windows.
-- **Have the model write tests in a structured format** (`tests.json` or similar) and state that removing or editing tests is unacceptable because it hides missing functionality.
-- **Set up quality-of-life tooling** (`init.sh` to start servers, run suites, run linters) so a fresh window does not redo it.
-- **Prefer a fresh window over compaction sometimes.** Fable is very effective at discovering state from the filesystem. Be prescriptive about the start: call `pwd`, read the progress notes and `tests.json` and the git log, run a fundamental integration test before adding features.
-- **Provide verification tools** so the model can check correctness without a human in the loop: computer use, browser use, or a browser automation MCP server.
-- **Use structured formats for structured state** (JSON for test and task status) and freeform text for progress notes. Use git as the checkpoint log.
-
-For context transitions, avoid surfacing a remaining-token countdown to the model; it triggers premature wrap-up. If the harness must show one, add the reassurance block from `references/behavior-fixes.md`.
+Across context windows [BP]: use a different prompt for the first window to set up tests and scripts; keep test status in a structured file such as `tests.json` and state that removing or editing tests is unacceptable; create setup scripts such as `init.sh`; on a fresh window, start by calling `pwd` and reading the progress notes, `tests.json`, and the git log. Prefer compaction on demand or context editing over client-side cuts, which invalidate kept thinking [C]. Do not show the model a remaining-token countdown [F5].
 
 ## Self-verification
 
-Make it explicit and put it on an interval, not at the end:
+Put it on an interval, not at the end (Fable 5):
 
 ```text
 Establish a method for checking your own work at an interval of [X] as you build. Run this every [X interval], verifying your work with subagents against the specification.
 ```
 
-Separate, fresh-context verifier subagents tend to outperform self-critique. The verifier should get the requirements, the diff, the tests, and codebase evidence — not the implementer's persuasive summary of why the change is correct.
+Separate fresh-context verifiers tend to outperform self-critique [F5]. Give a verifier the requirements, the diff, the tests, and codebase evidence, not the implementer's summary (`workload recommendation`). At `xhigh` and `max`, Fable 5.2 may start review subagents unprompted [P]: before adding this block at those levels, check whether it already does.
 
-## Subagents
+## Refactoring existing scaffolding
 
-Fable dispatches parallel subagents more readily and more dependably than prior models, and manages ongoing communication with long-running subagents and peer agents. Use them frequently. The design work is in the semantics, not the encouragement.
+Skills and prompts written for prior models are often too prescriptive and can degrade output; Fable also updates skills as it learns from the task [F5]. Procedure:
 
-**Do not block the lead.** On coding tasks, letting the lead keep working while subagents run lowers average time to completion at similar quality, tokens, and cost. Three harness changes:
-
-- the launch tool returns immediately;
-- each result arrives back in a later `user` message;
-- the lead has a separate tool it can call when it wants to wait.
-
-The model still often chooses to wait; the savings come from the runs where it carries on.
-
-**Keep subagents long-lived.** Subagents that keep their context across subtasks save time and cost through cache reads and avoid bottlenecking on the slowest agent.
-
-**Define the delegation contract:**
-
-- who may delegate, and how deep (a depth of 1 with no nested delegation is a sensible default);
-- maximum concurrent agents;
-- bounded, non-overlapping tasks;
-- read-only versus write permission per agent;
-- the artifact each agent returns;
-- merge, deduplication, and conflict rules.
-
-Prefer read-heavy parallelism for exploration, triage, test runs, and review. Do not let two write-capable agents edit overlapping files without worktrees or strict file ownership.
-
-**Damp, don't forbid.** If delegation is excessive — subagents spawned for an exploration a single grep would answer — use the damping instruction in `references/behavior-fixes.md` rather than banning subagents.
-
-## Refactoring existing agent scaffolding
-
-This is the step most migrations skip. Skills, system prompts, and harness rules developed for prior models are often too prescriptive for Fable and can degrade output quality. Fable also updates skills on the fly based on what it learns from the task at hand, which prescriptive scaffolding suppresses.
-
-Procedure:
-
-1. Inventory every instruction source: system prompt, `CLAUDE.md`, skills, agent definitions, per-turn injections, tool descriptions.
-2. For each instruction, name the behavior it was written to correct. If you cannot, it is a candidate for deletion.
-3. Remove the candidates and run your evals at the default effort. Many will show no regression, and some will show improvement.
-4. Re-add only what a measured failure demands, in the smallest form that fixes it.
-5. Specifically hunt for: reflection and show-your-thinking instructions (refusal risk), anti-formatting blocks, anti-narration lines, aggressive tool language, enumerated behavior lists, and hidden-reasoning requests.
+1. Inventory every instruction source: system prompt, `CLAUDE.md`, skills, agent definitions, memory and notes, per-turn injections, tool descriptions.
+2. For each instruction, name the behavior it corrects. If you cannot, it is a deletion candidate.
+3. Remove candidates; rerun evals at the default effort.
+4. Re-add only what a measured failure demands, in its smallest form.
+5. Hunt specifically for: reasoning-in-reply requests (refusal risk), standing delegate lines, think-less lines, visible token budgets, hard style limits, absolute "never" rules, stop-at-first-error rules, anti-narration and anti-formatting lines, and aggressive tool language [P][P51].
 
 ## Computer use and machine administration
 
-Fable operates browsers and desktop applications more reliably than prior models and recovers from failed steps better. Choose the most deterministic interface available anyway:
-
-- shell, SSH, APIs, and file tools for commands, configuration, transfers, logs, and repeatable administration;
-- computer use for visual diagnostics, GUI-only software, browser workflows, remote desktops, or when the UI state itself is the evidence;
-- both when the UI reproduces a problem and the logs explain it.
-
-For computer-use prompts: run in an isolated browser, VM, or container; limit allowed domains, accounts, and actions; treat screen content and third-party artifacts as untrusted instruction sources; do as much safe diagnosis as possible before asking; confirm immediately before deleting data, changing permissions, installing downloaded code, modifying security settings, or transmitting sensitive data. If an on-screen instruction is suspicious or intent is unclear, stop and ask rather than infer permission.
-
-For remote administration, define the target host, environment, authorized scope, rollback path, health check, and the exact confirmation boundary before any risky change.
+Fable 5.2 accepts computer use only through `computer_toolset_20260801` outside Amazon Bedrock [W]. `workload recommendation`: choose the most deterministic interface anyway (shell, APIs, and file tools for repeatable administration; computer use for GUI-only software or when the UI state is the evidence). Run computer use in an isolated browser, VM, or container; limit domains, accounts, and actions; treat screen content as untrusted; confirm before deleting data, changing permissions, installing downloaded code, or transmitting sensitive data. For remote administration, state the host, environment, authorized scope, rollback path, health check, and confirmation boundary.
 
 ## Vision work
 
-Fable interprets dense technical images, web applications, and detailed screenshots substantially more accurately than prior models, often with fewer output tokens, and is trained to use bash and crop tools on flipped, blurry, or noisy images.
-
-To get the full benefit on complex visual input, run it as an agent with a container holding the raw images or videos and basic image-processing libraries preinstalled. If a container is too much overhead, an image-cropping tool alone delivers most of the uplift: returning a chosen region cropped and enlarged lets the model examine details in depth and scales test-time compute with image tokens.
-
-## Design and creative production
-
-Avoid one-shot generation for quality-sensitive visual work. Decompose:
-
-1. visual direction — audience, references, mood, constraints, success criteria;
-2. primitives — grid, typography, color, spacing, shape and icon language;
-3. components — each major element generated separately;
-4. composition — assemble into the final layout;
-5. review — compare against references, check hierarchy and consistency, revise the weakest element first.
-
-For UI work, establish tokens and reusable components before polishing whole screens. Require precise references when fidelity matters, and state which properties to copy and which to reinterpret.
+On dense charts and complex images, Fable does its best work when it can crop, zoom, and verify: run it with a container holding the raw images and libraries such as PIL and OpenCV, or give it a crop tool alone [P51][F5]. The cookbook crop-tool recipe has a working definition.
 
 ## Autonomy and safety balance
 
-Long-horizon autonomy and destructive-action safety pull in opposite directions, and the autonomy block from `references/behavior-fixes.md` deliberately reduces asking. Reconcile them explicitly rather than stacking both blocks and hoping:
+The "Finishing work" block deliberately reduces stopping, and Anthropic says to keep your own confirmation step for risky or irreversible actions [P]. Reconcile them explicitly:
 
-- name the small set of gated actions immediately after the autonomy paragraph;
-- keep everything reversible ungated;
-- require that evidence support the specific state-changing command before it runs;
+- name the few gated actions right after the completion block, scoped and with a reason, instead of a "never" rule;
+- keep reversible work ungated, and list the routine steps that need no approval;
+- require evidence for the specific state-changing command before it runs [F5];
 - forbid destructive shortcuts around obstacles, including bypassing safety checks and discarding unfamiliar files that may be in-progress work.
 
-Then test the boundary: give the agent a task where the tempting shortcut is destructive and confirm it asks.
+Then test the boundary with a task where the tempting shortcut is destructive, and confirm the agent asks.

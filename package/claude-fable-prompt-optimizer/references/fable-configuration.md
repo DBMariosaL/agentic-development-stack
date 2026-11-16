@@ -1,177 +1,156 @@
 # Fable Configuration Guide
 
-Decision rules, not timeless facts. Everything with a number, an identifier, or a date in it must be re-verified in official Anthropic documentation before you present it as current. Details below were verified on 2026-09-03.
+Decision rules, not timeless facts. Everything with a number, identifier, or date must be re-verified before you present it as current. Read on 2026-11-16. Short source keys used below:
+
+- [W] What's new in Fable 5.2 — `https://platform.claude.com/docs/en/models/fable-5-2/whats-new-fable-5-2`
+- [M] Fable 5.2 migration guide — `https://platform.claude.com/docs/en/models/fable-5-2/migration-guide`
+- [P] Prompting Fable 5.2 — `https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-2`
+- [E] Effort — `https://platform.claude.com/docs/en/build-with-claude/effort`
+- [T] Thinking — `https://platform.claude.com/docs/en/build-with-claude/thinking`
+- [X] Prefix checks — `https://platform.claude.com/docs/en/build-with-claude/preserved-thinking/prefix-checks`
+- [C] Change tools or instructions — `https://platform.claude.com/docs/en/build-with-claude/preserved-thinking/change-tools-or-instructions`
+- [R] Refusals and fallback — `https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback`
+- [O] Models overview — `https://platform.claude.com/docs/en/models/overview`
+- [CC] Claude Code model config — `https://code.claude.com/docs/en/model-config`
 
 ## Evidence labels
 
-Label a recommendation whenever the distinction matters:
-
-- `verified current` — confirmed in current official Anthropic documentation;
-- `workload recommendation` — this skill's operating preference, to test on the user's own evals;
+- `verified current` — confirmed in official Anthropic documentation on the date above;
+- `workload recommendation` — this skill's operating preference, to test on the user's evals;
 - `requires verification` — plausible but not confirmed for the target surface or date.
 
 ## Models
 
-| Model | Claude API ID | Notes |
-| --- | --- | --- |
-| Claude Fable 5.1 | `claude-fable-5-1` | Successor to Fable 5; long-running agentic coding, knowledge work, research |
-| Claude Mythos 5.1 | `claude-mythos-5-1` | Same capabilities; Project Glasswing participants only |
-| Claude Fable 5 | `claude-fable-5` | Prior generation |
-| Claude Mythos 5 | `claude-mythos-5` | Project Glasswing only |
+| Model | Claude API ID | Price in / out per MTok | Access |
+| --- | --- | --- | --- |
+| Claude Fable 5.2 | `claude-fable-5-2` | $8 / $40 | All Claude API customers [W] |
+| Claude Mythos 5.2 | `claude-mythos-5-2` | $8 / $40 | Organizations verified through Anthropic's verification programs [W] |
+| Claude Fable 5.1 | `claude-fable-5-1` | $10 / $50 | [O] |
+| Claude Fable 5 | `claude-fable-5` | $10 / $50 | [O] |
 
-Other surfaces: Amazon Bedrock uses `anthropic.claude-fable-5-1`; Claude Platform on AWS, Google Cloud, and Microsoft Foundry use `claude-fable-5-1`.
+Mythos 5.2 has the same capabilities as Fable 5.2 [W]. On Amazon Bedrock, Fable 5.2 is `global.anthropic.claude-fable-5-2` or `us.anthropic.claude-fable-5-2`, served only on the `bedrock-runtime` endpoint; Claude Platform on AWS, both Google Cloud offerings, and Microsoft Foundry use `claude-fable-5-2` [W].
 
-Anthropic's own routing advice is to start most workloads on Claude Opus 5 and reach for Fable 5.1 for demanding reasoning and long-horizon agentic work, or when Opus 5 evals at higher effort still fall short. Do not choose by prestige. Pick the model that clears the quality bar, then test cheaper or faster alternatives on representative cases.
+Shared 5.2 specs [W][M]: 1M-token context (default and maximum); 128k max output (no 300k batch beta [T]); adaptive thinking always on; the tokenizer introduced with Opus 4.7; 30-day data retention required, so a Claude API request from an organization or workspace without it returns 400 `invalid_request_error`; not on Priority Tier; its own rate limit, separate from the one Fable 5.1 and Fable 5 share.
 
-Shared specs for Fable 5.1 and Mythos 5.1:
-
-- 1M token context window, default and maximum, at standard per-token pricing across the whole window;
-- 128k max output tokens;
-- adaptive thinking always on, depth controlled by `effort`;
-- tokenizer introduced with Opus 4.7 — the same text produces roughly 30% more tokens than on models older than Opus 4.7, so re-baseline token budgets when migrating from those;
-- 30-day data retention, not available under zero data retention unless expressly authorized; Covered Models.
+Routing: Anthropic recommends starting most workloads on Opus 5.5 and moving to Fable 5.2 for demanding reasoning and long-horizon agentic work, or when Opus 5.5 evals at higher effort still fall short [O][W]. Claude Code defaults to Opus 5.5 on every plan; no Fable model is a default anywhere, and `/model fable` selects Fable 5.2 [CC].
 
 ## Effort
 
-Accepted values on Fable: `low`, `medium`, `high`, `xhigh`, `max`. Default and recommended starting point: `high`.
+Accepted values: `low`, `medium`, `high`, `xhigh`, `max`. Set with `output_config.effort` [E].
 
-Effort is the primary control for the intelligence, latency, and cost tradeoff. Level names do not correspond to the same amount of thinking across models, so a sweep is model-specific.
-
-| Workload | Baseline | Evidence level |
+| Surface | Fable 5.2 default | Source |
 | --- | --- | --- |
-| Most tasks, and any long single-reply deliverable | `high` | verified current (documented default) plus workload recommendation |
-| Routine work where a sweep shows quality holds | `medium`, then `low` | workload recommendation |
-| Capability-sensitive work with a measured gain | `xhigh`, then `max` | workload recommendation, gated on measurement |
-| Turns that need fresh retrieval while the session runs low | raise mid-conversation | verified current |
+| Claude API | `high` | [E][W] |
+| Claude Code, Claude apps | `medium` | [CC], launch post |
+| Opus 5.5 on the Claude API, for contrast | `medium` | [E] |
 
-On Fable 5.1, `medium` roughly matches Fable 5 at lower cost, and `low` is often competitive with Opus and Sonnet models on cost per task while scoring higher. Include `low` in the comparison anywhere you would otherwise run a smaller model at a higher effort level.
+A request moved from Opus 5.5 that omits `effort` runs one level higher on Fable 5.2 and succeeds silently [M]. Set it explicitly.
 
-Two effort-specific behaviors have their own fixes: reduced search triggering at `low`, and long pre-writing thinking at `xhigh` and `max`. Both are in `references/behavior-fixes.md`.
+Documented guidance [P][E]: start at `high`, where most of the capability gain already sits; `low` suits quick back-and-forth and fast subagents, and on coding evals Fable 5.2 at `low` scored close to Fable 5.1 at higher effort; `medium` suits interactive coding and chat; `xhigh` only for the hardest long-running work with a measured gain; `max` for ceiling measurement. At `high` and above the model thinks before almost every reply, including a greeting. Effort barely changes reply length: use the prompt for length and tone. Lower effort is more likely to stop early on agentic work. Rerun the sweep rather than carrying a Fable 5.1 or Opus 5.5 setting over: levels rank the same across models but think different amounts [P].
 
-### Per-message effort (beta)
+Per-message effort (beta `mid-conversation-output-config-2026-07-01`) changes the level mid-conversation and keeps the cache; a new top-level value can invalidate cached messages [P][E]. Changing effort is not a prefix-check edit [X].
 
-On Fable 5.1 you can change effort mid-conversation without invalidating the prompt cache: send `output_config` at the top level for the session default, and a `role: "system"` message carrying its own `output_config.effort` to change it from the next user turn. Beta header: `mid-conversation-output-config-2026-07-01`. Supported on Fable 5.1, Mythos 5.1, and Opus 5 on the Claude API.
-
-Raise it for a hard step, lower it for routine ones. Changing `effort` between requests does not count as a history edit.
+`workload recommendation`: for an orchestrating Fable, keep the lead at `high` and run routine subagents at `low` or `medium` on a cheaper model, then measure; see `references/orchestration-and-handoffs.md`.
 
 ## Thinking
 
-Adaptive thinking is always on and is the only mode. Both `thinking: {"type": "enabled"}` with `budget_tokens` and `thinking: {"type": "disabled"}` return 400. Omit `thinking` or send `{"type": "adaptive"}`.
+On Fable 5.2, `thinking` omitted or `{"type": "adaptive"}` gives adaptive thinking; `"enabled"` with `budget_tokens`, `"disabled"`, and `"between_tools"` all return 400 [T]. Use effort for depth and `max_tokens` as the hard ceiling on thinking plus reply.
 
-There is no thinking-token cap. Use `effort` to shape depth and `max_tokens` as the hard ceiling.
+`thinking.display` [T]:
 
-`thinking.display` values:
-
-| Value | Behavior | When to use |
+| Value | Reasoning blocks | Progress-update blocks |
 | --- | --- | --- |
-| `"omitted"` (default) | `thinking` blocks come back empty | No UI surface for reasoning or progress |
-| `"summarized"` | Summarized reasoning plus progress updates | You want both |
-| `"updates"` (beta `thinking-display-updates-2026-08-18`) | Progress updates as text, reasoning stays hidden | Agentic UIs that need status lines without exposing reasoning |
+| `"omitted"` (default) | empty | empty |
+| `"updates"` (beta `thinking-display-updates-2026-08-18`) | empty | summary text |
+| `"summarized"` | summary text | summary text, not distinguishable from reasoning |
 
-The raw chain of thought is never returned. Reasoning between tool calls appears in thinking blocks rather than text, and interleaved thinking is automatic with no beta header.
+No setting returns the raw chain of thought [T]. Progress updates arrive as their own `thinking` block immediately before the `tool_use` they introduce, at most one per call, and the model can skip any of them; they count toward `output_tokens` at full length [T]. Render non-empty blocks; pass every block back unchanged.
 
-Never instruct the model to reproduce its reasoning as response text: on Fable 5 that can trigger the `reasoning_extraction` refusal category and elevated fallbacks. Read the structured blocks instead.
+Small `max_tokens`: thinking counts toward it, so a request can stop with `stop_reason: "max_tokens"` after a `thinking` block and before any text. A prompt line that kept Fable 5.1 from thinking does not keep Fable 5.2 from thinking at `medium` and above [M]. Raise `max_tokens` or lower effort.
 
-### Thinking-block binding
+## Preserved thinking and the prefix check
 
-Every thinking block records which model produced it and is preserved in one direction: Fable 5.1 reads earlier models' blocks; no earlier model reads Fable 5.1's. Moving a conversation onto Fable 5.1 keeps its reasoning; moving off loses it for the turns that run elsewhere. Blocks a target model cannot read are dropped before the model sees them, unbilled, reported in `input_transformations` only with the `thinking-binding-controls-2026-08-01` beta header and silent without it.
+Each thinking block is bound to its prefix: `system`, `tools`, and every earlier message. Changing any of them, or leaving out a block between others, fails the prefix check [X].
 
-Blocks are also bound to the exact conversation that produced them. Editing anything before a block — `system`, `tools`, or an earlier message — invalidates every later block. Enforced for accounts created on or after 2026-08-31; for older accounts the API records the mismatch and acts on it only when the request sets `thinking.block_binding.prefix_mismatch_behavior`. Mythos 5.1 does not run the check. Where enforced, replaying an invalidated block returns 400 with a message saying the block is bound to a different conversation; `prefix_mismatch_behavior: "drop_block"` drops and continues, reporting `reason: "prefix_binding_mismatch"`.
+| Model, `prefix_mismatch_behavior` unset | On failure |
+| --- | --- |
+| Fable 5.2, Mythos 5.2, Mythos 5.1 | 400 `... The block is bound to a different conversation` |
+| Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5 | possible 400, or no error and stale blocks reach the model |
 
-Claude Code, claude.ai, Claude Managed Agents, and the Claude Agent SDK preserve the prefix for you. Code that builds `messages` itself needs the check. See `references/behavior-fixes.md` for the safe and unsafe edit patterns.
+Retrying the same body does not clear the 400 [M]. With beta `thinking-binding-controls-2026-08-01`, set `thinking.block_binding.prefix_mismatch_behavior` to `"error"` or `"drop_block"`; `input_transformations` reports each drop with `reason: "prefix_binding_mismatch"` [X]. Treat `"drop_block"` as a stopgap: the model re-thinks and spends more output tokens [P][W].
 
-## Turn-scoped system messages (beta)
+Nothing to change if Claude Code, claude.ai, Managed Agents, or the Agent SDK (with a constant system prompt) owns history [X]. Otherwise keep three habits: send assistant turns back exactly, empty thinking blocks included; build `system` and `tools` once per conversation; append every update at the end and leave it there [X].
 
-A `role: "system"` message with `clear_at: "next_user_message"` carries system-prompt authority for the current turn and stops rendering once a later `user` message exists. It stays in `messages` and you keep sending it back verbatim, so nothing earlier changes: the prompt cache keeps matching, later thinking blocks stay valid, and a cleared message costs no input tokens. Beta header: `mid-conversation-system-clear-at-2026-08-21`.
+What does not count as a change: `model`, `effort`, `max_tokens`, `tool_choice`, `thinking.display`, JSON key order, `cache_control` markers, an unreferenced `defer_loading` tool [X]. What does: one reworded word in a tool description; an MCP connector tool list that changes between requests, unless pinned (an edit for Fable 5.2 blocks, not for 5.1 or Opus 5.5 blocks) [M]; changing the advisor's `model` [W].
 
-```json
-{
-  "role": "system",
-  "clear_at": "next_user_message",
-  "content": "Results have landed in your inbox. Check it before running more code."
-}
-```
+Change patterns [C]:
 
-This is the correct mechanism for per-turn reminders in a tool loop. It replaces the inject-and-delete pattern entirely. For durable instruction or tool changes mid-session, use a plain mid-conversation system message or a mid-conversation tool change rather than rewriting `system` or `tools`.
+| Need | Append-only method |
+| --- | --- |
+| New standing instruction | `role: "system"` message after the newest user message; leave it in place |
+| Per-turn reminder | Turn-scoped system message: `clear_at: "next_user_message"`, beta `mid-conversation-system-clear-at-2026-08-21`; it clears at the next user message and costs no input tokens |
+| New date or environment value | Its own text block in the next user message, after tool results |
+| Add or remove a tool | `tool_addition` / `tool_removal` block in a system message; beta `inline-tools-2026-09-15`, or `mid-conversation-tool-changes-2026-07-01` for named, pre-declared tools |
+| Turn tools off for one request | `tool_choice: {"type": "none"}` |
+| Shorten history | Compaction on demand (beta `compact-2026-09-04`) or context editing; a client-side cut needs the kept thinking removed or `"drop_block"` |
+| File other people can edit (`AGENTS.md`, `CLAUDE.md`, memory) | Send its text only in a `tool_result` block, never in `system` or a system message |
+
+Model switching: Fable 5.2 reads blocks from Fable 5.1, Opus 5.5, and the other listed models on the Claude API and Google-managed Google Cloud; only Mythos 5.2 reads Fable 5.2 blocks [W]. Moving off Fable 5.2 (to Opus 5.5, Fable 5.1, or a fallback model) drops its reasoning for the turns that run elsewhere: the request succeeds, dropped blocks are unbilled, the first turn after the switch costs more [M]. Fable 5.2 blocks also work only in the producing account or a linked one [W].
 
 ## Tool configuration
 
-Forced tool use is unsupported on Fable 5.1 and Mythos 5.1. `tool_choice` set to `{"type": "any"}` or `{"type": "tool", "name": "..."}` returns 400 `invalid_request_error`, on the Messages endpoint and on token counting. `{"type": "auto"}` (default) and `{"type": "none"}` are unchanged. The rationale is that thinking is always on and a forced call would skip it, pushing the working-out into the tool arguments and lowering argument quality.
+`tool_choice` `{"type": "auto"}` (default) and `{"type": "none"}` work; `{"type": "any"}` and `{"type": "tool", ...}` return 400, on Messages and token counting [M]. For schema-valid JSON use `auto` plus `strict: true` or JSON outputs [W]. In a customer-managed-encryption-key organization, structured outputs (strict tools and JSON outputs) are unavailable on Fable 5.2: leave out `strict` and validate in code [W][M].
 
-Replacements:
+To make the model call a tool, name the tool and its condition in the prompt; say when to use it rather than forcing it, so it thinks first [T].
 
-| Old goal | Fable approach |
-| --- | --- |
-| Guarantee schema-valid JSON | `tool_choice: auto` with `strict: true` strict tool use, or structured outputs |
-| Force a specific tool | Name the tool and its condition in the prompt; Fable follows explicit tool instructions reliably |
-| Classification into fixed labels | A tool with an enum field, or structured outputs |
+Computer use: declare `computer_toolset_20260801`; `computer_20251124` returns 400 everywhere except Amazon Bedrock [W].
 
-Expose only the tools the task needs. Aggressive tool language ("CRITICAL: you MUST...") now overtriggers; plain phrasing is enough.
-
-Batch independent calls. Fable 5.1 parallelizes when a request names several things to fetch but can go serial in implied-read agent loops; the fix is a turn-scoped nudge, not a system prompt rule.
+Advisor tool (beta): a Fable 5.2 or Mythos 5.2 executor accepts only a Fable 5.2 or Mythos 5.2 advisor, else 400; a Fable 5.2 advisor returns encrypted advice [W].
 
 ## Sampling and prefill
 
-Non-default `temperature`, `top_p`, or `top_k` return 400. Prefilling the assistant response returns 400.
-
-Prefill replacements: structured outputs or XML output tags for format control; a direct no-preamble instruction for skipping introductions; a user-message continuation quoting the interrupted text for continuations; tool-based or compaction-time context hydration for injected reminders.
-
-## Caching and compaction
-
-Minimum cacheable prompt length: 512 tokens. Cache writes are unchanged from Fable 5; cache reads on Fable 5.1 and Mythos 5.1 cost 0.025x base input against 0.1x on other Claude models, so long agentic sessions re-reading a cached prefix pay a quarter of the Fable 5 rate.
-
-Consequence for prompt design: compacting early to save cost may no longer be the right tradeoff on Fable 5.1. Test later compaction points. Prefer server-side compaction or context editing, which do not count as history edits. Moving `cache_control` markers is safe.
-
-If you must compact on the client, replace the whole history with one summary message plus the new user turn and replay no thinking blocks, and use the documented summarization instruction in `references/behavior-fixes.md`.
+Non-default `temperature`, `top_p`, or `top_k` return 400; the `top_p` default is `0.99`, so `top_p: 1`, or both `temperature` and `top_p` together, also fail. From API version `2026-10-21`, any value of these parameters returns 400 on every model [T]. A prefilled final assistant turn returns 400 [M][T].
 
 ## Refusals, fallback, and billing
 
-A declined request returns HTTP 200 with `stop_reason: "refusal"` and a `stop_details` object naming the policy area. Classifier domains include offensive cybersecurity, biology and life sciences, and extraction of the model's summarized thinking; benign work in those areas can also trigger them. Finding vulnerabilities in source code is permitted on Fable 5.1.
+A decline is HTTP 200 with `stop_reason: "refusal"` and `stop_details.category` [R][P]:
 
-Fallback options: server-side fallback, SDK middleware, or your own retry. `fallbacks: "default"` (beta) retries on the model Anthropic recommends for that category. Permitted fallback targets for Fable 5.1 are Claude Opus 4.8 and Claude Opus 5.
+| Category | Billed before any output | Default fallback |
+| --- | --- | --- |
+| `cyber` | no | `requires verification` per category |
+| `bio` | yes | `requires verification` per category |
+| `frontier_llm` | yes | `requires verification` per category |
+| `reasoning_extraction` | yes | none: the refusal stands; change the prompt [W][R] |
+| `general_harms` | no | `requires verification` per category |
+| `null` | no | `requires verification` |
 
-Billing: no charge for a refusal that arrives before any output, and on Fable 5.1 fallback credit refunds the prompt-cache cost of switching models.
+Refusals count against rate limits either way; a mid-stream refusal bills what streamed; discard partial output [R]. Server-side fallback: `fallbacks: "default"` with beta `server-side-fallback-2026-07-01`, Claude API and Anthropic-managed Google Cloud only; permitted targets for Fable 5.2 are `claude-opus-4-8` and `claude-opus-5`; later requests in a fallen-back conversation go straight to the fallback model; batches cannot use it; the fallback model does not receive Fable 5.2 thinking [R][M]. `fallbacks` does not carry over to model calls made inside tool execution, so subagent calls need their own [R]. In Claude Code, flagged requests re-run on Opus 5 (bio) or Opus 4.8 (cyber), and a subagent does not pause to ask at a flagged request [CC].
 
-Design consequence: any production Fable integration needs a refusal branch. A prompt that cannot tolerate a fallback model's output is an architecture problem, not a prompt problem.
+`frontier_llm` is a named category in the current table; benign machine-learning work can trigger it [R]. The launch post reports fewer unnecessary cyber and bio blocks than Fable 5.1. Organizations blocked on legitimate work can apply to the Cyber or Life Sciences Verification Programs [P].
 
-## Pricing (USD)
+## Pricing (USD per MTok) [W]
 
-| Base input | 5m cache writes | 1h cache writes | Cache reads | Output |
-| --- | --- | --- | --- | --- |
-| $10 / MTok | $12.50 / MTok | $20 / MTok | $0.25 / MTok | $50 / MTok |
+| Base input | 5m cache write | 1h cache write | Cache read | Output | Batch in / out | Fast mode in / out |
+| --- | --- | --- | --- | --- | --- | --- |
+| $8 | $10 | $16 | $0.20 | $40 | $4 / $20 | $16 / $80 |
 
-Batch processing: $5 / MTok input, $25 / MTok output.
+Cache reads are 0.025x base input, the same multiplier as Fable 5.1 [W]. Fast mode is `speed: "fast"` on the Claude API and both Google Cloud offerings; Foundry uses a `claude-fable-5-2-fast` deployment; remove `speed: "fast"` in Managed Agents [W][M]. Fast mode is also available in Claude Code (product page).
 
-Fable 5.1 is priced identically to Fable 5 except for the lower cache read price.
+## Migration to Fable 5.2
 
-## max_tokens
+From Fable 5.1 (mostly drop-in; four breaking changes) [W][M]:
 
-Size it for thinking plus reply, not the reply alone. At `xhigh` and `max`, long-deliverable requests can spend a large share of the budget thinking; running them at `high` is usually the better answer. When you keep high effort, append the single-limit note from `references/behavior-fixes.md` and set `max_tokens` accordingly. Ceiling is 128k output tokens.
+1. Update the model ID; check the separate rate limit.
+2. If your code builds `messages`, run a session with `thinking-binding-controls-2026-08-01` and `"drop_block"`, log `input_transformations`, fix every `prefix_binding_mismatch`; then choose `"error"` or `"drop_block"` for production.
+3. Expect Fable 5.1 to run without Fable 5.2 blocks if a router can move conversations back.
+4. Move `computer_20251124` to the toolset; update any advisor to Fable 5.2 or Mythos 5.2.
+5. Remove think-less prompt lines and lower effort instead; recheck small `max_tokens`.
+6. Rerun the sweep from `high`, also at `medium` and `xhigh` [P], and review carried-over instructions with `references/behavior-fixes.md`.
 
-## Migration checklist to Fable 5.1
+From Opus 5.5 [M]: enable 30-day retention first if under ZDR; set effort explicitly (default rises to `high`); run the prefix-check test; handle every refusal category and name only Fable 5.2's fallback targets; remove structured outputs in CMEK organizations; recheck fast-mode platforms; update the advisor.
 
-1. Update the model ID.
-2. Remove `tool_choice` of type `any` or `tool`; move schema enforcement to strict tool use or structured outputs.
-3. Pass thinking blocks back unchanged and make the history append-only. Move injected per-turn reminders to turn-scoped system messages; move `system` and `tools` changes to mid-conversation system messages; trim server-side or strip thinking blocks from turns carried across a client summary; pick a production `prefix_mismatch_behavior` and monitor `input_transformations`.
-4. Remove `budget_tokens`, `thinking: disabled`, prefills, and non-default sampling parameters.
-5. Audit prompts and skills for reflection or show-your-thinking instructions, anti-formatting blocks, and anti-narration lines.
-6. Re-run the effort sweep from `high`, and consider changing effort mid-conversation instead of holding one level.
-7. Set `thinking.display` to `"updates"` if your UI shows progress.
-8. Watch for one tool call per turn in agent loops and add the turn-scoped batching note.
-9. Adjust client timeouts, streaming, and progress indicators for longer turns; consider asynchronous run checks rather than blocking.
-10. Re-run your evals. Refusal handling, fallback, and token counts carry over from Fable 5; cache reads cost less; default behaviors differ as listed in `references/behavior-fixes.md`.
+From Fable 5 [M]: forced `tool_choice` now returns 400; the prefix check applies; move per-request effort changes to per-message effort.
 
 ## Recommendation format
 
-Return only the relevant rows:
-
-| Setting | Recommendation | Evidence | Why | Test |
-| --- | --- | --- | --- | --- |
-| Model | [value] | [label] | [workload rationale] | [comparison] |
-| Effort | [value] | [label] | [complexity rationale] | [sweep] |
-| Effort variation | fixed or per-message | [label] | [where the hard steps are] | [A/B on those turns] |
-| `thinking.display` | omitted, summarized, or updates | [label] | [UI need] | [render check] |
-| `max_tokens` | [value] | [label] | [thinking plus reply] | [truncation check] |
-| Output enforcement | prompt, strict tool use, or structured outputs | [label] | [parsing need] | [schema validation] |
-| Caching and compaction | [strategy] | [label] | [session length and cost] | [cost per task] |
-| Refusal handling | [fallback strategy] | [label] | [domain risk] | [refusal injection test] |
+One row per relevant setting, columns `Setting | Recommendation | Evidence label | Why | Test`. Usual rows: model (compared with Opus 5.5), effort (explicit; sweep `high`/`medium`/`xhigh`), effort variation, `thinking.display`, `max_tokens`, output enforcement (CMEK), history and `prefix_mismatch_behavior`, subagent model, effort, and caps (cost with and without), refusal handling.

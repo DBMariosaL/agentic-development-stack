@@ -1,135 +1,84 @@
 # Evaluation Playbook
 
-Use evidence to improve prompts without bloating them. On Fable there is one extra obligation over ordinary prompt evaluation: run an effort sweep, because effort is the primary quality/latency/cost control and its levels do not transfer between models.
+Use evidence to improve prompts without bloating them. Fable adds three obligations to ordinary prompt evaluation: an effort sweep, because effort is the main quality, latency, and cost control and its levels do not transfer between models [P]; a deletion experiment, because carried-over instructions are followed closely; and, for orchestrators, a delegation-cost comparison.
 
 ## 1. Establish the baseline
 
-Record:
+Record: model ID and surface; `effort` (explicit or default, which is `high` on the API and `medium` in Claude Code); `thinking.display`; `max_tokens`; beta headers; every instruction source (system prompt, skills, `CLAUDE.md`, memory and notes, per-turn injections, tool and subagent descriptions); representative inputs; rubric; outputs; task success and format compliance; latency, tokens, cache reads, turns, cost; for orchestrators, subagent count, subagent models, and their share of cost.
 
-- model ID and surface;
-- `effort`, `thinking.display`, `max_tokens`, `tool_choice`, and any beta headers;
-- the prompt and every other instruction source in play (system prompt, skills, `CLAUDE.md`, per-turn injections, tool descriptions);
-- representative inputs;
-- expected behavior or rubric;
-- actual outputs;
-- task success and format compliance;
-- factual and tool-use errors;
-- latency, input/output tokens, cache reads, turn count, and cost.
-
-Do not optimize against a single convenient example. Do not change the prompt and the effort level in the same experiment.
+Do not change the prompt and the effort level in the same experiment.
 
 ## 2. Run the effort sweep first
 
-Before touching the prompt, sweep `low`, `medium`, `high`, `xhigh`, and `max` on the same cases. This often resolves what looks like a prompt problem, and it tells you which level the prompt should be tuned for.
-
-What to look for:
+Anthropic's starting order for Fable 5.2: set `high` explicitly, then run `medium` and `xhigh` [P]. Add `low` for subagents and high-volume work.
 
 | Observation | Reading |
 | --- | --- |
-| `medium` or `low` holds quality | Step down; on Fable 5.1, `medium` roughly matches Fable 5 at lower cost |
-| `low` beats a smaller model on cost per task | Replace the smaller model rather than tuning it |
-| Quality only appears at `xhigh` or `max` | Keep it, but check whether long deliverables are being drafted twice |
-| Retrieval stops happening at `low` | Effort-specific behavior, not a prompt defect — raise effort for those turns |
-| Long deliverables slow or truncated at `xhigh`/`max` | Run at `high`, or size `max_tokens` for thinking plus reply and add the single-limit note |
+| `medium` holds quality | Step down; the `medium`-to-`high` step raised scores on most of Anthropic's tracked evals, so confirm on yours [P] |
+| `low` holds on routine turns | Use it there, or per message; at `low` on coding, Fable 5.2 scored close to Fable 5.1 at higher effort [P] |
+| Early stops appear at `low`/`medium` | Add the "Finishing work" block before concluding the level fails |
+| Gain only at `xhigh` | Keep it for that phase; expect many more tokens [P] |
+| Easy turns slow at `high` | Lower effort for those turns; prompt lines will not stop thinking [P] |
 
-Consider per-message effort rather than one level for the whole session: raise it for the hard step, lower it for routine turns. On Fable 5.1 this does not invalidate the prompt cache.
+Per-message effort lets one session mix levels without losing the cache [P].
 
 ## 3. Run the deletion experiment
 
-Fable-specific and frequently the highest-value change. Take the instruction inventory from step 1, remove everything you cannot tie to a behavior it was written to correct, and rerun the same cases at the default effort. Report:
+Remove every instruction you cannot tie to a behavior it corrects, then rerun at the default. Report improvements, regressions with the instruction that was load-bearing, and the net token and latency change. On Fable 5.2, include memory files and notes in the inventory, and test removing any visible token budget: Anthropic found removing a large one lowered cost at equal performance [P].
 
-- cases that improved after deletion;
-- cases that regressed, and which specific instruction was load-bearing;
-- net token and latency change.
+## 4. Measure delegation, if the lead orchestrates
 
-Skills and system prompts written for prior models are often too prescriptive and degrade output. Measuring this is cheaper than arguing about it.
+Compare on the same cases: the lead alone; the lead with cheaper subagents; Opus 5.5 leading the same subagents. Anthropic's defect-search benchmark found Fable 5.2 leading Sonnet 5.5 subagents cost 19% more than Opus 5.5 leading them, at about the same score; and for single dependent chains the lead alone at lower effort did better on earlier models [OPT]. Report cost per accepted result, not per run.
 
-## 4. Build a representative set
+## 5. Build a representative set
 
-Include:
+Normal cases; hard cases above your ceiling; bad or ambiguous inputs; tool failures; strict formats; long runs (short evals hide early stops, approvals, silence, and fabricated progress); refusal-adjacent cases in security, life sciences, or machine learning; known regressions.
 
-- normal high-frequency cases;
-- hard but valid cases, including one harder than your current production ceiling;
-- missing, ambiguous, malformed, and contradictory inputs;
-- tool failure and empty retrieval cases;
-- strict-format cases;
-- long-run cases if the product has them — short evals hide autonomy, progress-claim, and stop-condition failures entirely;
-- refusal-adjacent cases if the domain touches security or life sciences, to measure false-positive rate and exercise the fallback path;
-- known historical regressions.
-
-## 5. Classify failures
-
-Assign each failure to a cause and a layer. The layer matters as much as the cause, because a prompt change cannot fix a harness defect.
+## 6. Classify failures by cause and layer
 
 | Cause | Usual layer |
 | --- | --- |
-| Misunderstood objective | Prompt |
-| Missing context or constraint | Prompt |
-| Incomplete deliverable, early stop | Prompt (autonomy contract) |
+| Misunderstood objective, missing context | Prompt |
+| Early stop, offer to continue | Prompt ("Finishing work"), or effort |
+| Unneeded approval, held routine work | Prompt and memory (deletion) |
+| Duplicated code, or unwanted restructuring | Ownership sentence |
 | Fabricated progress claim | Prompt (evidence rule) |
-| Scope creep, extra tests | Prompt (scope rule) |
-| Format or schema failure | Prompt, or move to structured outputs |
-| Unsupported factual claim | Prompt (grounding, citations) |
-| Unmarked quotation | Prompt (one worked example) |
-| Stale answer, no retrieval | Effort level, or prompt nudge |
+| Format or schema failure | Strict tools or JSON outputs |
+| Unsupported claim | Prompt (grounding, citations) |
 | Wrong tool or call order | Tool descriptions and trigger conditions |
-| One tool call per turn | Turn-scoped nudge |
-| Silent run | `thinking.display`, then prompt |
-| Deliverable lost in a summary | Send-to-user tool |
-| Truncated long output | `max_tokens`, effort |
-| 400 on a later turn | Message assembly (history edits) |
-| Cold cache every turn | Message assembly |
-| `stop_reason: "refusal"` | Prompt phrasing, tool output, fallback config |
-| Lead agent idle | Subagent return semantics |
+| Silent run | `thinking.display`, then reminder, then prompt |
+| Truncated output, text missing after thinking | `max_tokens`, effort |
+| 400 on a later turn | Message assembly (prefix check) |
+| Cold cache every turn | Message assembly, top-level effort changes |
+| `stop_reason: "refusal"` | Prompt deletion, fallback config, program access |
+| Too many subagents | Delegate lines, tool description |
+| Subagent work lost or misread | Brief contents, report contract, missing-report handling |
 | Timeout mid-run | Client configuration |
 
-## 6. Make the smallest targeted change
+## 7. Make the smallest targeted change
 
-For each failure cluster:
+State the failure and its layer; prefer a deletion; apply one change; keep unrelated cleanup out. Where Anthropic documents a block, start from it, and check which model it was measured on.
 
-1. State the observed failure and the layer.
-2. Identify the missing or conflicting instruction, or the misconfigured parameter.
-3. Prefer a deletion over an addition when both would work.
-4. Apply the smallest change that addresses it.
-5. Avoid unrelated cleanup in the same experiment.
-6. Keep an example only when it repairs a measured gap.
+## 8. Rerun and compare
 
-Where Anthropic documents an instruction block for the failure, start from that text rather than writing your own — it was measured. Then check whether the block was measured on the model you are running.
+Compare task success, completeness, evidence quality, tool correctness, regressions, tokens, cache reads, latency, cost, and interventions. Lower resource use counts only if quality holds. Two documented costs to expect: the "Finishing work" block raised output tokens about 30%, and the ownership sentence 70 to 80% [P].
 
-## 7. Rerun and compare
+## 9. Graders and review
 
-Compare baseline and candidate on the same cases:
-
-- task success and severity-weighted failures;
-- completeness and format compliance;
-- evidence and citation quality;
-- tool-call correctness and turn count;
-- regressions on previously passing cases;
-- tokens, cache reads, latency, cost, and human interventions.
-
-Lower resource use is an improvement only if the output still clears the quality bar. Optimize successful task completion per unit of constrained resource, not tokens in isolation: fewer tokens is not a win if it produces retries or manual repair.
-
-On Fable 5.1, cache reads cost a quarter of the Fable 5 rate, so recompute the cost side of any decision inherited from a Fable 5 evaluation — especially compaction timing.
-
-## 8. Use graders carefully
-
-Prefer narrow graders for distinct properties: required fields present; citations support claims; no unauthorized action; quotations marked; answer matches reference facts; length or tone constraint met; no unrequested file changes committed.
-
-A grader mixing many subjective properties is hard to interpret and hard to optimize against. Combine automated graders with human review of a sample. For long-run agentic work, a fresh-context verifier agent is a better grader than self-critique.
-
-## 9. Review before production
-
-Manually inspect the optimized prompt and a sample of outputs. Aggregate improvement can hide specific inputs getting worse. Keep a regression set, and version the prompt, the instruction inventory, and the configuration together — on Fable, a prompt is only meaningful alongside its effort level and its harness behavior.
+Prefer narrow graders (required fields, citations support claims, no unauthorized action, report leads with status) plus human review of a sample. For long runs, a fresh-context verifier beats self-critique [F5]. Version prompt, instruction inventory, and configuration together.
 
 ## Compact report format
 
 ```text
-Baseline: [model, effort, prompt version, score]
-Effort sweep: [low / medium / high / xhigh / max -> score, latency, cost]
+Baseline: [model, surface, effort, prompt version, score]
+Effort sweep: [high / medium / xhigh (/ low) -> score, latency, cost]
 Deletion pass: [instructions removed, net effect]
+Delegation: [alone vs with subagents vs Opus 5.5 lead -> cost per accepted result]
 Main failure clusters: [top 3, each with its layer]
 Change tested: [one targeted change]
 Result: [quality delta, regressions, tokens, latency, cost]
 Decision: keep / revise / reject
 Next test: [single highest-value experiment]
 ```
+
+Source keys as in `references/behavior-fixes.md`; [OPT] is `https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence`.
