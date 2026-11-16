@@ -14,7 +14,8 @@ Exigences du mandat, puis `base..candidat` et son empreinte (`rc_footprint.py`, 
    - test : qui ne peut pas échouer, dont l'attendu est recopié du code testé, qui double un test nommé, ou qui simule un module du projet au lieu d'une frontière externe ;
    - document : qui redit ce que le code ou les contrôles disent déjà, ou sans lecteur nommé par le mandat ;
    - commentaire : tout, sauf un pourquoi non évident imposé par une contrainte externe. Une contrainte écrite (« ne pas retirer ») s'encode en type, test ou contrôle, puis le commentaire part.
-3. Le dépôt garde-t-il une seule façon de faire la chose ?
+3. Que retire le diff qu'une exigence ou un appelant demande encore ?
+4. Le dépôt garde-t-il une seule façon de faire la chose ?
 
 ## Constats
 

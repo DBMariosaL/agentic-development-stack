@@ -42,7 +42,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED = {'state': 169, 'updater-v7': 30, 'updater-v8': 28, 'updater-from-v8': 7, 'updater-from-v9': 7, 'updater-from-v9.1': 7, 'updater-from-v9.1.1': 7, 'updater-from-v9.1.2': 7, 'package': 25, 'footprint': 7}
-# What the pilot reads before acting, in words; raising the budget is a decision, never a side effect.
 READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
 READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.

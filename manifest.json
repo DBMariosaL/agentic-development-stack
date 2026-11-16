@@ -200,18 +200,18 @@
     },
     {
       "path": "rc-coordinate-development/references/operating-loop.md",
-      "sha256": "aa503af820b8b1bf800279e4bf3e2712288bc1759ab375909976112eb66e793e",
-      "bytes": 14803
+      "sha256": "32ef9b0fbeaf586605bed8303db389e90ec8aedb50c5ae0221e41515efcabcbb",
+      "bytes": 14837
     },
     {
       "path": "rc-coordinate-development/references/program-contract.md",
-      "sha256": "323856ab9909a5163d504cdfc8a1510846bdcca64f06ebf287dae5ed62575def",
-      "bytes": 8891
+      "sha256": "1eed69bc2fac55364da1648a5574d21e8aed54cc948cc77d05e6833780f28478",
+      "bytes": 8834
     },
     {
       "path": "rc-coordinate-development/references/review-brief.md",
-      "sha256": "ba398c7ed1a1b2bf8064f4f55266368b8ab28198ea2f60c8876d9063c9b9ccea",
-      "bytes": 2227
+      "sha256": "87c63b9fcaa3d9564fea5e5ed16d1107e8965f8233e31200e60320498a586f54",
+      "bytes": 2297
     },
     {
       "path": "rc-coordinate-development/references/separate-relay.md",
@@ -279,5 +279,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "357be412fbe04d4a3f102bf293aeb534bc598a659e27fd52676d789501083127"
+  "digest": "7bbd57a12fa1ac384ec36bd17be8ff525358f5ec7792ee0901d9eb25f8007ad1"
 }

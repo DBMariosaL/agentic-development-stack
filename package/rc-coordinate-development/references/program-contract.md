@@ -20,7 +20,7 @@ Le dossier de vague (`wave.json`, mandats sous `socles/`, raccord commun, `super
 
 ## `program.json`
 
-Champs et types : `init --template program`. `skills_consumed` porte l'empreinte du `SKILL.md` de chaque skill chargé : elle identifie la version sans attester une lecture. Un résultat clos porte `closure` : source et reste, ou cause et condition de reprise. Une décision en attente propose une `option` concrète.
+Champs et types : `init --template program`. `skills_consumed` porte l'empreinte du `SKILL.md` de chaque skill chargé : elle identifie la version sans attester une lecture. Un résultat clos porte `closure` : source et reste, ou cause et condition de reprise.
 
 **Prêt** : résultat `pending`, dépendances `accepted`, `waiting_on` nul, aucune décision qui le suspend. `abandoned` ou `accepted_partial` ne satisfont pas une dépendance dure ; une consommation partielle passe par un résultat distinct. Un résultat s'accepte à la clôture de sa vague : un résultat à accepter avant d'autres (contrat consommé, premier de lots sérialisés) a sa propre vague. Un découpage erroné se corrige sans supprimer : le résultat superflu se clôt `abandoned` avec sa source, les nouveaux s'ajoutent. Le programme attend (`waiting_*`) seulement sans travail prêt ni admis hors attente ; il est `completed` quand chaque résultat est accepté ou clos avec sa source.
 
