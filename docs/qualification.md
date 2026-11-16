@@ -2,7 +2,7 @@
 
 ## Version v10 « pertinence » (16 novembre 2026)
 
-Statut : **candidate**. Aucune installation dans un profil actif ; un essai comparatif de deux pilotes sur un programme minuscule.
+Statut : **candidate**. Aucune installation dans un profil actif ; deux essais comparatifs de pilotes sur de petits programmes.
 
 - Origine et choix : [sources v10](sources-v10.md).
 - Contrôles déterministes : `python -B tools/check.py` vert sur le commit de tête de la branche `v10-pertinence`. Il gagne l'étape `footprint`, une étape `updater-from-v9.1.2`, et l'inventaire refuse une lecture obligatoire du pilote au-delà de 3 953 mots, son niveau en v9.1.2. Collectes déclarées dans `EXPECTED`.
