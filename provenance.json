@@ -1,7 +1,7 @@
 {
   "format": "rc-stack-provenance/2",
   "release": "v10",
-  "status": "candidate on 2026-11-16: full offline checks passed; cross-family review recorded in docs/qualification.md; no pilot trial run on this version",
+  "status": "candidate on 2026-11-16: full offline checks passed; cross-family review recorded in docs/qualification.md; one comparative pilot trial on a tiny program",
   "scope": "Local implemented scope; installation, runtime resume, relay idempotence, agent behaviour under the v10 relevance rules and model gains not qualified",
   "v7_reference": {
     "accepted_snapshot": "v7",
@@ -212,7 +212,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "38fa476a41f5de5ab53813822f7aeb24afb5afaa59c7edfc4977da6c2d9a8bfb",
+      "sha256": "7c9def54efb1e56aa59ec644079ff1e6cd6f1e83ce8f73176d807f26ef82cd8f",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -1570,7 +1570,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "README.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "61d499802761a72e9273a2a894efe0ba6b08c80100d3561771a6bdc4c7acc355",
-      "sha256": "01280d1255c109bd0cac21afbc1fa198b70f98e12e4d49b533a1ed7c6db0bc5c",
+      "sha256": "dbd20fb7807f63d067a3782cc810b3b8e71bc52cc2188bf67005b0da30dff88e",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "README.md",
@@ -1626,7 +1626,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "7614eccce9e2a76c6fdb6027c9880ce893da7ba8c2c22afcf49e9afe606dc75e",
+      "sha256": "ec27cc4a68fe6bf980492c08e82238b7d2e6c5cbb26e1b95b678db629591f8c6",
       "adaptation": "v10 creation"
     },
     {

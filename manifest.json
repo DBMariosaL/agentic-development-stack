@@ -289,8 +289,8 @@
     },
     {
       "path": "rc-coordinate-development/references/senior.md",
-      "sha256": "7614eccce9e2a76c6fdb6027c9880ce893da7ba8c2c22afcf49e9afe606dc75e",
-      "bytes": 3436
+      "sha256": "ec27cc4a68fe6bf980492c08e82238b7d2e6c5cbb26e1b95b678db629591f8c6",
+      "bytes": 3786
     },
     {
       "path": "rc-coordinate-development/references/separate-relay.md",
@@ -358,5 +358,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "4b22116f6f48ee646253d3c3779d01b15b3802df7eab8efaa11907a730c0604d"
+  "digest": "15ca27c6779ad50cfad42275e87294b0524fc1952dc24ecd7a54743783ba88e5"
 }

@@ -2,7 +2,7 @@
 
 ## Version v10 « pertinence » (16 novembre 2026)
 
-Statut : **candidate**. Aucune installation dans un profil actif, aucun essai de pilote.
+Statut : **candidate**. Aucune installation dans un profil actif ; un essai comparatif de deux pilotes sur un programme minuscule.
 
 - Origine et choix : [sources v10](sources-v10.md).
 - Contrôles déterministes : `python -B tools/check.py` vert sur le commit de tête de la branche `v10-pertinence`. Il gagne l'étape `footprint`, une étape `updater-from-v9.1.2`, et l'inventaire refuse une lecture obligatoire du pilote au-delà de 3 953 mots, son niveau en v9.1.2. Collectes déclarées dans `EXPECTED`.
@@ -17,10 +17,35 @@ Statut : **candidate**. Aucune installation dans un profil actif, aucun essai de
 - Optimiseur Fable : `claude-fable-prompt-optimizer`, repris du profil du propriétaire (version Fable 5.1 du 3 septembre 2026), est mis à jour pour Fable 5.2 d'après la documentation d'Anthropic lue le 16 novembre et devient la quatrième dépendance (distribution `rc-core-with-dependencies-2`). Le contrat d'état y route les prompts destinés à Fable et les remises à un parent Fable. Deux auteurs Opus 5.5, puis deux revues GPT-6.1 Sol (effort `high`) sur le candidat `90d7c41` :
   - outil de mise à jour, tests et retrait du nom : aucune exigence manquée, quatre contre-épreuves par mutation, 299 tests. Une phrase périmée de cette page est corrigée ;
   - faits du skill contre la documentation : 87 affirmations relevées, 79 confirmées, 8 à resserrer, dont deux bloquantes vérifiées par la racine sur les pages citées. Un échec du contrôle de préfixe ne donne pas d'erreur sur Message Batches ; le routage vers le modèle de repli n'est ni permanent ni garanti. Les huit sont corrigées ; la revue n'était pas exhaustive.
+- Senior consulté : rôle optionnel écrit dans `references/senior.md`, puis éprouvé par l'essai ci-dessous. Non relu par un réviseur indépendant.
+
+### Essai comparatif de pilotes (16 novembre 2026)
+
+Un petit programme (journal d'événements en Python : sélection par période, résumé, export CSV), même dépôt de départ et même mandat, paquet gelé au commit `9c99247`, pilotes à l'effort `high`, champions Opus 5.5, aucun humain. Bras A : pilote Fable 5.2 sans senior. Bras B : pilote Opus 5.5 avec un senior Fable 5.2. La racine a revérifié chaque résultat : seize tests d'acceptation que les pilotes ne voyaient pas, empreinte, `rc_state.py check`, deux sondes de cas limites.
+
+| | A : pilote Fable | B : pilote Opus, senior Fable |
+|---|---|---|
+| Tests d'acceptation cachés | 16 sur 16 | 16 sur 16 |
+| Produit (lignes ajoutées, retirées) | 49, 15 | 32, 13 |
+| Tests (lignes ajoutées ; cas) | 219 ; 27 | 107 ; 13 |
+| Retour chariot seul dans un champ CSV | corrigé au second tour | écart déclaré, non corrigé |
+| Date non représentable en UTC | code 2, message | code 1, trace Python, déclaré |
+| Document périmé marqué « fait foi, ne pas modifier » | contenu non suivi, document laissé, signalé dans `AGENTS.md` | contenu non suivi, faits corrigés dans un commit séparé |
+| Acteurs lancés | 2 champions | 1 champion, 2 consultations du senior |
+| Jetons des sous-agents | environ 173 000 | environ 264 000 |
+| Commandes d'état (dont refus) | 41 (6), plus 11 d'aide | 44 (7), dont 9 d'aide |
+| Durée | environ 20 minutes | environ 25 minutes |
+
+- Les deux bras livrent un produit accepté, un état valide et une remise que la racine a trouvée exacte. Aucun n'a obéi au document périmé ; les deux ont inscrit une décision humaine sur son sort.
+- A est plus juste : son pilote a écrit une sonde, trouvé le défaut du retour chariot et l'a fait corriger. B est plus sobre : moitié moins de tests, un produit plus court, mais deux écarts au mandat laissés en réserve.
+- Les deux consultations du senior ont trouvé des défauts réels (un test d'export qui ne pouvait pas échouer sous Windows, une justification inexacte). Il a aussi conseillé de laisser en réserve un écart que quatre lignes corrigeaient : son brief dit maintenant qu'un écart prouvé et petit se corrige avant l'acceptation.
+- Moteur : les deux pilotes relèvent les mêmes frictions (une décision en attente doit suspendre un résultat, ce qui fabrique un résultat d'attente et laisse le programme en `waiting_human` ; `candidate.ref` exigé sans être documenté ; valeurs par défaut absentes à l'ajout d'un résultat ; `launch_ready` à basculer à la main). Défaut constaté en B : `write` accepte un chemin avec `/` et crée des clés parasites à la racine, que `check` déclare valides.
+
+Cet essai ne départage pas les deux configurations : un seul programme, minuscule et à risque bas, un essai par bras, et le coût propre des pilotes n'est pas mesuré. Aucun réviseur d'une autre famille n'a été lancé, et les points 2 à 4 du senior (mandat à risque, revue sans convergence, changement de critère) n'ont pas été exercés.
 
 Limites :
 
-- Aucun pilote n'a conduit la v10. Les règles de pertinence et de convergence n'ont servi qu'une fois, pour cette revue.
+- Deux pilotes ont conduit la v10, sur un seul programme minuscule. La convergence de revue n'a servi que pour les revues de cette version.
 - La détection des commentaires est une heuristique par extension : docstrings et commentaires de fin de ligne lui échappent.
 - Configuration prévue pour le premier essai réel, non éprouvée : pilote Fable qui décide et encadre, champions Opus, réviseurs GPT-6.1 Sol. Les essais de la v9.1 portaient sur un pilote `gpt-6.1-sol`.
 - Le skill Fable porte des faits fournisseurs lus le 16 novembre 2026 ; aucun prompt écrit avec lui n'a été mesuré sur un modèle.
