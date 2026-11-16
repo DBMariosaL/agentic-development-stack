@@ -1,77 +1,68 @@
 # Hardening Matrix
 
-Add controls only for risks that actually exist in this workload. On Fable, the first pass is subtraction: an audit that only adds rules usually makes the prompt worse.
+Add controls only for risks that exist in this workload. On Fable, the first pass is subtraction: Fable 5.2 follows instructions, style rules, and stored cautions closely, so each extra rule is more likely to be obeyed past its purpose than to be ignored [P].
 
 ## Risk to control
 
 | Risk | Controls to add |
 | --- | --- |
-| Current or changing facts | Retrieval requirement, name-verification nudge, freshness window, source priority, citations at point of use |
-| Empty or weak retrieval | Alternate queries, broader and narrower search, source fallback, explicit unresolved result |
+| Current or changing facts | Retrieval requirement, name verification, freshness window, source priority, citations at point of use |
+| Empty or weak retrieval | Alternate queries, source fallback, explicit unresolved result |
 | Conflicting sources | Report the conflict, compare authority and date, justify the choice |
-| Unmarked quotation in summaries | One complete example with a rationale showing indirect speech and marked quotes |
-| Strict machine format | Structured outputs or strict tool use first; otherwise exact schema, no extra text, defined error object |
-| Multiple deliverables | Coverage check before finalizing, explicit section order, no early finalization |
-| Long or paginated work | Progress tracking, pagination rules, deduplication, stop condition |
-| Multiple tools | Per-tool trigger condition, prerequisites, batching of independent calls, synthesis, no repeated work |
-| Serial tool calls in an agent loop | Turn-scoped batching nudge appended after each round of tool results |
-| Tool side effects | Authorization boundary, pre-flight summary, explicit confirmation, post-flight validation |
-| Destructive or irreversible actions | Enumerated gated categories, evidence-supports-this-command rule, no destructive shortcuts, rollback path |
-| Untrusted content in context | Delimit data, ignore embedded instructions, preserve source hierarchy, treat screen content as untrusted |
-| Long autonomous run | Autonomy contract, evidence-grounded progress claims, verification interval, scope ceiling, stop condition |
-| Silent agent | `thinking.display`, removal of anti-narration lines, then explicit update request |
-| Content the user must see verbatim mid-run | Send-to-user tool plus elicitation instruction |
-| Multiple context windows | State files, structured test status, setup scripts, prescriptive restart instructions, no token countdown to the model |
-| Client-side compaction | Documented summarization instruction, no thinking blocks replayed, append-only assembly |
-| Subagent orchestration | Delegation trigger, depth and concurrency limits, non-overlapping ownership, non-blocking returns, merge rules |
-| Scope creep | Report-as-follow-up rule, single-reading rule for ambiguity, test-sizing rule |
-| Gold-plating at high effort | No-refactor, no-speculative-abstraction, boundary-only-validation rule |
-| Whole-file rewrites | Surgical-edit instruction |
-| Long single-reply deliverable | Run at `high`, size `max_tokens` for thinking plus reply, single-limit note |
-| Dense or mannered prose | Mannered-prose definition in a user message |
-| Under-formatted chat replies | Delete anti-formatting blocks, add a when-formatting-helps rule |
-| Unreadable final summary after a long run | Readability addendum for the closing message |
-| Refusal risk in a benign domain | Bug-finding phrasing over compile-check phrasing, language documentation in context, no base64 in tool output, fallback configured |
-| Reflection or reasoning-display instructions | Delete them; read structured thinking blocks instead |
-| History-editing harness | Turn-scoped system messages, mid-conversation system and tool changes, server-side trimming, `prefix_mismatch_behavior` monitoring |
-| Latency or cost constraint | Effort sweep including `low`, per-message effort, later compaction point, cost-per-task comparison |
-| Legacy prompt or skill | Deletion pass, eval at default, re-add only measured needs |
+| Strict machine format | Strict tool use or JSON outputs (not in CMEK organizations); otherwise exact schema, validation in code, defined error object |
+| Multiple deliverables | Coverage check before finalizing, explicit section order |
+| Multiple tools | Per-tool trigger condition, prerequisites, independent calls together, synthesis |
+| Tool side effects | Authorization boundary, pre-flight summary, confirmation, post-flight validation |
+| Destructive or irreversible actions | Named gated actions with scope and reason, evidence-supports-this-command rule, no destructive shortcuts, rollback path |
+| Untrusted content in context | Delimit data; files others can edit go in `tool_result`, not `system`; screen content untrusted |
+| Long autonomous run | "Finishing work" block, evidence-grounded progress claims, verification interval, scope ceiling, stop condition |
+| Early stops at `low` or `medium` | "Finishing work" block, or raise effort for that phase |
+| Unneeded approvals, held work | Delete stale cautions; list steps needing no approval; replace "never" with scoped rules |
+| Unwanted restructuring, or unwanted duplication | Ownership sentence on or off, chosen per task and per subagent |
+| Silent agent | `thinking.display`, turn-scoped reminder, then opening-line and recap text |
+| Content the user must see verbatim mid-run | Send-to-user tool from the first request, plus elicitation |
+| Multiple context windows | State files, structured test status, setup scripts, restart instructions, no token countdown |
+| Subagent orchestration | Delegation worth-it rule with stated cost, model and effort per role, brief contents, ownership, non-blocking returns, depth/concurrency/spend caps in the harness |
+| Subagent reports to a Fable parent | Status-first report contract, evidence pointers, unverified items labelled, model named |
+| Over-delegation | Remove delegate lines; cost-focused subagent tool description |
+| Low-context final reader | "Communicating clearly" block; remove hard sentence-length rules first |
+| Refusal risk | No reasoning in reply text or JSON fields; fallback configured per subagent call; verification programs for legitimate cyber or bio work |
+| History-editing harness | Append-only assembly, system messages, tool additions and removals, compaction on demand, `prefix_mismatch_behavior` decision |
+| Model routing or fallback | Expect lost Fable 5.2 reasoning on switch; minimize bounces |
+| Latency or cost constraint | Effort sweep including `low`, per-message effort, cheaper subagent models, Opus 5.5 comparison |
+| Legacy prompt, skill, memory | Deletion pass, eval at default, re-add only measured needs |
 | Code or runtime integration | Separate prompt defects from message-assembly, parameter, timeout, and application defects |
-| Dataset-driven optimization | Baseline, failure taxonomy, one change at a time, regression set, manual review |
 
 ## Escalation rule
 
-Start with the minimal pattern. Add one control per credible failure mode. A longer prompt is justified only when it prevents a specific observed error or encodes a product requirement. On Fable specifically, the marginal control is more likely to cost quality than to buy reliability, because the behaviors most controls target no longer occur.
+Start with the minimal pattern. Add one control per credible failure mode. A longer prompt is justified only when it prevents an observed error or encodes a product requirement.
 
 ## Anti-patterns
 
 Prompt-level:
 
-- Repeating the same rule in several sections.
-- "Be accurate", "be smart", "think carefully" with no observable contract.
-- Asking for hidden reasoning, reflection, or a reasoning transcript instead of evidence and checks.
-- Enumerating every unwanted behavior instead of defining the anti-pattern once.
-- Carrying an anti-formatting block onto Fable 5.1.
-- Leaving an anti-narration line in place and then adding a request for more updates.
-- "CRITICAL", "you MUST", all-caps insistence for tool triggering.
-- Exposing every available tool regardless of relevance.
-- Requiring confirmation for harmless read-only work.
-- Permitting destructive or external actions with no boundary.
-- Running an until-green loop with no cycle, strategy, scope, or stop bound.
-- Designing around prefill or forced tool use, neither of which exists on Fable 5.1.
+- The same rule in several sections, or in both the system prompt and a skill.
+- "Be accurate", "think carefully", "answer directly without deliberating" with no observable contract.
+- Asking for reasoning in the reply, a scratchpad section, or a `reasoning` field.
+- Standing "delegate" or "use subagents where possible" lines.
+- Absolute "never" rules without scope; vague approval categories.
+- Hard style limits such as maximum sentence length.
+- A token budget shown to the model.
+- The ownership sentence in a narrow-patch prompt, or its absence where restructuring is the point.
+- "Treat that answer as done" lines where self-correction matters.
+- "CRITICAL", "you MUST" for tool triggering.
+- Designing around prefill or forced tool use.
 - Treating the highest effort level as automatically optimal.
 
 Harness-level:
 
-- Injecting a per-turn reminder and deleting it on the next request.
-- Rebuilding `system` or `tools` between requests in the same conversation.
-- Summarizing older turns in place.
-- Replaying thinking blocks after a prefix change without a `prefix_mismatch_behavior` decision.
-- Leaving `thinking.display` at `"omitted"` in a UI that shows progress.
-- Blocking the lead agent on every subagent return.
-- Sizing `max_tokens` for the expected reply only.
-- Showing the model a remaining-token countdown.
-- Returning base64 blobs into context.
-- Client timeouts sized for prior-model turn lengths.
-- No refusal branch in a production integration.
-- Changing several prompt and configuration variables at once during evaluation.
+- Editing `system`, `tools`, or earlier messages mid-conversation, including a reminder injected and later removed.
+- An MCP tool list that changes between requests without pinning.
+- Shipping `"drop_block"` permanently to hide edits.
+- `thinking.display` left at `"omitted"` in a UI that shows progress.
+- `max_tokens` sized for the reply only.
+- Leaving `effort` unset after moving traffic from Opus 5.5.
+- Subagents that inherit the lead's model by accident.
+- No depth, concurrency, or spend cap on fan-out.
+- No refusal branch; no fallback on subagent calls.
+- Changing several prompt and configuration variables in one experiment.

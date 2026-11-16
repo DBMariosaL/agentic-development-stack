@@ -2,8 +2,9 @@
 """Profile CSV, JSON, or JSONL evaluation datasets with the standard library.
 
 Used by the claude-fable-prompt-optimizer skill to infer a dataset schema and
-label distribution before sampling failures. Also surfaces effort and model
-columns, which matter when comparing Fable runs across effort levels.
+label distribution before sampling failures. Also surfaces effort, model,
+stop-reason, and subagent columns, which matter when comparing Fable runs
+across effort levels and delegation setups.
 """
 
 from __future__ import annotations
@@ -29,6 +30,11 @@ FIELD_HINTS = {
     "latency": ("latency", "latency_ms", "duration", "elapsed"),
     "tokens": ("tokens", "total_tokens", "input_tokens", "output_tokens", "reasoning_tokens"),
     "cost": ("cost", "cost_usd", "price"),
+    # Fable 5.2: refusals carry stop_details.category, and thinking can exhaust
+    # max_tokens before any text, so stop reasons are worth a distribution.
+    "stop_reason": ("stop_reason", "refusal_category", "stop_details"),
+    # Subagents can be a large share of session cost on Fable 5.2.
+    "subagents": ("subagent", "num_subagents", "subagent_count", "subagent_cost", "delegations"),
 }
 
 
@@ -86,6 +92,9 @@ def infer_semantic_fields(fields: Iterable[str]) -> dict[str, list[str]]:
                     if original not in matches:
                         matches.append(original)
         result[category] = matches
+    # "reason" in the feedback hints would otherwise claim stop_reason columns.
+    claimed = set(result.get("stop_reason", []))
+    result["feedback"] = [field for field in result.get("feedback", []) if field not in claimed]
     return result
 
 
@@ -144,7 +153,7 @@ def profile(rows: list[dict[str, Any]], top_n: int) -> dict[str, Any]:
             }
         field_profiles[field] = item
 
-    label_fields = semantic.get("label", []) + semantic.get("grader", [])
+    label_fields = semantic.get("label", []) + semantic.get("grader", []) + semantic.get("stop_reason", [])
     label_summary = {
         field: field_profiles[field]["top_values"]
         for field in label_fields

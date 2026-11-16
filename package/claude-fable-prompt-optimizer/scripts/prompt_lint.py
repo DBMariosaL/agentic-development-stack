@@ -2,7 +2,8 @@
 """Deterministic prompt linter for Claude Fable prompts.
 
 This script does not judge prompt quality. It flags patterns that are known to
-be inert or actively harmful on Claude Fable models, plus generic prompt smells
+be inert or actively harmful on Claude Fable models (Fable 5.2 by default; rules
+read from Anthropic documentation on 2026-11-16), plus generic prompt smells
 (duplication, missing contracts, unbounded loops), for human review.
 
 Two warning classes:
@@ -31,16 +32,84 @@ from typing import Any
 FABLE_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (
         re.compile(
-            r"\b(?:(?:do not|don't|never|avoid)\s+(?:use|using)\s+"
-            r"(?:markdown|bullet|bullets|bullet points|headers?|headings?|lists?|bold|"
-            r"emphasis|tables?)"
-            r"|no (?:bullet points|bullets|markdown|headers?|lists?|bold)"
-            r"|avoid_excessive_markdown)",
+            r"\b(?:answer directly without deliberat\w*|(?:do not|don't) (?:deliberate|think|reason)\b"
+            r"|without (?:deliberating|thinking)|skip (?:your )?thinking|think less|minimi[sz]e (?:your )?thinking)",
             re.I,
         ),
-        "fable_anti_formatting",
-        "Anti-formatting rule detected. Fable 5.1 already under-formats; this can suppress "
-        "structure the content needs. Delete it or replace with a when-formatting-helps rule.",
+        "fable_think_less",
+        "Instruction to think less. On Fable 5.2 it does not stop thinking at medium effort and "
+        "above (Fable 5.1 usually followed it). Delete it and lower effort for those turns.",
+    ),
+    (
+        re.compile(
+            r"\b(?:delegate (?:aggressively|liberally|whenever|wherever|by default)"
+            r"|always delegate|use subagents? (?:wherever|where(?:ver)? possible|for everything|liberally|aggressively)"
+            r"|use (?:it )?proactively|prefer (?:delegating|subagents))",
+            re.I,
+        ),
+        "fable_standing_delegation",
+        "Standing instruction to delegate. Fable 5.2 delegates readily when prompts invite it, and "
+        "subagents can dominate session cost. Remove it unless tests show under-delegation; state "
+        "what a subagent costs and when it is worth it instead.",
+    ),
+    (
+        re.compile(
+            r"\b(?:token budget|budget of [\d,.]+k? tokens|you have [\d,.]+k? tokens"
+            r"|tokens? (?:remaining|left)|remaining (?:context|token budget)"
+            r"|context (?:budget|usage) (?:is|remaining)|\d+% of (?:your )?context)",
+            re.I,
+        ),
+        "fable_visible_token_budget",
+        "A token budget or remaining-context figure shown to the model. On Fable 5.2 its size "
+        "changes how much the model spends; removing a large one cut cost at equal performance in "
+        "Anthropic's testing. A countdown also triggers premature wrap-up. Test without it.",
+    ),
+    (
+        re.compile(
+            r"\b(?:\d+ words or (?:fewer|less)|(?:no more than|at most|under|max(?:imum)?(?: of)?) \d+ words(?: per sentence)?"
+            r"|sentences? (?:of|under|below|no longer than) \d+ words)",
+            re.I,
+        ),
+        "fable_hard_style_limit",
+        "Hard style limit. Fable 5.2 follows style rules closely and such limits make prose "
+        "choppy. Remove it before adding the 'Communicating clearly' block.",
+    ),
+    (
+        re.compile(r"\btreat (?:that|the|your|an earlier) answer as (?:done|settled)", re.I),
+        "fable_treat_as_done",
+        "Opus 5.5 'treat that answer as done' line. On Fable 5.2 it reduced thinking on follow-ups "
+        "and made the model far less likely to point out its own earlier mistakes.",
+    ),
+    (
+        re.compile(
+            r"\b(?:messages? to (?:people|anyone) outside (?:this|the) conversation"
+            r"|(?:contact|message|email)(?:ing)? anyone (?:outside|else))",
+            re.I,
+        ),
+        "fable_broad_approval",
+        "Broad approval category. A rule listing 'sending messages to people outside this "
+        "conversation' made Fable 5.2 hold back about half of routine requests to colleagues. "
+        "Name the specific actions that need approval and the routine ones that do not.",
+    ),
+    (
+        re.compile(
+            r"\b(?:show (?:your |me your )?(?:reasoning|thinking|thought process|work)"
+            r"|explain your (?:reasoning|thinking|thought process)"
+            r"|(?:output|include|print|write out|transcribe|echo|reproduce) your (?:reasoning|thinking|"
+            r"chain[- ]of[- ]thought|thought process)"
+            r"|chain[- ]of[- ]thought"
+            r"|reflect on your (?:reasoning|thinking)"
+            r"|think out loud in your (?:response|answer|reply)"
+            r"|running log of your (?:reasoning|thinking))"
+            r"|[\"'](?:reasoning|thinking|trace)[\"']\s*:"
+            r"|<(?:thinking|scratchpad|reasoning)>",
+            re.I,
+        ),
+        "fable_reasoning_display",
+        "Asks the model to reproduce its reasoning in the response (prose, a scratchpad tag, or a "
+        "reasoning/thinking/trace field). On Fable models and Opus 5.5 this can trigger the "
+        "reasoning_extraction refusal, which has no fallback. Read display: summarized thinking "
+        "blocks; a short explanation or evidence summary is fine.",
     ),
     (
         re.compile(
@@ -52,25 +121,21 @@ FABLE_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
             re.I,
         ),
         "fable_anti_narration",
-        "Anti-narration rule detected. Fable 5.1 already writes few user-facing updates; this "
-        "makes agent runs look silent. Delete it before adding any request for more updates.",
+        "Anti-narration rule. Fable can already write little user-facing text during long tool "
+        "runs; this makes agents look silent. Delete it before adding any request for updates.",
     ),
     (
         re.compile(
-            r"\b(?:show (?:your |me your )?(?:reasoning|thinking|thought process|work)"
-            r"|explain your (?:reasoning|thinking|thought process)"
-            r"|(?:output|include|print|write out|transcribe|echo|reproduce) your (?:reasoning|thinking|"
-            r"chain[- ]of[- ]thought|thought process)"
-            r"|chain[- ]of[- ]thought"
-            r"|reflect on your (?:reasoning|thinking)"
-            r"|think out loud in your (?:response|answer|reply)"
-            r"|<(?:thinking|scratchpad|reasoning)>)",
+            r"\b(?:(?:do not|don't|never|avoid)\s+(?:use|using)\s+"
+            r"(?:markdown|bullet|bullets|bullet points|headers?|headings?|lists?|bold|"
+            r"emphasis|tables?)"
+            r"|no (?:bullet points|bullets|markdown|headers?|lists?|bold)"
+            r"|avoid_excessive_markdown)",
             re.I,
         ),
-        "fable_reasoning_display",
-        "Instruction appears to ask the model to reproduce its internal reasoning as response "
-        "text. On Fable 5 this can trigger the reasoning_extraction refusal category and elevated "
-        "fallbacks. Read structured thinking blocks instead; use a send-to-user tool for progress.",
+        "fable_anti_formatting",
+        "Anti-formatting rule. Measured on Fable 5.1: it already under-formats, so this suppresses "
+        "structure the content needs. Delete it or say when formatting helps; re-test on 5.2.",
     ),
     (
         re.compile(
@@ -79,8 +144,8 @@ FABLE_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
             re.I | re.M,
         ),
         "fable_aggressive_tool_language",
-        "Emphatic tool-triggering language detected. Fable follows plain instructions reliably and "
-        "overtriggers on insistence. Prefer \"Use <tool> when <condition>.\"",
+        "Emphatic tool-triggering language. Fable follows plain instructions and overtriggers on "
+        "insistence. Prefer \"Use <tool> when <condition>.\"",
     ),
     (
         re.compile(
@@ -89,40 +154,26 @@ FABLE_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
             re.I,
         ),
         "fable_prefill",
-        "Prefill-style construction detected. Assistant prefill returns a 400 on Fable. Use "
+        "Prefill-style construction. A prefilled assistant turn returns 400 on Fable. Use "
         "structured outputs, XML output tags, or a direct no-preamble instruction.",
     ),
     (
         re.compile(r"\b(?:budget_tokens|thinking budget|reasoning budget|token budget for thinking)\b", re.I),
         "fable_thinking_budget",
-        "Thinking-budget reference detected. budget_tokens returns a 400 on Fable. Control depth "
-        "with effort and cap output with max_tokens.",
+        "Thinking-budget reference. budget_tokens returns 400 on Fable. Control depth with effort "
+        "and cap output with max_tokens.",
     ),
     (
         re.compile(r"tool_choice[^\n]{0,60}(?:\"any\"|'any'|\btype\"?\s*:\s*\"?tool)", re.I),
         "fable_forced_tool_use",
-        "Forced tool use detected. tool_choice any/tool returns a 400 on Fable 5.1. Use auto plus "
-        "an explicit prompt line, strict tool use, or structured outputs.",
+        "Forced tool use. tool_choice any/tool returns 400 on Fable 5.2 and 5.1. Use auto plus a "
+        "line naming the tool and its condition, strict tool use, or JSON outputs.",
     ),
     (
-        re.compile(
-            r"\b(?:temperature|top_p|top_k)\s*[:=]\s*(?!1(?:\.0+)?\b)(?:0?\.\d+|[02-9]\d*)",
-            re.I,
-        ),
+        re.compile(r"\b(?:temperature|top_p|top_k)\s*[:=]\s*[\d.]", re.I),
         "fable_sampling_params",
-        "Non-default sampling parameter detected. Non-default temperature/top_p/top_k return a 400 "
-        "on Fable.",
-    ),
-    (
-        re.compile(
-            r"\b(?:tokens? (?:remaining|left)|remaining (?:context|token budget)"
-            r"|context (?:budget|usage) (?:is|remaining)|\d+% of (?:your )?context)",
-            re.I,
-        ),
-        "fable_context_countdown",
-        "The prompt appears to surface a remaining-context figure to the model. This triggers "
-        "premature wrap-up and new-session suggestions. Remove it, or add the ample-context "
-        "reassurance.",
+        "Sampling parameter. Non-default values return 400 on Fable; from API version 2026-10-21 "
+        "any value returns 400 on every model.",
     ),
     (
         re.compile(
@@ -134,11 +185,19 @@ FABLE_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
             re.I,
         ),
         "fable_inert_directive",
-        "Directive with no observable contract. On Fable these are inert at best and cause "
-        "overtriggering or overthinking at worst. Replace with a verification requirement or a "
-        "trigger condition.",
+        "Directive with no observable contract. Fable thinks before almost every reply at high "
+        "effort; effort, not wording, controls depth. Replace with a check or a trigger condition.",
     ),
 ]
+
+NEVER_LINE = re.compile(r"\bnever\b", re.I)
+NEVER_SCOPED = re.compile(r"\b(?:unless|except|because|since|so that|without (?:asking|approval)|ask)\b", re.I)
+OWNERSHIP = re.compile(r"owner and (?:the )?long-term maintainer", re.I)
+SCOPE_LIMIT = re.compile(
+    r"\b(?:no drive-by|minimal (?:change|diff)|smallest (?:possible )?change|do not refactor|don't refactor|"
+    r"only (?:change|touch|edit) )",
+    re.I,
+)
 
 # --- Generic contract patterns ----------------------------------------------
 
@@ -170,7 +229,7 @@ SIDE_EFFECT_VERBS = re.compile(
 
 AUTONOMY_MARKER = re.compile(
     r"\b(operating autonomously|user is not watching|without asking|end your turn only when|"
-    r"proceed without asking)\b",
+    r"proceed without asking|finishing work|avoid stopping while you still owe|do not stop unless needed)\b",
     re.I,
 )
 
@@ -195,7 +254,7 @@ EVIDENCE_MARKER = re.compile(
 DELEGATION_INTENT = re.compile(r"\b(subagents?|sub-agents?|delegate|delegation)\b", re.I)
 DELEGATION_CONTRACT = re.compile(
     r"\b(when (?:to )?delegat|keep working|non[- ]?overlapping|read[- ]only|ownership|"
-    r"merge|deduplicate|concurren|depth|wait for)\b",
+    r"merge|deduplicate|concurren|depth|wait for|costs?|brief)\b",
     re.I,
 )
 
@@ -235,6 +294,41 @@ def lint_prompt(text: str) -> dict[str, Any]:
                 {"code": code, "message": message, "severity": "fable", "hits": hits[:10]}
             )
 
+    # Absolute "never" rules with no scope or reason on the same line.
+    never_hits = []
+    for line_no, line in enumerate(lines, start=1):
+        if NEVER_LINE.search(line) and not NEVER_SCOPED.search(line):
+            never_hits.append({"line": line_no, "match": line.strip()[:120]})
+    if never_hits:
+        warnings.append(
+            {
+                "code": "fable_absolute_never",
+                "message": (
+                    "Unscoped 'never' rule. Fable 5.2 treats 'never' as absolute and follows "
+                    "accumulated cautions closely. Give the rule its scope and reason, or turn it "
+                    "into an approval step ('ask before deleting files')."
+                ),
+                "severity": "fable",
+                "hits": never_hits[:10],
+            }
+        )
+
+    # Ownership sentence combined with a scope limit: the limit does not cancel it.
+    if OWNERSHIP.search(text) and SCOPE_LIMIT.search(text):
+        warnings.append(
+            {
+                "code": "fable_ownership_vs_scope",
+                "message": (
+                    "The ownership sentence and a scope limit appear together. On Fable 5.2 the "
+                    "limit does not cancel it: the model still consolidated code in more than half "
+                    "of runs. Keep one: ownership for restructuring, or no ownership for narrow "
+                    "changes."
+                ),
+                "severity": "fable",
+                "hits": [],
+            }
+        )
+
     # Generic contract findings.
     def add(code: str, message: str) -> None:
         warnings.append({"code": code, "message": message, "severity": "generic", "hits": []})
@@ -271,8 +365,9 @@ def lint_prompt(text: str) -> dict[str, Any]:
     if LONG_RUN_MARKER.search(text) and not AUTONOMY_MARKER.search(text):
         add(
             "fable_missing_autonomy_contract",
-            "Long-running work with no autonomy contract. Without it, Fable can end a turn on a "
-            "plan or a permission question that no one is there to answer.",
+            "Long-running work with no completion contract. Fable 5.2 can end a turn listing what "
+            "remains, offering to continue, or at an ordinary obstacle, more often at low and "
+            "medium effort. Consider the documented 'Finishing work' block.",
         )
         warnings[-1]["severity"] = "fable"
     if LONG_RUN_MARKER.search(text) and not EVIDENCE_MARKER.search(text):

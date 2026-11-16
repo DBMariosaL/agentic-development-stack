@@ -1,17 +1,10 @@
 # Prompt Patterns
 
-Choose the smallest pattern that can reliably complete the task, then add controls only from `references/hardening-matrix.md`. Fable does not need scaffolding to reason; it needs a clear objective, the reason behind it, and an unambiguous contract.
+Choose the smallest pattern that can complete the task, then add controls only from `references/hardening-matrix.md`. Fable needs a clear objective, the reason behind it, and an unambiguous contract, not scaffolding to reason. Source keys as in `references/behavior-fixes.md`; unsourced wording is a `workload recommendation`.
 
-Conventions used below:
-
-- XML tags separate instructions, reference data, examples, and untrusted input.
-- Long documents go at the top, above the query and instructions.
-- `[bracketed]` text is a placeholder for the user to fill.
-- Nothing asks the model to narrate or reproduce its reasoning.
+Conventions: XML tags separate instructions, data, examples, and untrusted input; long documents go at the top; `[bracketed]` text is a placeholder; nothing asks the model to narrate or reproduce its reasoning. Put every system-prompt line in place from the first request: adding one later changes `system` and returns 400 on Fable 5.2 once thinking blocks exist [W].
 
 ## Minimal
-
-For clear, low-risk generation without tools or strict machine output.
 
 ```text
 You are [role]. Optimize for [primary quality].
@@ -29,11 +22,11 @@ Output:
 Done when: [observable condition].
 ```
 
-Add nothing else until a real failure demands it. In particular, do not preemptively add formatting bans, brevity pleas, or "think carefully".
+Add nothing until a real failure demands it: no formatting bans, no brevity pleas, no "think carefully", no "answer directly without deliberating" (inert on Fable 5.2 at `medium` and above; lower effort instead [P]).
 
 ## Reason-first request
 
-The single highest-value addition on Fable, and cheap enough to use everywhere. Fable connects a task to relevant information better when it knows the intent (Fable 5).
+Fable performs better when it knows the intent (Fable 5):
 
 ```text
 I'm working on [the larger task] for [who it's for]. They need [what the output enables]. With that in mind: [request].
@@ -41,248 +34,165 @@ I'm working on [the larger task] for [who it's for]. They need [what the output 
 
 ## Retrieval and synthesis
 
-When the answer depends on external, current, or supplied sources.
-
 ```text
 You are [role]. Optimize for accuracy, source quality, and completeness.
 
 <documents>
-  <document index="1">
-    <source>[filename or URL]</source>
-    <document_content>
-    [content]
-    </document_content>
-  </document>
+  <document index="1"><source>[filename or URL]</source><document_content>[content]</document_content></document>
 </documents>
 
 [Task: research or synthesis objective.]
 
-Sources and freshness:
-- Available: [files, URLs, tools]
-- Recency requirement: [date or window]
-- Source priority: [authoritative order]
+Sources: available [files, URLs, tools]; recency [date or window]; priority [authoritative order].
 
-Retrieval rules:
-- Search when retrieval could materially change the answer. When a query centers on a name you do not confidently recognize, or one from a fast-moving area, verify the name itself before answering and include it as the user wrote it in at least one query.
-- If results are empty, narrow, stale, or contradictory, change the query or the source before concluding.
-- Base factual claims only on supplied or retrieved evidence, and distinguish fact, assumption, and inference.
-- Convey each source in your own words. Mark any wording you take from a source as a quotation.
-- Cite important claims at the point of use.
+Rules:
+- Search when retrieval could change the answer; verify unfamiliar or fast-moving names as the user wrote them.
+- If results are empty, stale, or contradictory, change the query or source before concluding.
+- Base factual claims on supplied or retrieved evidence; separate fact, assumption, and inference.
+- Convey sources in your own words; mark any borrowed wording as a quotation; cite at the point of use.
 
-Output:
-1. [conclusion]
-2. [evidence]
-3. [conflicts and uncertainty]
-4. [recommended action]
+Output: conclusion; evidence; conflicts and uncertainty; recommended action.
 
-Done when every requested question is answered or explicitly marked unresolved.
+Done when every question is answered or explicitly marked unresolved.
 ```
 
-For long-document work, add the quote-first step: extract the relevant passages into `<quotes>` tags before answering.
-
 ## Tool-using agent
-
-Multi-step work across tools without material side effects.
 
 ```text
 You are [role]. Optimize for grounded execution and completion reliability.
 
-[Task: exact outcome.]
+[Task: exact outcome.] Why this matters: [what the output enables].
 
-Context:
-- Inputs: [inputs]
-- Tools: [only the relevant subset]
-- Constraints: [constraints]
-- Why this matters: [what the output enables]
-
-Tool rules:
-- Use [tool] when [condition]. Answer directly when [condition].
-- Do prerequisite lookups before dependent calls.
-- Request every item that does not depend on another's result in the same response.
+Tools: [only the relevant subset]. Use [tool] when [condition]; answer directly when [condition].
+- Do prerequisite lookups before dependent calls; request independent items in the same response.
 - Retry transient failures at most [N] times, then report the failure with its output.
-- If results are incomplete, change the retrieval strategy before stopping.
-- Do not repeat completed work.
-- Synthesize results; do not paste raw output.
+- If results are incomplete, change strategy before stopping. Do not repeat completed work.
 
-Output:
-[exact sections or schema]
-
-Done when every deliverable passes verification.
+Output: [exact sections or schema]. Done when every deliverable passes verification.
 ```
 
-In a long loop, do not put the batching rule in the system prompt and hope. Append it after each round of tool results as a turn-scoped system message. See `references/behavior-fixes.md`.
+To make the model call a specific tool, name it and its condition here; forced `tool_choice` returns 400 [W]. On Fable 5.1 loops that go serial, append the batching nudge per turn instead (`references/behavior-fixes.md`).
 
 ## Long-horizon autonomous agent
 
-For runs measured in hours or days with no one watching. Six elements; drop any one and the run degrades in a predictable way.
-
 ```text
-You are [role] operating autonomously on [objective].
-
-Why this matters: [what the output enables, for whom].
+You are [role] working on [objective]. Why this matters: [what the output enables, for whom].
 
 Scope:
-- In scope: [explicit list]
-- Out of scope: [explicit list]
-- Authorized without asking: [reversible actions]
-- Requires the user: [destructive, irreversible, external, or genuine scope changes]
+- In scope: [list]. Out of scope: [list].
+- [Ownership: "You are the owner and long-term maintainer of this codebase, and its design is up to you." Include only if restructuring is wanted.]
+- No approval needed for: [routine steps, named].
+- Ask first: [destructive, irreversible, external, or scope-changing actions, each with its reason].
 
-Autonomy:
-You are operating autonomously. The user is not watching in real time and cannot answer questions mid-task, so asking "Want me to…?" will block the work. For reversible actions that follow from the original request, proceed without asking. Before ending your turn, check your last paragraph: if it is a plan, a question, a list of next steps, or a promise about work you have not done, do that work now with tool calls. End your turn only when the task is complete or you are blocked on input only the user can provide.
+[Paste the "Finishing work" block from references/behavior-fixes.md.]
 
 Progress claims:
-Before reporting progress, audit each claim against a tool result from this session. Only report work you can point to evidence for; if something is not yet verified, say so explicitly. If tests fail, say so with the output; if a step was skipped, say that.
+Before reporting progress, audit each claim against a tool result from this session. If something is not yet verified, say so explicitly.
 
-State:
-- Record progress in [file], one entry per [unit], including what was tried and why.
-- Track structured status (tests, tasks) in [file.json].
-- [Use git commits as checkpoints.]
+State: record progress in [file]; structured status in [file.json]; commit at [checkpoints].
 
-Self-verification:
-Establish a method for checking your own work at an interval of [X] as you build. Run it every [X], verifying against [the specification] with subagents.
+Verification: check your work against [specification] every [interval].
 
-Stop condition:
-Continue until [named green criteria]. Stop after [N] repair cycles or [M] distinct failed strategies and report the blocker, the evidence, and the decision required.
+Stop condition: continue until [named green criteria]. After [N] repair cycles or [M] distinct failed strategies, report the blocker, the evidence, and the decision required.
 
-Final report:
-Open with the outcome in one sentence, then the supporting detail, then what you need from the user. Write it for a reader who saw none of your working.
+[Paste the "Communicating clearly" block for the final report.]
 ```
 
-Separate fresh-context verifier subagents tend to outperform self-critique. Prefer them where the harness allows.
+Run it at `high`; at `low` or `medium` the completion block matters more [P].
+
+## Fable lead that delegates
+
+Use the lead skeleton in `references/orchestration-and-handoffs.md`. Its distinguishing lines: roles with model and effort, what a subagent costs, what a brief must contain, non-blocking returns, how to treat missing or partial reports, and the acceptance check the lead runs itself.
+
+## Subagent tool description
+
+For a harness where Fable over-delegates. Anthropic documents the content, not the wording: cost, when it is and is not worth it, how to brief [P]. Adapt and test:
+
+```text
+Starts a subagent with a fresh context. It sees only the prompt you give it and returns only its final report. Each subagent adds [cost or share of session spend] to this session. Delegate when work splits into independent pieces that can run in parallel or would flood your context; do the work yourself when it is one dependent chain, a single file, or a lookup you can run in a few calls. Brief it with the goal and why, the exact scope it owns, the inputs and decisions it needs, its allowed side effects, the check that proves it done, and the report you expect back.
+```
+
+## Subagent brief
+
+What a lead sends; the subagent sees nothing else [SDK]:
+
+```text
+Goal: [outcome] — needed because [what it enables].
+Scope: you own [paths]; read-only elsewhere. Do not [out-of-scope items].
+Inputs: [file paths, error text, decisions already made].
+Allowed: [side effects]. Ask the lead before [gated actions].
+Done when: [check you run and its expected result].
+Report: first line status (done, partial, blocked) and any decision you need; then what changed with commit, paths, and checks run; then what you did not do or did differently, and why; then anything unverified. Name the model you ran on. No account of the process.
+```
 
 ## External-action agent
-
-When the agent can send, publish, purchase, delete, schedule, or modify external systems.
 
 ```text
 You are [role]. Optimize for correctness, safety, and auditable execution.
 
 [Task: exact requested action.]
 
-Authorization:
-- Safe without confirmation: [read-only or locally reversible actions]
-- Requires explicit confirmation: [destructive, hard to reverse, or externally visible actions — deletes, force pushes, published-commit amends, pushes, PR and issue comments, messages, shared infrastructure changes, payments]
+Safe without confirmation: [read-only or locally reversible actions].
+Requires confirmation: [deletes, force pushes, published-commit amends, external messages, shared infrastructure, payments]. Before one, summarize target, change, and consequences, then ask.
 
-Before a gated action, summarize the target, the intended change, who or what it affects, and the material consequences. Then stop and ask.
-
-Rules:
-- Verify prerequisites and target identity before acting.
-- Do only the confirmed action; do not broaden scope.
-- Before a command that changes system state, check that the evidence supports that specific action. A signal that pattern-matches to a known failure may have a different cause.
-- Do not use destructive actions as a shortcut around an obstacle, and do not bypass safety checks.
-- Stop on any ambiguity that could affect the wrong person, file, system, or public output.
-
-After acting, validate the resulting state and report success, partial success, or failure with evidence.
-
-Done when the action is validated or a clear structured failure is returned.
+Verify the target first; do only the confirmed action; check that the evidence supports each state-changing command; no destructive shortcuts or bypassed safety checks. Afterwards, validate the resulting state and report the outcome with evidence.
 ```
+
+Name gated actions precisely: a broad rule such as "messages to people outside this conversation" made Fable 5.2 hold back routine work [P].
 
 ## Strict structured output
 
-When another system parses the result. Prefer structured outputs or strict tool use over prose instructions; use this when you must enforce format through the prompt.
+Prefer strict tool use or JSON outputs with `tool_choice: auto`. In a CMEK organization neither is available on Fable 5.2: keep the schema in the prompt and validate in code [W]. Prefill returns 400, so do not design around it.
 
 ```text
 [Task: exact transformation.]
-
-<input>
-[data]
-</input>
-
-Return only valid [JSON] matching this schema:
-[exact schema]
-
-Rules:
-- Include every required field.
-- Use null only where the schema permits it.
-- No commentary, no markdown fences, no undeclared fields.
-- Escape values correctly.
-- If the input is invalid, return [the defined error object].
+<input>[data]</input>
+Return only valid [JSON] matching this schema: [schema]. Include every required field; null only where permitted; no commentary, fences, or undeclared fields. If the input is invalid, return [error object].
 ```
 
-Prefill is unavailable on Fable, so do not design around it.
-
 ## Chat assistant
-
-For a product surface where a person reads every reply.
 
 ```text
 You are [role] for [product]. [One sentence on the user and their situation.]
 
 [Behavioral scope: what you do and do not handle.]
 
-Communication:
-Lead with the outcome: your first sentence answers what happened or what you found. Supporting detail comes after. Keep output short by being selective about what you include, not by compressing into fragments, abbreviations, or arrow chains.
-
-Use lists and bullet points when asked to, or when the content is multifaceted enough that they help with clarity. If the person explicitly requests minimal formatting, honor that. In conversational, personal, or emotional exchanges, keep to plain prose.
+[Length and tone: the reply length the product wants.]
 
 [Escalation: when to hand off, and to whom.]
 ```
 
-Notice what is absent: no formatting ban, no "be helpful", no reasoning display. Fable 5.1 under-formats by default, so a formatting ban makes it worse.
-
-## Audit and rewrite
-
-For revising an existing prompt.
-
-```text
-Delete (written for a weaker model, now harmful or inert):
-- [instruction] — was compensating for [old behavior]
-
-Preserve (product requirement or domain knowledge):
-- [instruction]
-
-Repair:
-- [observed failure] -> [missing contract or rule]
-
-Return the complete revised prompt, not a diff.
-```
-
-Always run the deletion pass first. On Fable, an audit that only adds rules usually makes the prompt worse.
+On Fable 5.2, set effort low enough for chat latency rather than prompting against thinking; effort does not shorten replies, so state length here [P]. Leave out Opus 5.5's "treat that answer as done" lines where the model should catch its own mistakes [P]. On Fable 5.1, add the formatting rule from `references/behavior-fixes.md`.
 
 ## Feature implementation with review loop
 
-For non-trivial coding work. Fable delegates readily, so the roles cost less than they used to; the discipline is in the bounds.
-
 ```text
-You are the lead implementation agent. Optimize for a correct, validated, in-scope change.
+You implement [feature] within [scope]. Why: [what it enables].
 
-Implement [feature] within [scope].
+[Ownership sentence, or "Change only [files]; keep existing structure." Choose one.]
 
-Foundations:
-Define primitives, interfaces, invariants, risks, acceptance criteria, and tests before writing production code. Stop for approval if a material architecture, security, migration, or product choice is unresolved.
-
-Delegation:
-Delegate independent subtasks to subagents and keep working while they run. Intervene if a subagent goes off track or is missing context. Use a fresh-context verifier subagent for review rather than critiquing your own diff. Do not let two write-capable agents edit the same files.
-
-Scope discipline:
-If you find a pre-existing bug, a performance concern, or behavior the task doesn't mention, don't fix or extend it in this change unless the requested behavior cannot work without it; report it as a follow-up. Where the task is ambiguous, implement the reading its wording and the surrounding code most directly support and state that assumption. Commit tests only where the task asks for them or the repository already keeps tests for this kind of change, sized like the neighboring test files.
-
-Editing:
-When it will not affect the end result, surgically edit a file rather than rewrite the entire thing.
+Before production code, settle interfaces, invariants, acceptance criteria, and tests. Stop for approval only if [material architecture, security, migration, or product choice] is unresolved.
 
 Loop:
-1. Collect test, lint, type, build, scanner, and review output.
-2. Classify each finding: confirmed, duplicate, false positive, out of scope, or needs a user decision.
-3. Fix confirmed findings, rerun the relevant checks, and have the verifier confirm the fix and look for regressions.
-4. Repeat until green or the bound is reached.
+1. Collect test, lint, type, build, and review output.
+2. Classify each finding: confirmed, duplicate, false positive, out of scope, needs a user decision.
+3. Fix confirmed findings, rerun the relevant checks, and have a fresh-context reviewer confirm.
+Green: [named tests] + lint and types pass + confirmed findings resolved + acceptance demonstrated.
+Bound: at most [3] repair cycles or [2] failed strategies; then report the blocker and the decision required.
 
-Green: [named tests pass] + [lint and type checks pass] + confirmed findings resolved + acceptance criteria demonstrated + no new blocking regression.
+When it will not affect the end result, edit files surgically rather than rewriting them.
 
-Bounds: at most [3] repair cycles, or [2] distinct failed strategies. On stop, report the blocker, the evidence, the strategies attempted, and the decision required.
-
-Output: changed files, validation evidence, unresolved findings, follow-ups you deliberately did not do, and final green or blocked status.
+Report: changed files, validation evidence, unresolved findings, follow-ups not done, final status.
 ```
+
+Review the diff, not only the closing summary: Fable 5.2 summaries often omit small changes [P].
 
 ## Memory bootstrap
 
-Fable performs particularly well when it can record lessons and reference them. A Markdown directory is enough (Fable 5).
+Fable 5:
 
 ```text
 Store one lesson per file with a one-line summary at the top. Record corrections and confirmed approaches alike, including why they mattered. Don't save what the repo or chat history already records; update an existing note rather than creating a duplicate; delete notes that turn out to be wrong.
 ```
 
-To seed it from history:
-
-```text
-Reflect on the previous sessions we've had together. Use subagents to identify core themes and lessons, and store them in [X]. Make sure you know to reference [X] for future use.
-```
+On Fable 5.2, add that every rule recorded keeps its scope and reason, so cautions do not harden into absolutes [P].
