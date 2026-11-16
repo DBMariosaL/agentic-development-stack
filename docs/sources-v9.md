@@ -1,9 +1,9 @@
 # Sources et choix de la v9 « jardin »
 
-La v9 s'appuie sur une source externe et sur le retour d'expérience des projets Alpha Radio Chantier et rc-alpha. Quatre analyses Opus indépendantes (vidéo, deux retours d'expérience, auto-audit de la v8), une contre-revue GPT-6.1-sol du plan, puis l'arbitrage de la racine, le 10 novembre 2026. Ce dépôt ne reproduit ni la source ni les journaux ; il garde les liens et les adaptations retenues.
+La v9 s'appuie sur une source externe et sur le retour d'expérience de deux projets privés. Quatre analyses Opus indépendantes (vidéo, deux retours d'expérience, auto-audit de la v8), une contre-revue GPT-6.1-sol du plan, puis l'arbitrage de la racine, le 10 novembre 2026. Ce dépôt ne reproduit ni la source ni les journaux ; il garde les liens et les adaptations retenues.
 
 - Vidéo : [Theo, les ingénieurs deviennent jardiniers](https://youtu.be/GtJKFhztgdM), analysée sur la transcription fournie par l'utilisateur, non visionnée. Le segment sponsorisé est écarté. Les chiffres (tests supprimés, PR par jour) sont auto-déclarés.
-- Retour d'expérience : fils T3 des projets Alpha Radio Chantier et rc-alpha, dossier de preuves local et dépôt rc-alpha, lus en lecture seule.
+- Retour d'expérience : fils T3 de deux projets privés, dossier de preuves local et dépôt du second, lus en lecture seule.
 
 ## Constats qui motivent la v9
 

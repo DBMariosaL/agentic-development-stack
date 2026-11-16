@@ -1,6 +1,6 @@
 ---
 name: rc-prepare-supervisor
-description: "Préparer le prompt d’un superviseur GPT de soutien aux champions Opus de Radio Chantier, à partir d’une vague cadrée et de retours d’expérience sourcés. Produit le mandat et ses réserves ; ne lance aucun superviseur ni travail produit."
+description: "Préparer le prompt d’un superviseur GPT de soutien aux champions Opus de RC, à partir d’une vague cadrée et de retours d’expérience sourcés. Produit le mandat et ses réserves ; ne lance aucun superviseur ni travail produit."
 ---
 
 # Préparer le superviseur

@@ -1,4 +1,4 @@
-"""Mise à jour ciblée des trois skills Radio Chantier dans des profils existants.
+"""Mise à jour ciblée des trois skills RC dans des profils existants.
 
 Lancer avec ``python -B``. Bibliothèque standard seulement (Python 3.10).
 

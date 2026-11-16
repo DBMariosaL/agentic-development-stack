@@ -34,5 +34,5 @@ Quatre lectures Opus 5.5 indépendantes le 16 novembre 2026 (tstack, pstack, ski
 - Permissions accordées par une phrase déclencheuse, escalade humaine dès qu'une boucle bloque : écartées.
 - Les vingt-trois playbooks de pstack, ses dix voies de vérification par PR, les spécifications longues et le wiki de Matt Pocock : écartés, ce sont les productions à réduire.
 - Vérification runtime par carte de fonctionnalités, captures et transcripts ; tests de mutation sur le diff ; scénarios d'acceptation cachés aux auteurs : différés. Chacun demande un outil par projet et un essai réel.
-- Rôles par modèle (auteur Opus, réviseur GPT, arbitre Fable) : la conduite reste écrite par rôle. Le portrait que Theo fait des modèles date de novembre 2026 et périmera ; un pilote Fable n'a été éprouvé par aucun essai.
+- Rôles par modèle : la conduite reste écrite par rôle, et le mandat du programme nomme les modèles. Configuration retenue par le propriétaire pour le premier essai réel : pilote Fable qui décide et encadre sans produire, champions Opus, réviseurs GPT-6.1 Sol, chacun autonome dans son mandat. Elle n'est éprouvée par aucun essai ; le portrait que Theo fait des modèles date de novembre 2026 et périmera.
 - Coût d'administration du moteur (35 à 90 commandes d'état par essai en v9.1) : inchangé, toujours le premier défaut ouvert.

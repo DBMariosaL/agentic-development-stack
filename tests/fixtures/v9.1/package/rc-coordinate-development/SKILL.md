@@ -1,6 +1,6 @@
 ---
 name: rc-coordinate-development
-description: Piloter le programme de développement Radio Chantier, choisir le travail prêt selon dépendances et ressources, préparer et lancer les vagues couvertes, y compris les cycles de jardinage, superviser leur livraison et poursuivre après chaque jalon. Utiliser pour démarrer, poursuivre ou reprendre un programme ou une vague ; les effets dépendent du mandat applicable.
+description: Piloter le programme de développement RC, choisir le travail prêt selon dépendances et ressources, préparer et lancer les vagues couvertes, y compris les cycles de jardinage, superviser leur livraison et poursuivre après chaque jalon. Utiliser pour démarrer, poursuivre ou reprendre un programme ou une vague ; les effets dépendent du mandat applicable.
 ---
 
 # Piloter le programme

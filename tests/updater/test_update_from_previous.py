@@ -9,8 +9,8 @@ les aides sont réutilisées, et RC_UPDATE_FROM, une version de PREVIOUS (par ex
 dont seuls les cas sont collectés ; sans elle, toutes les versions.
 
 PREVIOUS déclare chaque version d'origine et l'ordre des fixtures où composer ses octets.
-Référence figée et compacte : tests/fixtures/<version>/manifest.json (manifeste d'origine
-octet pour octet) et, sous tests/fixtures/<version>/package, les seuls fichiers RC absents
+Référence figée et compacte : tests/fixtures/<version>/manifest.json (manifeste de la
+version) et, sous tests/fixtures/<version>/package, les seuls fichiers RC absents
 des fixtures antérieures. Chaque test recompose le paquet d'origine complet dans son
 dossier : chaque fichier est pris dans ces fixtures, dans l'ordre déclaré, puis dans le
 paquet courant, seulement si son empreinte est celle du manifeste d'origine ; sinon le test

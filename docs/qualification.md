@@ -13,12 +13,13 @@ Statut : **candidate**. Aucune installation dans un profil actif, aucun essai de
   - non bloquant : un commentaire de politique ajouté dans `tools/check.py`, contraire à la règle sur les écrits. Retiré.
 - La racine a vérifié ces corrections par le contrôle complet sur l'arbre commité, sans second tour : trois corrections à risque bas, chacune vérifiable par une commande.
 - Retour du réviseur sur le brief : il ne faisait chercher que les ajouts, et c'est l'exigence du mandat qui a fait trouver l'obligation retirée. Le brief demande maintenant aussi ce que le diff retire.
+- Nom du projet d'origine : retiré du dépôt après la revue. Dans les fixtures v7 à v9.1.1 et celle du 31 octobre, il est remplacé par « RC » (26 fichiers) et les six manifestes sont réalignés ; `tools/check.py` reste vert. Les empreintes de manifestes v7 et v8 citées dans les sections archivées ci-dessous sont celles de la lignée privée, plus celles des fixtures.
 
 Limites :
 
 - Aucun pilote n'a conduit la v10. Les règles de pertinence et de convergence n'ont servi qu'une fois, pour cette revue.
 - La détection des commentaires est une heuristique par extension : docstrings et commentaires de fin de ligne lui échappent.
-- Un pilote Fable n'a été éprouvé par aucun essai ; les essais de la v9.1 portaient sur `gpt-6.1-sol`.
+- Configuration prévue pour le premier essai réel, non éprouvée : pilote Fable qui décide et encadre, champions Opus, réviseurs GPT-6.1 Sol. Les essais de la v9.1 portaient sur un pilote `gpt-6.1-sol`, et le paquet n'a pas d'optimiseur de prompts pour Fable : la remise d'un enfant à un pilote Fable n'a pas de filtre prévu.
 - Le coût d'administration du moteur ne change pas.
 
 ## Version v9.1.1 (11 novembre 2026)
@@ -82,7 +83,7 @@ Statut : **acceptée dans la portée locale implémentée** le 10 novembre 2026.
 
 ### Revues
 
-- Plan : quatre analyses Opus (vidéo, retours d'expérience Alpha Radio Chantier et rc-alpha, auto-audit v8), puis une contre-revue GPT-6.1-SOL xhigh. Verdict : GO avec corrections. Ses trois P1 ont été intégrés à l'arbitrage avant l'implémentation : obligations du gabarit transférées avant la suppression de l'auto-mandat, isolation des cibles destructives à chaque exécution, aucun critère automatique d'élagage.
+- Plan : quatre analyses Opus (vidéo, retours d'expérience de deux projets privés, auto-audit v8), puis une contre-revue GPT-6.1-SOL xhigh. Verdict : GO avec corrections. Ses trois P1 ont été intégrés à l'arbitrage avant l'implémentation : obligations du gabarit transférées avant la suppression de l'auto-mandat, isolation des cibles destructives à chaque exécution, aucun critère automatique d'élagage.
 - Candidat `5fb2de6` : revue d'acceptation GPT-6.1-SOL xhigh R1, verdict « accepter après corrections », aucun P1. Trois P2 : statut v8 resté dans la documentation, campagne non livrée, fin de mission du superviseur séparé contradictoire. Trois P3 : cardinalité des tests, oracle Q14, sorties d'erreur réelles de `rc_state.py`. Tous corrigés dans le delta suivant.
 - Candidat `26b43b2` : revue R2 GPT-6.1-SOL xhigh sur le delta. Les six constats R1 sont fermés sur preuve et il n'y a aucun P1. Trois nouveaux constats ont été corrigés : un P2 sur le contrat de gel des scénarios, contredit par le ré-épinglage (l'original est restauré et la révision publiée à part), et deux P3 de formulation (README, attribution de Q21). La racine a vérifié ces corrections par le contrôle complet vert sur le commit d'acceptation ; elles n'ont pas reçu de troisième revue, conformément à la règle de convergence.
 

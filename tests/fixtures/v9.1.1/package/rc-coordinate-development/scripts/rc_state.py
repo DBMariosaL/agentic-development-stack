@@ -1,4 +1,4 @@
-"""Deterministic state tool for Radio Chantier programs and waves (stdlib only).
+"""Deterministic state tool for RC programs and waves (stdlib only).
 
 Commands validate, compute ready work, migrate formats, create initial states (init) and
 perform guarded writes (owner + expected revision + locks + full validation + atomic replace

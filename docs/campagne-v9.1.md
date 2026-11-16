@@ -4,7 +4,7 @@ Source de la v9.1. La v9 avait été qualifiée par des contrôles déterministe
 
 ## Dispositif
 
-- Onze petits programmes synthétiques en Python (journal radio de chantier), chacun dans son propre dépôt git, avec un mandat écrit : une démonstration préalable, puis dix essais T01–T10 lancés en parallèle.
+- Onze petits programmes synthétiques en Python (journal d'événements), chacun dans son propre dépôt git, avec un mandat écrit : une démonstration préalable, puis dix essais T01–T10 lancés en parallèle.
 - Pilote : `gpt-6.1-sol` (effort `medium`) par essai, avec les skills v9 installés dans le profil Codex. Tous ses sous-agents sont en `gpt-6.1-sol`, sans autre modèle.
 - Chaque pilote remet un relevé typé : résultat, déroulé, incidents (gravité, règle en cause, commande et sortie, constaté ou supposé, correctif proposé), coût, règles utiles.
 - La racine a revérifié chaque résultat déclaré : commits, contrôle d'acceptation, `rc_state.py check` sur chaque état.
