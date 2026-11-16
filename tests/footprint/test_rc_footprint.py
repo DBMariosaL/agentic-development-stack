@@ -3,6 +3,7 @@
 Lancer depuis la racine du dépôt : python -B -m unittest discover -s tests/footprint -t tests/footprint
 """
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -39,9 +40,9 @@ class Footprint(unittest.TestCase):
         self.git('commit', '-q', '--allow-empty', '-m', 'c')
         return self.git('rev-parse', 'HEAD')
 
-    def run_tool(self, *args, code=0):
+    def run_tool(self, *args, code=0, env=None):
         proc = subprocess.run([sys.executable, '-B', str(SCRIPT), str(self.repo), *args],
-                              capture_output=True, text=True, encoding='utf-8')
+                              capture_output=True, text=True, encoding='utf-8', env=env)
         self.assertEqual(proc.returncode, code, proc.stdout + proc.stderr)
         return json.loads(proc.stdout)
 
@@ -107,6 +108,41 @@ class Footprint(unittest.TestCase):
         refused = self.run_tool('--base', first, '--previous', str(previous), code=2)
         self.assertFalse(refused['ok'])
         self.assertIn('--previous', refused['error'])
+
+    def test_comment_in_path_with_space(self):
+        base = self.commit({'keep.txt': 'k\n'})
+        self.commit({'normal.py': '# why one\n', 'avec espace.py': '# why two\n'})
+        info = self.run_tool('--base', base)['comments_added']
+        self.assertEqual(info, {'count': 2, 'lines': [{'path': 'avec espace.py', 'line': 1, 'text': '# why two'},
+                                                      {'path': 'normal.py', 'line': 1, 'text': '# why one'}]})
+
+    def test_comment_lines_ignore_git_hunk_config(self):
+        base = self.commit({'code.py': 'a = 1\nb = 2\nc = 3\nd = 4\ne = 5\n', 'next.py': 'x = 1\n'})
+        self.commit({'code.py': '# first\na = 1\nb = 2\nc = 3\nd = 4\ne = 5\n# last\n', 'next.py': 'x = 1\n# after\n'})
+        self.git('config', 'diff.interHunkContext', '10')
+        lines = self.run_tool('--base', base)['comments_added']['lines']
+        self.assertEqual([(c['path'], c['line']) for c in lines], [('code.py', 1), ('code.py', 7), ('next.py', 2)])
+
+    def test_previous_with_invalid_counts_refused(self):
+        base = self.commit({'a.py': 'x = 1\n'})
+        previous = self.repo.parent / 'previous.json'
+        for value in ('1e400', '-500', 'true', '"5"', '2.0'):
+            with self.subTest(value):
+                classes = ','.join(f'"{name}":{{"added":{value}}}' for name in ('product', 'tests', 'docs'))
+                previous.write_text(f'{{"base":"{base}","classes":{{{classes}}}}}', encoding='utf-8')
+                refused = self.run_tool('--base', base, '--previous', str(previous), code=2)
+                self.assertFalse(refused['ok'])
+                self.assertIn('--previous', refused['error'])
+
+    def test_safe_directory_option_for_foreign_owner(self):
+        base = self.commit({'a.py': 'x = 1\n'})
+        global_config = self.repo.parent / 'global.gitconfig'
+        env = {**os.environ, 'GIT_TEST_ASSUME_DIFFERENT_OWNER': '1', 'GIT_CONFIG_GLOBAL': str(global_config)}
+        refused = self.run_tool('--base', base, code=2, env=env)
+        self.assertIn('dubious ownership', refused['error'])
+        result = self.run_tool('--base', base, '--safe-directory', env=env)
+        self.assertEqual(result['base'], base)
+        self.assertFalse(global_config.exists())
 
     def test_unknown_reference_is_refused(self):
         self.commit({'a.py': 'x\n'})

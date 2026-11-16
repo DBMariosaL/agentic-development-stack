@@ -25,7 +25,8 @@ records candidate identity, input digests, commands, working directories, releva
 environment, log hashes, collections and skips. Results go to a new .local/ folder.
 Fixture roots are short folders under RC_CHECK_FIXTURES_ROOT (default: the system temp
 folder), outside the clone, so a deep clone path cannot exceed the legacy Windows
-260-character limit; a preflight refuses a base that is still too long. Only empty fixture
+260-character limit; a preflight refuses a base that is still too long, records the refusal
+in summary.json and runs no step. Only empty fixture
 roots are removed.
 Nothing is installed in an active profile and no network access is used.
 """
@@ -42,7 +43,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 177, 'updater-v7': 30, 'updater-v8': 28, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 25, 'footprint': 7}
+EXPECTED = {'state': 177, 'updater-v7': 30, 'updater-v8': 32, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 29, 'footprint': 11}
 READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
 READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.
@@ -56,7 +57,7 @@ NON_NT_SKIPS = {
     'updater-from-v9.1': set(),
     'updater-from-v9.1.1': set(),
     'updater-from-v9.1.2': set(),
-    'package': set(),
+    'package': {'test_preflight_refusal_writes_summary'},
     'footprint': set(),
     'state': set(),
 }
@@ -210,13 +211,16 @@ def main():
                'expected_collections': EXPECTED, 'results': []}
     summary['inputs_digest'] = sha(canonical(summary['inputs']))
     print('inventory: ' + ('passed' if not problems else 'FAILED'), flush=True)
+    preflight = None
     if not problems:
         # Short fixture roots outside the clone keep NTFS paths below the legacy 260-character limit.
         base = Path(os.environ.get('RC_CHECK_FIXTURES_ROOT') or tempfile.gettempdir()) / ('rcchk-' + uuid.uuid4().hex[:6])
         if os.name == 'nt' and len(str(base)) + FIXTURE_DEPTH_MARGIN > 259:
+            preflight = {'check': 'fixture_root_length', 'root': str(base), 'not_run': STEPS}
+            summary['preflight_problem'] = preflight
             print(f'preflight: FAILED fixture root {base} is too long for 260-character paths; '
                   'set RC_CHECK_FIXTURES_ROOT to a short folder (for example C:\\rc)', flush=True)
-            return 1
+    if not problems and preflight is None:
         base.mkdir(parents=True)
         from_steps = [n for n in EXPECTED if n.startswith('updater-from-')]
         roots = {k: base / k for k in ('f', 'g', 'p')}
@@ -307,7 +311,7 @@ def main():
         if not any(base.iterdir()):
             base.rmdir()
     summary['finished_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    summary['all_passed'] = not problems and [r['step'] for r in summary['results']] == STEPS \
+    summary['all_passed'] = not problems and preflight is None and [r['step'] for r in summary['results']] == STEPS \
         and all(r['passed'] for r in summary['results']) \
         and not any(summary.get('fixtures_left', {}).values())
     summary['limits'] = ['Offline synthetic checks on this candidate only; no installation, runtime, '

@@ -128,6 +128,35 @@ class PackageTests(Base):
         bad = failing(validator.validate(copy))
         self.assertEqual(list(bad.values()), ['#no-such-section'])
 
+    def validate_with_payload(self, payload):
+        copy = self.copy()
+        path = copy / 'unslop' / 'references' / 'patterns.md'
+        path.write_bytes(path.read_bytes() + payload.encode('utf-8'))
+        out = self.dir / 'structure.json'
+        proc = subprocess.run([sys.executable, '-B', str(ROOT / 'tools' / 'validate_package.py'), str(copy),
+                               '--output', str(out)], capture_output=True, text=True, encoding='utf-8', timeout=90)
+        result = json.loads(out.read_text(encoding='utf-8'))
+        shutil.rmtree(copy)
+        return proc.returncode, failing(result)
+
+    def test_reference_link_to_missing_file_red(self):
+        code, bad = self.validate_with_payload('\n[missing][dead]\n\n[dead]: does-not-exist.md\n')
+        self.assertEqual(code, 1)
+        self.assertEqual(list(bad.values()), ['does-not-exist.md'])
+
+    def test_windows_machine_path_red(self):
+        code, bad = self.validate_with_payload('\nmachine path: C:\\private\\example.txt\n')
+        self.assertEqual(code, 1)
+        self.assertEqual(list(bad), [os.path.join('unslop', 'references', 'patterns.md') + ':no_machine_snapshot'])
+
+    def test_valid_link_forms_accepted(self):
+        for payload in ('\n[self](<patterns.md>)\n',
+                        '\n## Repeated heading\n\n## Repeated heading\n\n[second](#repeated-heading-1)\n',
+                        '\n```markdown\n[example](example-only.md)\n```\n',
+                        '\nsyntax: `[example](example-only.md)`\n'):
+            with self.subTest(payload):
+                self.assertEqual(self.validate_with_payload(payload), (0, {}))
+
     def test_unslop_policy_enforced(self):
         for label, old, new, check in (
                 ('implicit', b'allow_implicit_invocation: false', b'allow_implicit_invocation: true',
@@ -290,6 +319,40 @@ class RunnerR1Tests(Base):
         proc, report = self.collect_synthetic(unexpected_success=True)
         self.assertNotEqual(proc.returncode, 0)
         self.assertEqual(len(report['unexpected_successes']), 1)
+
+
+class CheckPreflightTests(Base):
+    @unittest.skipUnless(os.name == 'nt', 'the fixture root length preflight applies to Windows only')
+    def test_preflight_refusal_writes_summary(self):
+        """R08-02 : un refus de préflight laisse le summary.json annoncé, sans lancer d'étape."""
+        repo = self.dir / 'repo'
+        (repo / 'tools').mkdir(parents=True)
+        (repo / 'tests').mkdir()
+        shutil.copyfile(ROOT / 'tools' / 'check.py', repo / 'tools' / 'check.py')
+        entries = []
+        for name in ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md'):
+            path = repo / 'package' / 'rc-coordinate-development' / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'mot\n')
+            entries.append({'path': 'rc-coordinate-development/' + name,
+                            'sha256': hashlib.sha256(b'mot\n').hexdigest(), 'bytes': 4})
+        (repo / 'manifest.json').write_text(json.dumps({'files': entries}), encoding='utf-8')
+        (repo / 'provenance.json').write_text(json.dumps({'files': [
+            {'path': 'package/' + e['path'], 'sha256': e['sha256']} for e in entries]}), encoding='utf-8')
+        long_root = self.dir / ('x' * 100)
+        proc = subprocess.run([sys.executable, '-B', str(repo / 'tools' / 'check.py')], cwd=repo,
+                              env={**os.environ, 'RC_CHECK_FIXTURES_ROOT': str(long_root)},
+                              capture_output=True, text=True, encoding='utf-8', timeout=60)
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        summaries = list((repo / '.local').glob('*/summary.json'))
+        self.assertEqual(len(summaries), 1, proc.stdout)
+        summary = json.loads(summaries[0].read_text(encoding='utf-8'))
+        self.assertEqual(summary['inventory_problems'], [])
+        self.assertEqual(summary['candidate']['package_files'], 3)
+        self.assertTrue(str(summary['preflight_problem']['root']).startswith(str(long_root)))
+        self.assertEqual(summary['results'], [])
+        self.assertFalse(summary['all_passed'])
+        self.assertFalse(long_root.exists())
 
 
 class QualificationScenarioTests(unittest.TestCase):
