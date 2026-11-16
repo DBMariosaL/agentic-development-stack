@@ -168,7 +168,7 @@ Statut : **acceptée dans la portée locale implémentée** le 10 novembre 2026.
 
 `python -B tools/check.py` exécute `inventory`, `state`, `updater-v7`, `updater-v8`, `updater-from-v8`, `package` et `structure`. Les collectes attendues sont déclarées dans `tools/check.py` (`EXPECTED`) et le résultat de chaque exécution est dans son `summary.json`. Les comptes ne sont pas recopiés ici.
 
-- Les racines des profils factices sont désormais hors du clone : `RC_CHECK_FIXTURES_ROOT` ou le dossier temporaire système. Un préflight refuse une base trop longue. En v8, un clone profond sous Windows (`LongPathsEnabled=0`) produisait 27 échecs trompeurs de mise à jour.
+- Les racines des profils factices sont désormais hors du clone : `RC_CHECK_FIXTURES_ROOT` ou le dossier temporaire système. Un préflight refuse une base trop longue et l'inscrit dans `summary.json` (`preflight_problem`), sans lancer d'étape. En v8, un clone profond sous Windows (`LongPathsEnabled=0`) produisait 27 échecs trompeurs de mise à jour.
 - `updater-from-v8` éprouve une vraie mise à jour d'une installation v8. Le paquet v8 est reconstitué octet pour octet depuis `tests/fixtures/v8/` (manifeste et fichiers RC propres à la v8), `tests/fixtures/v7/` et les dépendances identiques. Cas éprouvés : remplacement des seuls fichiers RC, dépendances intactes, édition locale refusée, interruption puis reprise, retour arrière vers les octets v8.
 - `package` vérifie aussi `scenarios-v9.json` et sa révision `scenarios-v9-r1.json` : empreintes épinglées, Q1–Q11 identiques à la v8, seul l'oracle de Q14 différent entre les deux, cas nouveaux jugeables.
 - Gelés : `rc_state.py`, `check_wave.py` et leurs 142 tests d'état. Aucun test existant n'a été retiré.
@@ -212,7 +212,7 @@ Ces résultats sont des observations exploratoires, pas une mesure de fiabilité
 - Aucune installation active ; découverte des six skills en conversation neuve non constatée.
 - Reprise runtime (réception d'un réveil, interruption et reprise du même titulaire) non qualifiée : distincte de l'épreuve de prompts.
 - `provenance.json` couvre toujours les fichiers écrits dans ce dépôt ; sa réduction aux copies vendored (C4) est différée.
-- Les cycles de jardinage, l'environnement `AGENTS.md` et les règles d'élagage n'ont pas encore été appliqués à un programme produit réel. Leur effet sur rc-alpha reste à observer à la prochaine vague.
+- Les cycles de jardinage, l'environnement `AGENTS.md` et les règles d'élagage n'ont pas encore été appliqués à un programme produit réel. Leur effet sur un projet réel reste à observer à la prochaine vague.
 - Les limites v8 et v7 ci-dessous restent valables pour le moteur d'état et l'outil de mise à jour.
 
 ## Version v8 acceptée localement (9 novembre 2026)

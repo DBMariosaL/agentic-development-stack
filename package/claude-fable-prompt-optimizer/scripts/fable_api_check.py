@@ -255,6 +255,7 @@ FEATURE_MARKERS: list[tuple[re.Pattern[str], tuple[str, ...]]] = [
         ("mid-conversation-output-config-2026-07-01",),
     ),
     (re.compile(r"\bfallbacks[\"']?\s*[:=]", re.I), ("server-side-fallback-2026-07-01",)),
+    (re.compile(r"tool_definition", re.I), ("inline-tools-2026-09-15",)),
     (
         re.compile(r"tool_addition|tool_removal", re.I),
         ("inline-tools-2026-09-15", "mid-conversation-tool-changes-2026-07-01"),

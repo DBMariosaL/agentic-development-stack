@@ -95,7 +95,7 @@
       "title": "Routage des filtres selon le destinataire direct",
       "skills": ["rc-prepare-socle-prompts", "gpt-prompt-optimizer", "claude-opus-prompt-optimizer", "unslop"],
       "proposals": ["A0", "P10"],
-      "situation": "Un champion Claude enfant d'un pilote GPT doit remettre un rapport, préparer un mandat pour un enfant Opus et écrire une note pour Lorenzo.",
+      "situation": "Un champion Claude enfant d'un pilote GPT doit remettre un rapport, préparer un mandat pour un enfant Opus et écrire une note pour le propriétaire.",
       "oracle": {
         "must": ["une passe gpt-prompt-optimizer sur la remise au parent", "une passe claude-opus-prompt-optimizer sur le mandat Opus", "une passe Unslop sur la note humaine", "exécute aussi les actions demandées"],
         "must_not": ["applique Unslop à la remise au parent", "repasse un filtre sur un livrable déjà filtré", "remplace l'action demandée par une réécriture de prompt"]

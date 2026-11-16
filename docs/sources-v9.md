@@ -7,7 +7,7 @@ La v9 s'appuie sur une source externe et sur le retour d'expérience de deux pro
 
 ## Constats qui motivent la v9
 
-- Du 1er au 10 novembre, rc-alpha gagne environ 1 400 lignes produit pour environ 20 600 lignes de tests. Plusieurs correctifs de 13 à 31 lignes arrivent avec 1 200 à 1 760 lignes de témoin. `docs/developpement` pèse plus de la moitié des octets suivis.
+- Du 1er au 10 novembre, l'un des deux projets gagne environ 1 400 lignes produit pour environ 20 600 lignes de tests. Plusieurs correctifs de 13 à 31 lignes arrivent avec 1 200 à 1 760 lignes de témoin. `docs/developpement` pèse plus de la moitié des octets suivis.
 - Environ trois fils sur quatre sont des revues ou des acceptations, avec des boucles jusqu'à R9. Deux défauts de parcours restent invisibles aux revues de delta jusqu'à la revue globale du 9 novembre, dont l'un est encore à confirmer sur appareil.
 - L'autonomie se perd surtout sur des attentes sans mécanisme de réveil, des règles bloquantes que l'agent s'est données lui-même, des lancements dans le mauvais projet, des accords Git non préparés et des décisions humaines non groupées avant une absence.
 - 253 scripts d'état à usage unique dans le dossier local, des tests nommés par vague, un minimum de tests « jamais abaissé » qui interdit l'élagage.

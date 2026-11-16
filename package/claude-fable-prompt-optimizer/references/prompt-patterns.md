@@ -114,7 +114,7 @@ Starts a subagent with a fresh context. It sees nothing of this conversation exc
 
 ## Subagent brief
 
-What a lead sends; the subagent sees nothing else [SDK]:
+What a lead sends. A non-fork subagent gets none of the lead's conversation, so the brief carries every input it needs; a fork inherits the conversation [SDK]:
 
 ```text
 Goal: [outcome] — needed because [what it enables].

@@ -9,7 +9,7 @@ Les sept dossiers sous `package/` sont les dossiers de skills complets. Selon le
 - Codex : `%USERPROFILE%\.codex\skills` ;
 - Claude Code : `%USERPROFILE%\.claude\skills`.
 
-Vérifier les chemins réellement utilisés par le client. Copier uniquement les sept dossiers, après contrôle de leurs empreintes et de l'absence de dossiers existants de même nom. Les quatre dépendances (`gpt-prompt-optimizer`, `claude-opus-prompt-optimizer`, `claude-fable-prompt-optimizer`, `unslop`) sont souvent déjà présentes dans un profil personnel : si une version existe déjà, suivre la procédure de mise à jour ci-dessous, qui ne remplace jamais une copie personnalisée.
+Vérifier les chemins réellement utilisés par le client. Copier uniquement les sept dossiers, après contrôle de leurs empreintes et de l'absence de dossiers existants de même nom. Contrôle des empreintes : `python -B tools/rc_update.py manifest --package package --out <fichier neuf>` doit produire un fichier identique à `manifest.json` ; la même commande sur le dossier de skills installé, après la copie, doit le produire aussi. Les quatre dépendances (`gpt-prompt-optimizer`, `claude-opus-prompt-optimizer`, `claude-fable-prompt-optimizer`, `unslop`) sont souvent déjà présentes dans un profil personnel : si une version existe déjà, suivre la procédure de mise à jour ci-dessous, qui ne remplace jamais une copie personnalisée.
 
 La prise en compte des skills par une nouvelle conversation doit ensuite être constatée dans le client concerné. Unslop reste en invocation explicite (`allow_implicit_invocation: false`).
 
@@ -22,6 +22,8 @@ Exemple de préflight sous PowerShell, avec une racine de profil explicitement c
 ```powershell
 python -B tools/rc_update.py preflight --previous-manifest "chemin/ancien-manifeste.json" --new-package package --new-manifest manifest.json --target "chemin/profil/skills" --plan-out "chemin/etat-neuf/plan.json"
 ```
+
+Le dossier du plan (`chemin/etat-neuf`) doit exister : le préflight le refuse sinon.
 
 Le manifeste précédent doit être celui de la version réellement installée : `tests/fixtures/v7/manifest.json` pour la v7 acceptée, `tests/fixtures/v8/manifest.json` pour la v8 acceptée, `tests/fixtures/v9/manifest.json` pour la v9 acceptée, `tests/fixtures/v9.1/manifest.json` pour la v9.1 acceptée, `tests/fixtures/v9.1.1/manifest.json` pour la v9.1.1 acceptée, `tests/fixtures/v9.1.2/manifest.json` pour la v9.1.2 (première version publique), `tests/fixtures/previous/release-manifest.json` pour la version du 31 octobre 2026. Ces fichiers identifient des versions ; ils ne détectent pas l'installation courante. Depuis la v10, les fixtures v7 à v9.1.1 et celle du 31 octobre portent « RC » à la place du nom du projet d'origine : leurs manifestes ne décrivent plus une installation issue de la lignée privée, qui se met à jour avec son manifeste d'origine, hors de ce dépôt.
 
@@ -41,17 +43,17 @@ Transitions acceptées : `rc-core` vers `rc-core`, `rc-core` vers `rc-core-with-
 
 - Skills RC : règles inchangées depuis la v7. Copie de la version précédente : mise à jour ; déjà à jour : rien ; fichier personnalisé : conflit ; fichiers manquants ou versions mélangées : profil refusé.
 - Dépendances : absente ou dossier vide : installation (`install`) ; identique : aucune écriture (`already-new`) ; copie exacte de la version précédente du manifeste : mise à jour ; personnalisée, partielle ou dossier existant sans fichier géré : conflit, sans écriture.
-- Une ancienne copie de `claude-fable-prompt-optimizer` peut déjà exister dans un profil : la mise à jour depuis une version à trois dépendances la classe en conflit sans l'écraser ; écarter ce dossier hors de la racine de skills avant le préflight pour que la version du paquet soit installée.
+- Une ancienne copie de `claude-fable-prompt-optimizer` peut déjà exister dans un profil : la mise à jour depuis une version à trois dépendances la classe en conflit sans l'écraser ; pour installer la version du paquet, son propriétaire écarte lui-même ce dossier hors de la racine de skills avant le préflight. Sans cet accord, la copie reste en place et la migration reste partielle.
 - Fichiers inconnus dans un dossier de skill : conservés (`preserve-unknown`). Dossiers hors de la distribution : ni lus ni modifiés.
 
-Un conflit bloque le plan. `apply --allow-blocked` met à jour les seuls skills non bloqués. Relire le plan, ses conflits, les fichiers inconnus et les actions prévues avant application. L'outil sauvegarde les octets remplacés dans le dossier d'état et refuse les états inattendus ou un plan périmé.
+Un conflit bloque le plan. `apply --allow-blocked` met à jour les seuls skills non bloqués : les sorties d'`apply` et de `verify` listent alors les skills non migrés (`not_migrated`), et `migration_complete` reste faux tant qu'il en reste, même quand `ok` est vrai. Relire le plan, ses conflits, les fichiers inconnus et les actions prévues avant application. L'outil sauvegarde les octets remplacés dans le dossier d'état et refuse les états inattendus ou un plan périmé.
 
 ```powershell
 python -B tools/rc_update.py apply --plan "chemin/etat-neuf/plan.json" --state-dir "chemin/etat-neuf"
 python -B tools/rc_update.py verify --plan "chemin/etat-neuf/plan.json"
 ```
 
-Une issue partielle se traite avec `resume` sur le même plan et le même dossier d'état. `rollback` restaure l'état précédent si les contrôles le permettent : il retire les fichiers créés par le plan et les dossiers qu'il a créés et consignés, s'ils sont vides. Un fichier déposé par un tiers dans une dépendance installée, ou une édition postérieure, fait refuser le retour arrière sans rien supprimer. Conserver plan, sauvegardes, journaux et rapports ; reconstater l'état après une erreur avant de relancer.
+Une issue partielle se traite avec `resume` sur le même plan et le même dossier d'état. `rollback` restaure l'état précédent si les contrôles le permettent : il retire les fichiers que le plan a lui-même publiés, reconnus à l'identité de fichier consignée au journal, et les dossiers qu'il a créés et consignés, s'ils sont vides. Un fichier sans cette preuve, même identique au paquet, ou une édition postérieure, fait refuser le retour arrière sans rien supprimer. Une destination à plusieurs liens physiques fait refuser `apply`, `resume` et `rollback` avant toute écriture. Conserver plan, sauvegardes, journaux et rapports ; reconstater l'état après une erreur avant de relancer.
 
 ### Formats et compatibilité
 

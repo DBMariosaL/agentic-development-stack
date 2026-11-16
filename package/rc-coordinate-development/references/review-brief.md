@@ -16,10 +16,11 @@ Exigences du mandat, puis `base..candidat` et son empreinte (`rc_footprint.py`, 
    - commentaire : tout, sauf un pourquoi non évident imposé par une contrainte externe. Une contrainte écrite (« ne pas retirer ») s'encode en type, test ou contrôle, puis le commentaire part.
 3. Que retire le diff qu'une exigence ou un appelant demande encore ?
 4. Le dépôt garde-t-il une seule façon de faire la chose ?
+5. Quel écrit du dépôt (document, `AGENTS.md`, note de reprise) le candidat laisse-t-il faux ou contredit-il ? Il se corrige ou se supprime dans le candidat.
 
 ## Constats
 
-- Bloquant seulement si le cas visé est faux, ou si un appelant réel rencontrera le défaut dans la portée. Autre chemin, cas rare, petit coût, style : non bloquant.
+- Bloquant seulement si le cas visé est faux, si un critère explicite du mandat n'est pas tenu, même sur un cas rare, ou si un appelant réel rencontrera le défaut dans la portée. Autre chemin, cas rare hors critère, petit coût, style : non bloquant.
 - Un constat bloquant porte sa preuve : commande, sortie et attendu, ou lecture de source citée. Sans preuve, range-le sous « écarté », sans demander de retouche.
 - Propose le correctif qui retire ou resserre. Ne demande ni test, ni garde, ni compatibilité que l'intention n'exige pas.
 - Format, identifiants stables et issues : [rapport de revue](program-contract.md#rapport-de-revue).
