@@ -44,7 +44,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/SKILL.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "4a0f29578d45965f812896c59aedc7604f747d9002a1f49327fe5443bbe3da7b",
-      "sha256": "cf9aab0f7d693b0c3d16afd12205f7896d7b4aa398a16eb018acc2407e87e1dd",
+      "sha256": "a285c7c929d7b34f070fe8edf78dc83292ecea47841c72e5ded7033302bf5928",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/SKILL.md",
@@ -212,7 +212,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "31d6c3ef9ebcb236e54bd2c155ef2f7d7861985046ab3444286adf948a0f694d",
+      "sha256": "e9bb147234c3f5458294996236f32ec7906c3ea9c577ff99f017c30d72708ce1",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -1594,7 +1594,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "README.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "61d499802761a72e9273a2a894efe0ba6b08c80100d3561771a6bdc4c7acc355",
-      "sha256": "a8a808fcacf1a06ba1e9bffdb7d78d5cbcbb4ca49659965de101796e90f92a8a",
+      "sha256": "90d5a0599c5beae69e4b271954b7e679f05e576bcba569762afa62d939dc7347",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "README.md",
@@ -1646,19 +1646,11 @@
       "adaptation": "v10 creation"
     },
     {
-      "path": "package/rc-coordinate-development/references/senior.md",
-      "source_group": "rc-stack-v10-20261116",
-      "source": "created for v10",
-      "source_sha256": null,
-      "sha256": "dccd30605e73097a3bb028e4153a6900d424ed275b9d79623d86aaa7af7d78d4",
-      "adaptation": "v10 creation"
-    },
-    {
       "path": "package/rc-coordinate-development/references/host-t3.md",
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "606fc91c3d8798bfde7b2837794e7283964e999d25157fbf19a351991d53fa4b",
+      "sha256": "9c4f7c0048b1f3a091d0517d571c9b9e9b98534a19cfeaba0b7288604c603f5d",
       "adaptation": "v10 creation"
     },
     {

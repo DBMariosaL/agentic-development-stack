@@ -17,7 +17,7 @@ Statut : **candidate**. Aucune installation dans un profil actif ; deux essais c
 - Optimiseur Fable : `claude-fable-prompt-optimizer`, repris du profil du propriétaire (version Fable 5.1 du 3 septembre 2026), est mis à jour pour Fable 5.2 d'après la documentation d'Anthropic lue le 16 novembre et devient la quatrième dépendance (distribution `rc-core-with-dependencies-2`). Le contrat d'état y route les prompts destinés à Fable et les remises à un parent Fable. Deux auteurs Opus 5.5, puis deux revues GPT-6.1 Sol (effort `high`) sur le candidat `90d7c41` :
   - outil de mise à jour, tests et retrait du nom : aucune exigence manquée, quatre contre-épreuves par mutation, 299 tests. Une phrase périmée de cette page est corrigée ;
   - faits du skill contre la documentation : 87 affirmations relevées, 79 confirmées, 8 à resserrer, dont deux bloquantes vérifiées par la racine sur les pages citées. Un échec du contrôle de préfixe ne donne pas d'erreur sur Message Batches ; le routage vers le modèle de repli n'est ni permanent ni garanti. Les huit sont corrigées ; la revue n'était pas exhaustive.
-- Senior consulté : rôle optionnel écrit dans `references/senior.md`, puis éprouvé par l'essai ci-dessous. Non relu par un réviseur indépendant.
+- Pour les deux essais ci-dessous, un rôle de senior consulté a été écrit : un modèle plus capable que le pilote, appelé à des points fixes pour décider sans produire. Il a été retiré du paquet après ces essais (configuration retenue, plus bas).
 
 ### Essai comparatif de pilotes (16 novembre 2026)
 
@@ -38,7 +38,7 @@ Un petit programme (journal d'événements en Python : sélection par période, 
 
 - Les deux bras livrent un produit accepté, un état valide et une remise que la racine a trouvée exacte. Aucun n'a obéi au document périmé ; les deux ont inscrit une décision humaine sur son sort.
 - A est plus juste : son pilote a écrit une sonde, trouvé le défaut du retour chariot et l'a fait corriger. B est plus sobre : moitié moins de tests, un produit plus court, mais deux écarts au mandat laissés en réserve.
-- Les deux consultations du senior ont trouvé des défauts réels (un test d'export qui ne pouvait pas échouer sous Windows, une justification inexacte). Il a aussi conseillé de laisser en réserve un écart que quatre lignes corrigeaient : son brief dit maintenant qu'un écart prouvé et petit se corrige avant l'acceptation.
+- Les deux consultations du senior ont trouvé des défauts réels (un test d'export qui ne pouvait pas échouer sous Windows, une justification inexacte). Il a aussi conseillé de laisser en réserve un écart que quatre lignes corrigeaient.
 - Moteur : les deux pilotes relèvent les mêmes frictions (une décision en attente doit suspendre un résultat, ce qui fabrique un résultat d'attente et laisse le programme en `waiting_human` ; `candidate.ref` exigé sans être documenté ; valeurs par défaut absentes à l'ajout d'un résultat ; `launch_ready` à basculer à la main). Défaut constaté en B : `write` accepte un chemin avec `/` et crée des clés parasites à la racine, que `check` déclare valides.
 
 Corrections du moteur tirées de cet essai : `write` et `init` refusent une clé que le format ne connaît pas, et `check` signale celles qu'un fichier porte déjà ; une décision en attente peut ne suspendre aucun résultat et n'empêche plus `completed` ; `candidate.ref` est documenté ; l'ajout d'un résultat ou d'un lot reçoit les valeurs par défaut d'`init` ; le moteur remet lui-même `launch_ready` à faux quand le contexte de lancement change. Auteur Opus 5.5, revue GPT-6.1 Sol sur le candidat `ef9f4e3` : huit exigences tenues, six mutations rejouées, un constat bloquant préexistant corrigé par la racine (une vague passait `launched` sans que `launch_ready` ait été remis à vrai ; la transition l'exige maintenant).
@@ -67,11 +67,29 @@ Même dispositif, paquet gelé au commit `5023685` (moteur corrigé), programme 
 - Les deux bras livrent un produit accepté et un état valide, sans clé parasite. Aucun n'a tranché la contradiction ni cru la note héritée. Le moteur corrigé ne refuse plus qu'une commande par bras, contre six et sept au premier essai.
 - A est de nouveau plus juste. Sa revue de candidat a trouvé un défaut qui corrompt le journal ; la racine l'a reproduit dans le produit de B, où ni deux tours de revue ni trois consultations du senior ne l'ont vu. Les revues de B ont trouvé un autre défaut réel (un CSV au guillemet jamais fermé), que le produit de A n'avait pas.
 - B est de nouveau plus sobre : une vague au lieu de trois, moitié moins de tests et de commandes d'état. Le senior coûte cher par consultation, parce qu'il relit tout à froid.
-- Le pilote de B a fait tenir la contre-revue documentaire du mandat par le senior, de la même famille que l'auteur, là où A l'a confiée à un réviseur d'une autre famille. `senior.md` dit maintenant que l'avis ne remplace pas cette contre-revue.
+- Le pilote de B a fait tenir la contre-revue documentaire du mandat par le senior, de la même famille que l'auteur, là où A l'a confiée à un réviseur d'une autre famille.
 - Un réviseur a écrit ses reproductions hors du dossier autorisé : le brief de revue demande maintenant l'emplacement au pilote.
 - Frictions restantes du moteur, relevées par les deux pilotes : trois ou quatre commandes par acteur lancé (intention, résolution, événement, écriture), et une vague entière pour une revue seule.
 
 Sur deux programmes, le pilote Fable livre chaque fois le produit le plus juste, et le pilote Opus avec senior le plus sobre. Deux essais sur de petits programmes ne font pas une mesure, et le coût propre des pilotes reste inconnu.
+
+### Suites des deux essais (16 novembre 2026)
+
+**Revue des tests.** Le pilote Fable produisait environ deux fois plus de tests que le pilote Opus. Trois réviseurs GPT-6.1 Sol (effort `high`) ont classé les tests ajoutés, selon le brief de revue des tests écrit pour l'occasion : ils cassent chaque comportement demandé et relèvent les tests qui échouent.
+
+| Produit | Tests classés | Indispensables | Débattables | Inutiles | Casses détectées par la suite |
+|---|---|---|---|---|---|
+| Premier essai, pilote Fable | 24 | 18 | 6 | 0 | 41 sur 41 |
+| Second essai, pilote Fable | 23 | 20 | 2 | 1 | 45 sur 45 |
+| Second essai, pilote Opus | 12 | 12 | 0 | 0 | 41 sur 45 |
+
+Le volume de tests du pilote Fable n'était donc pas du superflu : un test inutile sur quarante-sept, huit débattables qui doublent en partie un autre test. La suite la plus courte ne contient rien d'inutile mais laisse passer quatre casses, dont une migration devenue non atomique. Le brief est inscrit dans le paquet et l'empreinte y renvoie ; le seuil du signal n'a pas été resserré, le volume s'étant révélé un mauvais indice d'inutilité. Les rapports n'ont pas été rejoués par la racine.
+
+**Retour d'acteur en une commande.** `write --resolve-intent --record-event` reçoit le signal, résout l'intention et applique l'événement en une seule écriture gardée, là où un pilote enchaînait `event`, `intent resolve` et une écriture. Auteur Opus 5.5, cinq cas dont chacun échoue quand sa règle est cassée ; les commandes existantes ne changent pas.
+
+**Configuration retenue.** Le propriétaire retient le pilote Fable 5.2, avec des champions Opus 5.5 et des réviseurs GPT-6.1 Sol. Le rôle de senior consulté par un pilote Opus est retiré du paquet : sur les deux essais il a donné le produit le plus sobre mais le moins juste, pour un coût par consultation voisin de celui d'un champion. Le paquet reste écrit par rôle ; c'est le mandat qui nomme les modèles.
+
+**Annexe T3 Code.** `references/host-t3.md` dit quel outil de l'hôte sert chaque geste de la boucle. Elle vient de la lecture des descriptions d'outils et des incidents des deux essais ; aucun pilote ne l'a encore lue en conduite.
 
 Limites :
 

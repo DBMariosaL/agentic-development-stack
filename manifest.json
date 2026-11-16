@@ -254,8 +254,8 @@
     },
     {
       "path": "rc-coordinate-development/SKILL.md",
-      "sha256": "cf9aab0f7d693b0c3d16afd12205f7896d7b4aa398a16eb018acc2407e87e1dd",
-      "bytes": 3540
+      "sha256": "a285c7c929d7b34f070fe8edf78dc83292ecea47841c72e5ded7033302bf5928",
+      "bytes": 3467
     },
     {
       "path": "rc-coordinate-development/agents/openai.yaml",
@@ -274,8 +274,8 @@
     },
     {
       "path": "rc-coordinate-development/references/host-t3.md",
-      "sha256": "606fc91c3d8798bfde7b2837794e7283964e999d25157fbf19a351991d53fa4b",
-      "bytes": 3516
+      "sha256": "9c4f7c0048b1f3a091d0517d571c9b9e9b98534a19cfeaba0b7288604c603f5d",
+      "bytes": 3524
     },
     {
       "path": "rc-coordinate-development/references/operating-loop.md",
@@ -291,11 +291,6 @@
       "path": "rc-coordinate-development/references/review-brief.md",
       "sha256": "b823a74c0e8622ca75598ad024af711cd54c7fa84dc92ef79d12c49998a447e4",
       "bytes": 2408
-    },
-    {
-      "path": "rc-coordinate-development/references/senior.md",
-      "sha256": "dccd30605e73097a3bb028e4153a6900d424ed275b9d79623d86aaa7af7d78d4",
-      "bytes": 3832
     },
     {
       "path": "rc-coordinate-development/references/separate-relay.md",
@@ -368,5 +363,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "9c34500c8746d74ab9f74526c09b88e6e7c3a809002d8527134b3d6ef9164200"
+  "digest": "35b63e0bfaa2f422d5a0633f15f202c93b9e8fa27864fc887910efd20d9429b5"
 }

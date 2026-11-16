@@ -7,7 +7,7 @@ Lu par le pilote quand sa session tourne dans T3 Code. Ce fichier dit quel outil
 | Geste de la boucle | Outil | À savoir |
 |---|---|---|
 | Lancer un champion ou un réviseur | `delegate_task` | Un fil enfant que l'humain peut suivre. Il permet un autre fournisseur (`orchestrator_capabilities` donne fournisseurs, modèles et options, une fois par fil). Sa fin réveille ton fil : tu peux finir ton tour au lieu d'attendre. |
-| Consulter un acteur court en lecture seule (senior) | sous-agent natif de ton fournisseur, au premier plan | Il ne voit que ton brief et rend seulement son message final. |
+| Lancer un acteur court de ton fournisseur, en lecture seule | sous-agent natif de ton fournisseur, au premier plan | Il ne voit que ton brief et rend seulement son message final. |
 | Reprendre un acteur pour un second tour | `t3_thread_send` vers son fil (sous-agent natif : l'outil de message de ton fournisseur) | L'acteur garde son contexte : une correction coûte moins qu'un acteur neuf. Vers un fil terminé, l'envoi ouvre une tâche nouvelle et rend son `taskId`. |
 | Constater ce qu'un acteur a fait | `t3_thread_read` (`messages` ou `activity`), `task_status` après son retour | `recentRuns` donne le modèle réellement exécuté (`executedModel`), que le reçu de lancement ne donne pas encore. |
 | Arrêter un acteur | `task_cancel` | Jamais une interruption du fil enfant. |
