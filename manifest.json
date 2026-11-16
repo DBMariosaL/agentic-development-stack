@@ -254,8 +254,8 @@
     },
     {
       "path": "rc-coordinate-development/SKILL.md",
-      "sha256": "66a27847eaa1428b97daa8afe2553305b73f30cf0a1d50c39419bf18809f5ed7",
-      "bytes": 3401
+      "sha256": "1d30646846488eaa644eec51ee68575b724668105ae26818d4d14120674b9059",
+      "bytes": 3474
     },
     {
       "path": "rc-coordinate-development/agents/openai.yaml",
@@ -286,6 +286,11 @@
       "path": "rc-coordinate-development/references/review-brief.md",
       "sha256": "87c63b9fcaa3d9564fea5e5ed16d1107e8965f8233e31200e60320498a586f54",
       "bytes": 2297
+    },
+    {
+      "path": "rc-coordinate-development/references/senior.md",
+      "sha256": "7614eccce9e2a76c6fdb6027c9880ce893da7ba8c2c22afcf49e9afe606dc75e",
+      "bytes": 3436
     },
     {
       "path": "rc-coordinate-development/references/separate-relay.md",
@@ -353,5 +358,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "3e47c83e510399a4773d6d16e4629b7bcfa10982e5b965c7ba5c39ddc801969f"
+  "digest": "4b22116f6f48ee646253d3c3779d01b15b3802df7eab8efaa11907a730c0604d"
 }

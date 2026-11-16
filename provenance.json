@@ -44,7 +44,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/SKILL.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "4a0f29578d45965f812896c59aedc7604f747d9002a1f49327fe5443bbe3da7b",
-      "sha256": "66a27847eaa1428b97daa8afe2553305b73f30cf0a1d50c39419bf18809f5ed7",
+      "sha256": "1d30646846488eaa644eec51ee68575b724668105ae26818d4d14120674b9059",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/SKILL.md",
@@ -212,7 +212,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "4c8c766d3beff6708f734090831f98de4afeefe48a15e4c4509b4accff5180f4",
+      "sha256": "38fa476a41f5de5ab53813822f7aeb24afb5afaa59c7edfc4977da6c2d9a8bfb",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -1619,6 +1619,14 @@
       "source": "created for v10",
       "source_sha256": null,
       "sha256": "87c63b9fcaa3d9564fea5e5ed16d1107e8965f8233e31200e60320498a586f54",
+      "adaptation": "v10 creation"
+    },
+    {
+      "path": "package/rc-coordinate-development/references/senior.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "created for v10",
+      "source_sha256": null,
+      "sha256": "7614eccce9e2a76c6fdb6027c9880ce893da7ba8c2c22afcf49e9afe606dc75e",
       "adaptation": "v10 creation"
     },
     {
