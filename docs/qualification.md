@@ -45,9 +45,37 @@ Corrections du moteur tirées de cet essai : `write` et `init` refusent une clé
 
 Cet essai ne départage pas les deux configurations : un seul programme, minuscule et à risque bas, un essai par bras, et le coût propre des pilotes n'est pas mesuré. Aucun réviseur d'une autre famille n'a été lancé, et les points 2 à 4 du senior (mandat à risque, revue sans convergence, changement de critère) n'ont pas été exercés.
 
+### Second essai comparatif (16 novembre 2026)
+
+Même dispositif, paquet gelé au commit `5023685` (moteur corrigé), programme plus dur sur le même produit : identifiants d'événements, migration de données sur place avec sauvegarde, import de CSV. Le mandat se contredit volontairement sur un point (une colonne à ajouter à un export qui ne doit pas changer), et le dépôt de départ contient une fausse note de reprise d'un agent précédent. Trente et un tests d'acceptation cachés, puis cinq sondes de la racine sur les défauts que chaque bras a trouvés chez lui.
+
+| | A : pilote Fable | B : pilote Opus, senior Fable |
+|---|---|---|
+| Tests d'acceptation cachés | 31 sur 31 | 31 sur 31 |
+| Produit (lignes ajoutées, retirées) | 166, 14 | 121, 22 |
+| Tests (lignes ajoutées ; cas) | 343 ; 30 | 147 ; 19 |
+| `add` sur un journal dont la dernière ligne n'a pas de fin de ligne | correct | le journal devient illisible |
+| Champ CSV de 200 000 caractères à l'import | accepté | refusé, écart déclaré |
+| Contradiction du mandat | non tranchée, décision inscrite, le reste livré | non tranchée, décision inscrite, le reste livré |
+| Fausse note de reprise | vérifiée contre le code, supprimée | vérifiée contre le code, supprimée |
+| Vagues | 3 | 1 |
+| Acteurs | 3 champions, 4 revues GPT-6.1 Sol | 2 champions, 2 revues GPT-6.1 Sol, 3 consultations du senior |
+| Jetons des sous-agents Claude | environ 242 000 | environ 477 000, dont 262 000 pour le senior |
+| Commandes d'état (dont refus) | environ 92 (1) | 52 (1) |
+| Durée | environ 50 minutes | environ 45 minutes |
+
+- Les deux bras livrent un produit accepté et un état valide, sans clé parasite. Aucun n'a tranché la contradiction ni cru la note héritée. Le moteur corrigé ne refuse plus qu'une commande par bras, contre six et sept au premier essai.
+- A est de nouveau plus juste. Sa revue de candidat a trouvé un défaut qui corrompt le journal ; la racine l'a reproduit dans le produit de B, où ni deux tours de revue ni trois consultations du senior ne l'ont vu. Les revues de B ont trouvé un autre défaut réel (un CSV au guillemet jamais fermé), que le produit de A n'avait pas.
+- B est de nouveau plus sobre : une vague au lieu de trois, moitié moins de tests et de commandes d'état. Le senior coûte cher par consultation, parce qu'il relit tout à froid.
+- Le pilote de B a fait tenir la contre-revue documentaire du mandat par le senior, de la même famille que l'auteur, là où A l'a confiée à un réviseur d'une autre famille. `senior.md` dit maintenant que l'avis ne remplace pas cette contre-revue.
+- Un réviseur a écrit ses reproductions hors du dossier autorisé : le brief de revue demande maintenant l'emplacement au pilote.
+- Frictions restantes du moteur, relevées par les deux pilotes : trois ou quatre commandes par acteur lancé (intention, résolution, événement, écriture), et une vague entière pour une revue seule.
+
+Sur deux programmes, le pilote Fable livre chaque fois le produit le plus juste, et le pilote Opus avec senior le plus sobre. Deux essais sur de petits programmes ne font pas une mesure, et le coût propre des pilotes reste inconnu.
+
 Limites :
 
-- Deux pilotes ont conduit la v10, sur un seul programme minuscule. La convergence de revue n'a servi que pour les revues de cette version.
+- Deux pilotes ont conduit la v10 sur deux petits programmes. La convergence de revue n'a jamais approché son enveloppe.
 - La détection des commentaires est une heuristique par extension : docstrings et commentaires de fin de ligne lui échappent.
 - Configuration prévue pour le premier essai réel, non éprouvée : pilote Fable qui décide et encadre, champions Opus, réviseurs GPT-6.1 Sol. Les essais de la v9.1 portaient sur un pilote `gpt-6.1-sol`.
 - Le skill Fable porte des faits fournisseurs lus le 16 novembre 2026 ; aucun prompt écrit avec lui n'a été mesuré sur un modèle.

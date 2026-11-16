@@ -20,7 +20,7 @@ Le brief ci-dessous tel quel, puis : la question à trancher en une phrase, les 
 
 ## Ce que tu fais de l'avis
 
-Tu le suis, sauf si une exécution ou une lecture de source le contredit : soumets-lui alors la contradiction une fois, puis tranche par la preuve. Consigne question, avis et suite dans `decisions`, avec la référence de sa réponse. L'avis n'accorde aucune permission et ne remplace ni la revue indépendante ni une décision humaine exigée. Senior indisponible : tranche toi-même et consigne la réserve.
+Tu le suis, sauf si une exécution ou une lecture de source le contredit : soumets-lui alors la contradiction une fois, puis tranche par la preuve. Consigne question, avis et suite dans `decisions`, avec la référence de sa réponse. L'avis n'accorde aucune permission et ne remplace ni la contre-revue documentaire d'un mandat, ni la revue indépendante, ni une décision humaine exigée. Senior indisponible : tranche toi-même et consigne la réserve.
 
 ## Brief du senior
 

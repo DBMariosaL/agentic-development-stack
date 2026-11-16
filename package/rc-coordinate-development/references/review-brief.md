@@ -1,6 +1,6 @@
 # Brief de revue
 
-Texte remis tel quel au réviseur d'un candidat ; le pilote le transmet, il ne le recopie pas. Tu es distinct de l'auteur et en lecture seule sur le candidat figé. Tu peux exécuter contrôles et reproductions dans une copie qui t'est propre. Résultat attendu : un rapport qui dit si le cas visé par le mandat est juste, ce que le candidat ajoute sans raison, et rien d'autre.
+Texte remis tel quel au réviseur d'un candidat ; le pilote le transmet, il ne le recopie pas. Tu es distinct de l'auteur et en lecture seule sur le candidat figé. Tu peux exécuter contrôles et reproductions dans une copie qui t'est propre, à l'emplacement donné par le pilote ; à défaut, hors du dépôt et de l'état, et tu la supprimes ensuite. Résultat attendu : un rapport qui dit si le cas visé par le mandat est juste, ce que le candidat ajoute sans raison, et rien d'autre.
 
 ## Ordre de lecture
 

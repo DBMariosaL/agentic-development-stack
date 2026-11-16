@@ -284,13 +284,13 @@
     },
     {
       "path": "rc-coordinate-development/references/review-brief.md",
-      "sha256": "87c63b9fcaa3d9564fea5e5ed16d1107e8965f8233e31200e60320498a586f54",
-      "bytes": 2297
+      "sha256": "b823a74c0e8622ca75598ad024af711cd54c7fa84dc92ef79d12c49998a447e4",
+      "bytes": 2408
     },
     {
       "path": "rc-coordinate-development/references/senior.md",
-      "sha256": "ec27cc4a68fe6bf980492c08e82238b7d2e6c5cbb26e1b95b678db629591f8c6",
-      "bytes": 3786
+      "sha256": "dccd30605e73097a3bb028e4153a6900d424ed275b9d79623d86aaa7af7d78d4",
+      "bytes": 3832
     },
     {
       "path": "rc-coordinate-development/references/separate-relay.md",
@@ -358,5 +358,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "77a10ba500ecbebc61db9ff3c92fdbb5df209ea8ea62ce5c0770bd08fdd43a55"
+  "digest": "6dc01dd23da95c294f7622394b775c36ca67706ded556302ffe5370974823b4e"
 }

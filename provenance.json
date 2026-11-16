@@ -212,7 +212,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "36d14e793639015d42d754c51301be5fac8e4699ed19d296685edd6e2f9686cd",
+      "sha256": "ab2c8fafcb5e18d0c03a2002914c0c8f0d5d5b3d762a44a1f65d131ce702cf1a",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -1642,7 +1642,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "87c63b9fcaa3d9564fea5e5ed16d1107e8965f8233e31200e60320498a586f54",
+      "sha256": "b823a74c0e8622ca75598ad024af711cd54c7fa84dc92ef79d12c49998a447e4",
       "adaptation": "v10 creation"
     },
     {
@@ -1650,7 +1650,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "ec27cc4a68fe6bf980492c08e82238b7d2e6c5cbb26e1b95b678db629591f8c6",
+      "sha256": "dccd30605e73097a3bb028e4153a6900d424ed275b9d79623d86aaa7af7d78d4",
       "adaptation": "v10 creation"
     },
     {
