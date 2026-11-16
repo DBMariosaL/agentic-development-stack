@@ -121,18 +121,18 @@
     },
     {
       "path": "package/rc-coordinate-development/scripts/rc_state.py",
-      "source_group": "rc-stack-generic-v9.1.2-20261112",
-      "source": "package/rc-coordinate-development/scripts/rc_state.py (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
-      "source_sha256": "8bb47630d09f197f52a7cb0ae6e216092da5d5643530b5b043ededa5f1ca2b81",
-      "sha256": "b9057d7c0d1968d7588d08a9ec178532a0a87ede7df54d4c897d1ab8a0cfa4e5",
-      "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/rc-coordinate-development/scripts/rc_state.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "b9057d7c0d1968d7588d08a9ec178532a0a87ede7df54d4c897d1ab8a0cfa4e5",
+      "sha256": "95b2d8b08a50ae1ac52b2406f2ca0e7a54f54d014515cb1bd59467b3295bab84",
+      "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/scripts/rc_state.py",
-        "source_group": "rc-stack-v9.1.1-20261111",
-        "source": "package/rc-coordinate-development/scripts/rc_state.py (v9.1, commit ab6bba737a439ae89ddba9a58faf5b3e10f9d647) edited for v9.1.1",
-        "source_sha256": "60d7c45950efa5e8e177056937da13b17517e4c2091d3eeac5246993363deebb",
-        "sha256": "8bb47630d09f197f52a7cb0ae6e216092da5d5643530b5b043ededa5f1ca2b81",
-        "adaptation": "v9.1.1 edit"
+        "source_group": "rc-stack-generic-v9.1.2-20261112",
+        "source": "package/rc-coordinate-development/scripts/rc_state.py (v9.1.1, commit b12144dc43923e75e777f9fa4d6baf1ec41c6bea)",
+        "source_sha256": "8bb47630d09f197f52a7cb0ae6e216092da5d5643530b5b043ededa5f1ca2b81",
+        "sha256": "b9057d7c0d1968d7588d08a9ec178532a0a87ede7df54d4c897d1ab8a0cfa4e5",
+        "adaptation": "generic wording, documentation or v9.1.1 update regression coverage; no engine behaviour change"
       }
     },
     {
@@ -212,7 +212,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "7c9def54efb1e56aa59ec644079ff1e6cd6f1e83ce8f73176d807f26ef82cd8f",
+      "sha256": "5b975e90a74bc371b9003f394fb8b6109b8c72623a85040fe14f99f9b784b7ab",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -281,11 +281,19 @@
     },
     {
       "path": "tests/state/test_rc_state.py",
-      "source_group": "developpement-stack-autonome-20261104",
-      "source": "correction-ar3/tests/test_rc_state.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tests/state/test_rc_state.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "7b97d541a1bb68100ec1c8ec8bd98728a939f2ca2c7cca87d06dc9d88b2f9d53",
-      "sha256": "7b97d541a1bb68100ec1c8ec8bd98728a939f2ca2c7cca87d06dc9d88b2f9d53",
-      "adaptation": "byte-identical"
+      "sha256": "cb16929c042a813c1aa61f6c47b2f3e4d294108f328870917d040b1923595e11",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "tests/state/test_rc_state.py",
+        "source_group": "developpement-stack-autonome-20261104",
+        "source": "correction-ar3/tests/test_rc_state.py",
+        "source_sha256": "7b97d541a1bb68100ec1c8ec8bd98728a939f2ca2c7cca87d06dc9d88b2f9d53",
+        "sha256": "7b97d541a1bb68100ec1c8ec8bd98728a939f2ca2c7cca87d06dc9d88b2f9d53",
+        "adaptation": "byte-identical"
+      }
     },
     {
       "path": "tests/state/test_rc_state_ar1.py",
@@ -313,11 +321,19 @@
     },
     {
       "path": "tests/state/test_rc_state_revue1.py",
-      "source_group": "developpement-stack-autonome-20261104",
-      "source": "correction-ar3/tests/test_rc_state_revue1.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tests/state/test_rc_state_revue1.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "42cd6059a98a0424a7a351c83892eb297bf8637a2da0f5d961534c0f37d9c02f",
-      "sha256": "42cd6059a98a0424a7a351c83892eb297bf8637a2da0f5d961534c0f37d9c02f",
-      "adaptation": "byte-identical"
+      "sha256": "b3decd3f0d99ceb1cc56248a1d4620e6930b8cb6e8b28789f1c2e08ee92fff83",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "tests/state/test_rc_state_revue1.py",
+        "source_group": "developpement-stack-autonome-20261104",
+        "source": "correction-ar3/tests/test_rc_state_revue1.py",
+        "source_sha256": "42cd6059a98a0424a7a351c83892eb297bf8637a2da0f5d961534c0f37d9c02f",
+        "sha256": "42cd6059a98a0424a7a351c83892eb297bf8637a2da0f5d961534c0f37d9c02f",
+        "adaptation": "byte-identical"
+      }
     },
     {
       "path": "tests/state/test_rc_state_revue2.py",
@@ -524,7 +540,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/check.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
-      "sha256": "de067c8a7ef14cfde7886b7bded6e92168cc92191c8851d56b562b709249d694",
+      "sha256": "1a9641bf0c05e8e6d586ad7b2f261a1a06ca90c50cde70daf9c9d75a5e7c3b74",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/check.py",
@@ -1226,7 +1242,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/engine.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "897f82d2b8b0f6b25fc25c3fb46ef4de77f275c9a9f0cd1a7cca05ba1ee1390c",
-      "sha256": "4d98bd0e3e291c9d1c6fcf8b6cf8a7854fab36a61caba1678a6058618b85ad12",
+      "sha256": "08c880c2a3feb119db5677d3cd38b03e16d5fde2cf147aa8d0d0679d19821521",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/engine.md",
@@ -1383,11 +1399,19 @@
     },
     {
       "path": "tests/state/test_rc_state_v91.py",
-      "source_group": "rc-stack-v9.1.1-20261111",
-      "source": "tests/state/test_rc_state_v91.py (v9.1, commit ab6bba737a439ae89ddba9a58faf5b3e10f9d647) edited for v9.1.1",
-      "source_sha256": "b11bec664ab9bb64854e8da293c5fec64848286d039661178b181ed36ad30466",
-      "sha256": "1cee85a045755531a335c94f9e644713694774472690cad802f5f7dc7ec96f1e",
-      "adaptation": "v9.1.1 edit"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tests/state/test_rc_state_v91.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "1cee85a045755531a335c94f9e644713694774472690cad802f5f7dc7ec96f1e",
+      "sha256": "9f5f248b018f40b665da1b594af437fea80c5370f53b03a871a1153bffdfa249",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "tests/state/test_rc_state_v91.py",
+        "source_group": "rc-stack-v9.1.1-20261111",
+        "source": "tests/state/test_rc_state_v91.py (v9.1, commit ab6bba737a439ae89ddba9a58faf5b3e10f9d647) edited for v9.1.1",
+        "source_sha256": "b11bec664ab9bb64854e8da293c5fec64848286d039661178b181ed36ad30466",
+        "sha256": "1cee85a045755531a335c94f9e644713694774472690cad802f5f7dc7ec96f1e",
+        "adaptation": "v9.1.1 edit"
+      }
     },
     {
       "path": "docs/campagne-v9.1.md",
@@ -1785,6 +1809,14 @@
       "source": "v9.1.2 929c5db4c8b12636ec71f101f6293fb9eb49a7ed",
       "source_sha256": null,
       "sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
+      "adaptation": "byte-identical historical fixture"
+    },
+    {
+      "path": "tests/fixtures/v9.1.2/package/rc-coordinate-development/scripts/rc_state.py",
+      "source_group": "rc-stack-v9.1.2-commit",
+      "source": "v9.1.2 929c5db4c8b12636ec71f101f6293fb9eb49a7ed",
+      "source_sha256": null,
+      "sha256": "b9057d7c0d1968d7588d08a9ec178532a0a87ede7df54d4c897d1ab8a0cfa4e5",
       "adaptation": "byte-identical historical fixture"
     },
     {
