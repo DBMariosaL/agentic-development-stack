@@ -677,6 +677,15 @@ COMMAND_EXAMPLES = {
     'event': '''example (--actor, --id and --kind are required; event takes no --expect-revision):
   event FILE --actor A --id task-1:run-1 --kind review [--candidate-seq S] [--detail TEXT]
 then apply it: write ... --applies-event task-1:run-1, or ack if it changes nothing.''',
+    'intent': '''examples (FILE comes before the action; --actor, --expect-revision and --correlation are required):
+  intent FILE add --actor A --expect-revision N --correlation w1/A/champion/1 --op launch --target A
+  intent FILE resolve --actor A --expect-revision N --correlation w1/A/champion/1 --status confirmed
+         --result-ref task-1 --role champion''',
+    'reconcile': '''example (--actor, --op and --evidence are required; the op id is listed by resume):
+  reconcile FILE --actor A --op op:wave.json:3:1a2b3c4d --evidence "state sha256 compared with the prepare line"
+  add --declare committed|not_committed only when the bytes match neither side (the owner alone may declare)''',
+    'dispose': '''example (--actor, --id, --disposition and --evidence are required; terminal waves only):
+  dispose FILE --actor A --id task-1:run-1 --disposition late --evidence "wave stopped before this return"''',
     'ack': '''example (--actor, --expect-revision and --id are required):
   ack FILE --actor A --expect-revision N --id task-1:run-1 --reason "signal needs no state change"''',
 }
@@ -2177,7 +2186,8 @@ def build_parser():
     p = sub.add_parser('resume', help='cold-restart summary: owner, waves, intents, live actors, unapplied events')
     p.add_argument('program')
     p.set_defaults(func=cmd_resume)
-    p = sub.add_parser('reconcile', help='resolve an unresolved prepared write (commit missing from journal)')
+    p = sub.add_parser('reconcile', help='resolve an unresolved prepared write (commit missing from journal)',
+                       epilog=COMMAND_EXAMPLES['reconcile'], formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('file')
     p.add_argument('--actor', required=True)
     p.add_argument('--op', required=True, help='id of the prepare entry listed by resume')
@@ -2185,7 +2195,8 @@ def build_parser():
     p.add_argument('--declare', choices=['committed', 'not_committed'],
                    help='sourced declaration, only when the state bytes match neither side')
     p.set_defaults(func=cmd_reconcile)
-    p = sub.add_parser('dispose', help='record the disposition of an unapplied event of a terminal wave')
+    p = sub.add_parser('dispose', help='record the disposition of an unapplied event of a terminal wave',
+                       epilog=COMMAND_EXAMPLES['dispose'], formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('file')
     p.add_argument('--actor', required=True)
     p.add_argument('--id', required=True)

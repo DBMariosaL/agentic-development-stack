@@ -682,6 +682,15 @@ class Windows(Campaign):
         self.assertEqual((len(calls), self.rev(wave)), (2, 1))
 
 
+class LaunchReadyScope(Campaign):
+    def test_R07_07_launch_ready_without_a_batch_names_batches(self):
+        w = wave2('ready')
+        w['batches'] = []
+        self.write(self.wave_path, w)
+        self.refused('a socle listed in batches', 'write', self.wave_path, '--actor', OWNER, '--expect-revision', 0,
+                     '--ops', json.dumps([{'op': 'set', 'path': 'state.launch_ready', 'value': True}]))
+
+
 class Successor(Campaign):
     """A successor who has established the owner's stop always has a documented way on, named by resume."""
     OTHER = 'thread:successor'
@@ -801,7 +810,10 @@ class Help(Campaign):
         expected = {'transition': ('transition FILE --actor A --expect-revision N --to preparing',),
                     'ack': ('ack FILE --actor A --expect-revision N --id task-1:run-1',),
                     'claim': ('claim FILE --actor A --role pilot --expect-revision N',),
-                    'event': ('event FILE --actor A --id task-1:run-1 --kind review', 'no --expect-revision')}
+                    'event': ('event FILE --actor A --id task-1:run-1 --kind review', 'no --expect-revision'),
+                    'intent': ('intent FILE add --actor A --expect-revision N --correlation',),  # R07-06
+                    'reconcile': ('reconcile FILE --actor A --op ',),
+                    'dispose': ('dispose FILE --actor A --id task-1:run-1 --disposition late --evidence',)}
         for command, fragments in expected.items():
             with self.subTest(command=command):
                 out = io.StringIO()
