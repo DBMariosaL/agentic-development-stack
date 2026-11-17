@@ -264,8 +264,8 @@
     },
     {
       "path": "rc-coordinate-development/references/engine.md",
-      "sha256": "0996ed3b14fb525aff7c2972517fe2f5151c51459119460ef96d9c0b039315c4",
-      "bytes": 22201
+      "sha256": "8faa4231dce1b6d5caf3bf5c885a28e61ec1ce94c6a72e39ccf7bf6875e0c8ea",
+      "bytes": 22254
     },
     {
       "path": "rc-coordinate-development/references/garden.md",
@@ -314,8 +314,8 @@
     },
     {
       "path": "rc-coordinate-development/scripts/rc_state.py",
-      "sha256": "00d309f766dc08e0468d0db7f27a347372619195bcd490791df07b7f6fe5b9fe",
-      "bytes": 138127
+      "sha256": "a94364fcd8580df11b8e9130a44e0f953834c034b4bc960f1bf655fad3923eb9",
+      "bytes": 138416
     },
     {
       "path": "rc-prepare-socle-prompts/SKILL.md",
@@ -363,5 +363,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "0368408df002b5fb27cd10efee3dabe2e951e48445ece86e95095e4f6b5218bf"
+  "digest": "5be60bd2a48d44a9ba1bf632ad70a9a07f50b98120e0338303df472240282ca6"
 }

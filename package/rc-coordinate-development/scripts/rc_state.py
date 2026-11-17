@@ -1951,7 +1951,11 @@ def resolve_intent(doc, correlation, args):
                               'target': intent.get('target'), 'candidate_seq': None, **observed})
     if args.status == 'confirmed' and intent.get('op') == 'send':
         reached = [a for a in _items(doc.get('actors')) if a.get('target') == intent.get('target')]
-        if reached and sval(reached[-1], 'status') not in LIVE_ACTOR:
+        if not reached:
+            raise StateError(f'send {correlation} reaches no recorded actor on target {intent.get("target")!r}: '
+                             'a send revives the last actor of its target; record that launch first, or '
+                             'resolve this send absent')
+        if sval(reached[-1], 'status') not in LIVE_ACTOR:
             reached[-1].update(status='running', evidence=f'send {correlation} confirmed: '
                                f'{args.result_ref or args.evidence}')
     return doc

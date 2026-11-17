@@ -140,7 +140,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/scripts/rc_state.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b9057d7c0d1968d7588d08a9ec178532a0a87ede7df54d4c897d1ab8a0cfa4e5",
-      "sha256": "00d309f766dc08e0468d0db7f27a347372619195bcd490791df07b7f6fe5b9fe",
+      "sha256": "a94364fcd8580df11b8e9130a44e0f953834c034b4bc960f1bf655fad3923eb9",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/scripts/rc_state.py",
@@ -228,7 +228,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "f6befe91ec8143aca5c4f831106eeafeec98db9da30aa63cba22d31a9757f9cf",
+      "sha256": "d6fed78c8fb4c07953834aa140814529e0e4121b1735112df0b625ed2d89b49f",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -1306,7 +1306,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/engine.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "897f82d2b8b0f6b25fc25c3fb46ef4de77f275c9a9f0cd1a7cca05ba1ee1390c",
-      "sha256": "0996ed3b14fb525aff7c2972517fe2f5151c51459119460ef96d9c0b039315c4",
+      "sha256": "8faa4231dce1b6d5caf3bf5c885a28e61ec1ce94c6a72e39ccf7bf6875e0c8ea",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/engine.md",
@@ -1746,7 +1746,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "c068f0ef0081b4eda52cae0d2ab76034c815914e671e8607edbe981ab23f5c12",
+      "sha256": "8f2573676c77d0ec312c781d77096769763ae15248a52e9635f08cd4d6009e54",
       "adaptation": "v10 creation"
     },
     {

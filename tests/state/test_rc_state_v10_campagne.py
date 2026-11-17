@@ -51,9 +51,9 @@ class Campaign(Base):
                             '--status', 'confirmed', '--result-ref', 'task-7', '--record-event', EVENT,
                             '--kind', 'return', *extra)
 
-    def send_intent(self, path):
+    def pending_intent(self, path):
         self.ok('intent', path, 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'c1',
-                '--op', 'send', '--target', 'T')
+                '--op', 'write', '--target', 'T')
 
     def received(self, path):
         return [e['id'] for e in self.journal(path) if e.get('kind', '').startswith('event:')]
@@ -65,7 +65,7 @@ class Campaign(Base):
 class ShortForm(Campaign):
     def test_R13_01_invalid_ops_json_keeps_the_signal_received(self):
         wave = self.solo()
-        self.send_intent(wave)
+        self.pending_intent(wave)
         before = wave.read_bytes()
         code, result = self.short(wave, 1, '--ops', '[')
         self.assertEqual(code, 1, result)
@@ -76,7 +76,7 @@ class ShortForm(Campaign):
 
     def test_R13_02_ops_cannot_reopen_the_intent_just_resolved(self):
         wave = self.solo()
-        self.send_intent(wave)
+        self.pending_intent(wave)
         reopen = [{'op': 'update', 'path': 'intents', 'match': {'correlation': 'c1'},
                    'value': {'status': 'pending', 'result_ref': None}}]
         code, result = self.short(wave, 1, '--ops', json.dumps(reopen))
@@ -92,7 +92,7 @@ class ShortForm(Campaign):
 
     def test_R13_03_failure_after_prepare_reports_uncertain_not_rerun(self):
         wave = self.solo()
-        self.send_intent(wave)
+        self.pending_intent(wave)
         original = rc.append_journal
 
         def failing(path, entry):
@@ -204,10 +204,12 @@ class PrepareMode(Campaign):
     def test_P05_confirmed_send_makes_the_actor_it_reaches_alive_again(self):
         champion = {'role': 'champion', 'model': None, 'ref': 'agent-1', 'correlation': 'champ/1',
                     'status': 'completed', 'target': 'copies/import', 'evidence': 'round 1 handed back'}
-        for phase, fragment in (('launched', None), ('preparing', "live actor with role 'champion'")):
-            with self.subTest(phase=phase):
+        for phase, actors, fragment in (('launched', [champion], None),
+                                        ('preparing', [champion], "live actor with role 'champion'"),
+                                        ('launched', [], 'reaches no recorded actor')):
+            with self.subTest(phase=phase, actors=len(actors)):
                 w = wave2(phase)
-                w['actors'] = [champion]
+                w['actors'] = actors
                 w['intents'] = [{'correlation': 'champ/2', 'op': 'send', 'target': 'copies/import',
                                  'status': 'pending', 'result_ref': None}]
                 self.write(self.wave_path, w)
@@ -567,7 +569,7 @@ class Messages(Campaign):
 
     def test_R13_05_a_resolved_intent_is_refused_even_within_the_same_second(self):
         wave = self.solo()
-        self.send_intent(wave)
+        self.pending_intent(wave)
         resolve = ('intent', wave, 'resolve', '--actor', OWNER, '--correlation', 'c1', '--status', 'confirmed',
                    '--result-ref', 'task-7')
         with mock.patch.object(rc, 'now', return_value='2026-11-17T00:00:00+00:00'):
@@ -594,7 +596,7 @@ class Messages(Campaign):
 
     def test_R13_07_R13_08_short_form_reports_what_happened_to_its_event(self):
         wave = self.solo()
-        self.send_intent(wave)
+        self.pending_intent(wave)
         code, result = self.short(wave, 1)
         self.assertEqual(code, 0, result)
         self.assertEqual((result['event']['applied'], result['event']['effect']),
@@ -785,7 +787,7 @@ class Leads(Campaign):
 
     def test_role_and_model_only_with_a_confirmed_launch(self):
         wave = self.solo()
-        self.send_intent(wave)
+        self.pending_intent(wave)
         self.refused('--role and --model describe the actor of a confirmed launch', 'intent', wave, 'resolve',
                      '--actor', OWNER, '--expect-revision', 1, '--correlation', 'c1', '--status', 'confirmed',
                      '--result-ref', 'task-7', '--role', 'champion')
@@ -894,7 +896,10 @@ class Successor(Campaign):
                  'value': {'status': 'completed', 'evidence': 'returned'}}]
         for op, actors, ops, fragment in (
                 ('launch', [], [{'op': 'set', 'path': 'actors', 'value': []}], 'actor k1 removed'),
-                ('send', [done], undo, 'actor l1: running -> completed needs its own new evidence')):
+                ('send', [done], undo, 'actor l1: running -> completed needs its own new evidence'),
+                ('send', [done], [dict(undo[0], value={'status': 'completed',
+                                                       'evidence': 'send k1 confirmed: message-1'})],
+                 'actor l1: running -> completed needs its own new evidence')):
             with self.subTest(op=op):
                 w = wave2()
                 w.update(actors=actors, intents=[{'correlation': 'k1', 'op': op, 'target': 'A',
