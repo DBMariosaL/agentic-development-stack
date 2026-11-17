@@ -16,12 +16,12 @@ tools/rc_update.py (single registry). Rules depend on the role of each skill:
   icons resolved from the skill root, the invocation policy recorded at snapshot time
   (Unslop stays explicit-only), and closure of their local resources.
 
-For every skill: compilation and standard-library imports of Python files, UTF-8 text, no
+For every skill: compilation and standard-library imports of Python files, UTF-8 text without BOM, no
 cache or temporary file, regular files only, no blank in a file name, no machine path
 (drive letter, UNC, /home/, /Users/) or 40-hex snapshot in Markdown. With --provenance,
 the bytes of every package file are compared with the recorded provenance.
 
-Markdown is scanned as raw text: the validator does not tell code from prose, does not
+Markdown (extension .md in any case) is scanned as raw text: the validator does not tell code from prose, does not
 render Markdown and does not read HTML. What it guarantees, one sentence per rule:
 
 1. Destinations. Every text after '](' (up to ')' or the end of the line), the first word
@@ -233,11 +233,14 @@ def validate(root, provenance=None):
         rel = path.relative_to(root)
         data = path.read_bytes()
         entry = {'path': rel.as_posix(), 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}
-        if path.suffix in TEXT_SUFFIXES:
+        if path.suffix.lower() in TEXT_SUFFIXES:
             try:
-                texts[rel.as_posix()] = data.decode('utf-8').replace('\r\n', '\n').replace('\r', '\n')
+                text = data.decode('utf-8')
+                if text.startswith('\ufeff'):
+                    raise UnicodeError('UTF-8 BOM: save the file without BOM')
+                texts[rel.as_posix()] = text.replace('\r\n', '\n').replace('\r', '\n')
                 entry['words'] = len(texts[rel.as_posix()].split())
-            except UnicodeDecodeError as exc:
+            except UnicodeError as exc:
                 check(f'{rel}:utf8', False, str(exc))
         files.append(entry)
 
@@ -334,9 +337,10 @@ def validate(root, provenance=None):
         check(f'file:{rel}:regular', not path.is_symlink())
         if re.search(r'\s', key):
             check(f'file:{rel}:name', False, 'file name contains a blank: rename it without spaces')
-        if '__pycache__' in path.parts or path.suffix in {'.pyc', '.lock', '.tmp'}:
+        suffix = path.suffix.lower()
+        if '__pycache__' in path.parts or suffix in {'.pyc', '.lock', '.tmp'}:
             check(f'{rel}:no_cache_or_temp', False)
-        if path.suffix == '.py' and text is not None:
+        if suffix == '.py' and text is not None:
             try:
                 compile(text, str(path), 'exec')
                 check(f'{rel}:compiles', True)
@@ -344,7 +348,7 @@ def validate(root, provenance=None):
                 check(f'{rel}:stdlib_imports', not outside, outside)
             except (SyntaxError, ValueError) as exc:
                 check(f'{rel}:compiles', False, str(exc))
-        if path.suffix != '.md' or text is None:
+        if suffix != '.md' or text is None:
             continue
         check(f'{rel}:no_machine_snapshot', not MACHINE.search(text))
         if '<!--' in text:
@@ -365,7 +369,7 @@ def validate(root, provenance=None):
                 ok, reason = unquote(anchor) in outline(text)[0], ANCHORLESS
             else:
                 dest = resolve(folder, unquote(file_part))
-                ok = dest is not None and (not anchor or (dest.endswith('.md') and dest in texts
+                ok = dest is not None and (not anchor or (dest.lower().endswith('.md') and dest in texts
                                                           and unquote(anchor) in outline(texts[dest])[0]))
                 reason = ANCHORLESS if dest else DEAD
             check(f'{rel}:link:{index}', ok, target if ok else f'{target} ({reason})')
