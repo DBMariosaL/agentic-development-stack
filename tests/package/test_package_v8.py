@@ -161,7 +161,9 @@ class PackageTests(Base):
                         '\n```markdown\n[example](https://example.com/example-only.md)\n```\n',
                         '\n- [role]: [model], effort [level]\n',
                         '\nsee references/patterns.md.\n',
-                        '\n<a href="patterns.md">x</a> <img src="../assets/icon.svg">\n'):
+                        '\nsee <a href="patterns.md">x</a> <img src="../assets/icon.svg">\n',
+                        '\n<https://example.com>\n',
+                        '\n```html\n<div>x</div>\n```\n'):
             with self.subTest(payload):
                 self.assertEqual(self.validate_with_payload(payload), (0, {}))
 
@@ -176,8 +178,8 @@ class PackageTests(Base):
                 ('\n> [lbl]: absent.md\n', {}, 'absent.md'),
                 ('\n[lbl]: <absent file.md>\n', {}, 'unsupported destination'),
                 ('\n[lbl]: absent.md (title)\n', {}, 'absent.md'),
-                ('\n<a href="absent.md">x</a>\n', {}, 'absent.md'),
-                ('\n<img src="absent.svg">\n', {}, 'absent.svg'),
+                ('\nsee <a href="absent.md">x</a>\n', {}, 'absent.md'),
+                ('\nsee <img src="absent.svg">\n', {}, 'absent.svg'),
                 ('\n[t](a(1).md)\n', {}, 'unsupported destination'),
                 ('\n[x](PATTERNS.MD)\n', {}, 'PATTERNS.MD'),
                 ('\n[x](patterns.md.)\n', {}, 'patterns.md.'),
@@ -190,6 +192,8 @@ class PackageTests(Base):
                 ('\n## A <b>B</b>\n\n[x](#a-bbb)\n', {}, 'no simple ATX heading'),
                 ('\n## A\\*B\n\n[x](#ab)\n', {}, 'no simple ATX heading'),
                 ('\n## _Foo_ bar\n\n[x](#_foo_-bar)\n', {}, 'no simple ATX heading'),
+                ('\nsee `<!--` here\n', {}, 'HTML comment'),
+                ('\n  <details>\n\n# Hidden\n', {}, 'HTML block'),
                 ('\nsee scripts/absent.py.\n', {}, 'scripts/absent.py'),
                 ('\nrun `python --file=scripts/absent.py`\n', {}, 'scripts/absent.py'),
                 ('\nrun ./scripts/absent.py\n', {}, 'scripts/absent.py'),
