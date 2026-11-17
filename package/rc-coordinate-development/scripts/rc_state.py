@@ -455,13 +455,15 @@ def ready_view(doc):
         status = sval(o, 'status')
         if status == 'admitted':
             admitted.append(o['id'])
-        elif status == 'blocked':
+        elif status in {'blocked', 'failed'}:
             blocked.append(o['id'])
+        deps = o.get('depends_on') if string_list(o.get('depends_on')) else []
+        unmet = [dep for dep in deps if by_id.get(dep, {}).get('status') != 'accepted']
         if o.get('waiting_on'):
             waiting[o['id']] = o['waiting_on'].get('kind') if isinstance(o['waiting_on'], dict) else 'invalid'
-        deps = o.get('depends_on') if string_list(o.get('depends_on')) else []
-        if (status == 'pending' and not o.get('waiting_on') and o['id'] not in suspended
-                and all(by_id.get(dep, {}).get('status') == 'accepted' for dep in deps)):
+        elif status == 'pending' and unmet:  # every open outcome is listed with what it waits for
+            waiting[o['id']] = 'depends_on ' + ', '.join(unmet)
+        if status == 'pending' and not o.get('waiting_on') and o['id'] not in suspended and not unmet:
             ready.append(o['id'])
 
     def res(oid):

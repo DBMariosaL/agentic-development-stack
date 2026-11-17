@@ -682,6 +682,20 @@ class Windows(Campaign):
         self.assertEqual((len(calls), self.rev(wave)), (2, 1))
 
 
+class ReadyView(Campaign):
+    def test_P04_every_open_outcome_is_listed_with_what_it_waits_for(self):
+        spec = dict(PROGRAM_SPEC, outcomes=[{'id': 'R1', 'outcome': 'o', 'next_action': 'n'},
+                                            {'id': 'R2', 'outcome': 'o', 'next_action': 'n', 'depends_on': ['R1']},
+                                            {'id': 'R3', 'outcome': 'o', 'next_action': 'n', 'depends_on': ['R1']},
+                                            {'id': 'R4', 'outcome': 'o', 'next_action': 'n', 'status': 'failed',
+                                             'closure': {'source': 'run failed', 'remaining': 'all'}}])
+        path, code, result = self.init('index', 'program', spec)
+        self.assertEqual(code, 0, result)
+        view = self.ok('ready', path)
+        self.assertEqual((view['ready'], view['admitted'], view['waiting'], view['blocked']),
+                         (['R1'], [], {'R2': 'depends_on R1', 'R3': 'depends_on R1'}, ['R4']))
+
+
 class LaunchReadyScope(Campaign):
     def test_R07_07_launch_ready_without_a_batch_names_batches(self):
         w = wave2('ready')
