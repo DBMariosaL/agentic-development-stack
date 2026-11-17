@@ -12,9 +12,11 @@ import sys
 
 sys.dont_write_bytecode = True
 
+import codecs  # noqa: E402
 import hashlib  # noqa: E402
 import importlib.util  # noqa: E402
 import json  # noqa: E402
+import marshal  # noqa: E402
 import os  # noqa: E402
 import shutil  # noqa: E402
 import subprocess  # noqa: E402
@@ -128,10 +130,12 @@ class PackageTests(Base):
         bad = failing(validator.validate(copy))
         self.assertEqual(list(bad.values()), ['#no-such-section'])
 
-    def validate_with_payload(self, payload):
+    def validate_with_payload(self, payload, extra=None):
+        """Payload ajouté à unslop/references/patterns.md ; extra : {chemin du paquet: octets ajoutés}."""
         copy = self.copy()
-        path = copy / 'unslop' / 'references' / 'patterns.md'
-        path.write_bytes(path.read_bytes() + payload.encode('utf-8'))
+        for rel, data in {'unslop/references/patterns.md': payload.encode('utf-8'), **(extra or {})}.items():
+            path = copy / rel
+            path.write_bytes((path.read_bytes() if path.exists() else b'') + data)
         out = self.dir / 'structure.json'
         proc = subprocess.run([sys.executable, '-B', str(ROOT / 'tools' / 'validate_package.py'), str(copy),
                                '--output', str(out)], capture_output=True, text=True, encoding='utf-8', timeout=90)
@@ -150,14 +154,50 @@ class PackageTests(Base):
         self.assertEqual(list(bad), [os.path.join('unslop', 'references', 'patterns.md') + ':no_machine_snapshot'])
 
     def test_valid_link_forms_accepted(self):
+        files = {'unslop/references/my file.md': b'x\n', 'unslop/references/a(1).md': b'x\n'}
         for payload in ('\n[self](<patterns.md>)\n',
-                        '\n## Repeated heading\n\n## Repeated heading\n\n[second](#repeated-heading-1)\n',
+                        '\n[t][lbl]\n\n[lbl]: <my file.md>\n\n[u](my%20file.md) [v](a(1).md)\n',
+                        '\n## Zed\n\n## Zed\n\n## Zed 1\n\n[a](#zed-1) [b](#zed-1-1)\n',
+                        '\nMy Setext Title\n===\n\n  ## Indented Head\n\n## See [docs](patterns.md) _now_\n\n'
+                        '[a](#my-setext-title) [b](#indented-head) [c](#see-docs-now)\n',
                         '\n```markdown\n[example](example-only.md)\n```\n',
+                        '\n- item\n\n    ```markdown\n    [example](example-only.md)\n    ```\n',
                         '\nsyntax: `[example](example-only.md)`\n',
-                        '\ntext\n\n    [example](example-only.md)\n'):
+                        '\nsyntax: `[example](example-only.md)\ncontinued` end\n',
+                        '\ntext\n\n    [example](example-only.md)\n',
+                        '\n## H\n    [example](example-only.md)\n'):
             with self.subTest(payload):
-                self.assertEqual(self.validate_with_payload(payload), (0, {}))
-        self.assertNotEqual(self.validate_with_payload('\n- item\n\n    [dead](absent-list-link.md)\n')[0], 0)
+                self.assertEqual(self.validate_with_payload(payload, files), (0, {}))
+
+    def test_broken_forms_refused(self):
+        """R06 : un lien mort, une ressource absente ou un chemin machine ne passe sous aucune forme ;
+        une construction hors du sous-ensemble est refusée par son nom, jamais comme lien mort."""
+        for payload, extra, expected in (
+                ('\n[a [b] c](absent.md)\n', {}, 'absent.md'),
+                ('\n[![alt](../assets/icon.svg)](absent.md)\n', {}, 'absent.md'),
+                ('\n[a\\]b](absent.md)\n', {}, 'absent.md'),
+                ('\n[t][lbl]\n\n[lbl]:\n  absent.md\n', {}, 'absent.md'),
+                ('\n```code``` is inline here.\n\n[x](absent.md)\n', {}, 'absent.md'),
+                ('\nA \\`[x](absent.md)\\` b\n', {}, 'absent.md'),
+                ('\n[x](PATTERNS.MD)\n', {}, 'PATTERNS.MD'),
+                ('\n[x](patterns.md.)\n', {}, 'patterns.md.'),
+                ('\n[x](..\\references\\patterns.md)\n', {}, 'patterns.md'),
+                ('\nrun `python scripts/absent.py --x`\n', {}, 'scripts/absent.py'),
+                ('\nrun `./scripts/absent.py`\n', {}, 'scripts/absent.py'),
+                ('\nsee c:\\users\\me\\secret.txt\n', {}, 'no_machine_snapshot'),
+                ('\nsee \\\\srv\\share\\x\n', {}, 'no_machine_snapshot'),
+                ('\nsee /home/me/secret.txt\n', {}, 'no_machine_snapshot'),
+                ('\nsnap ' + 'A1B2C3D4E5' * 4 + '\n', {}, 'no_machine_snapshot'),
+                ('\n> [t][lbl]\n>\n> [lbl]: absent.md\n', {}, 'block quote'),
+                ('\n- item\nlazy line\n\n    [x](absent.md)\n', {}, 'block indented'),
+                ('', {'unslop/references/patterns.md': b'\xff'}, 'utf8'),
+                ('', {'gpt-prompt-optimizer/scripts/prompt_lint.py': b'\x00'}, 'compiles')):
+            with self.subTest(payload or extra):
+                code, bad = self.validate_with_payload(payload, extra)
+                self.assertEqual(code, 1)
+                self.assertTrue(bad)
+                for name, detail in bad.items():
+                    self.assertIn(expected, f'{name} {detail}')
 
     def test_unslop_policy_enforced(self):
         for label, old, new, check in (
@@ -190,6 +230,11 @@ class PackageTests(Base):
         self.assertEqual(set(failing(validator.validate(copy))), {'rc-coordinate-development:ui_short_description'})
         ui.write_bytes(data.replace(old, b'Choisir sans guillemets'))
         self.assertIn('rc-coordinate-development:ui_string:short_description', failing(validator.validate(copy)))
+        ui.write_bytes(data.replace(old, b'12345'))
+        self.assertEqual(set(failing(validator.validate(copy))), {'rc-coordinate-development:ui_short_description'})
+        for policy in (b'allow_implicit_invocation:  false', b'"allow_implicit_invocation": false'):
+            ui.write_bytes(data + b'policy:\n  ' + policy + b'\n')
+            self.assertEqual([k.split(':')[1] for k in failing(validator.validate(copy))], ['ui_line'])
 
     def test_dependency_metadata_as_delivered(self):
         result = validator.validate(PACKAGE)
@@ -316,6 +361,18 @@ class RunnerR1Tests(Base):
             passed, reasons = runner.judge('updater-v8', 0, report)
         self.assertTrue(passed, reasons)
 
+    def test_off_windows_skip_matched_on_class_and_method(self):
+        """Hors Windows, seul le skip déclaré est admis, pas une méthode homonyme d'une autre classe."""
+        runner = _load('check_skip_ids', ROOT / 'tools' / 'check.py')
+        count = runner.EXPECTED['updater-v8']
+        for skipped, accepted in (('test_rc_update_v8.PlanV8Tests.test_dependency_junction_refused', True),
+                                  ('test_rc_update_v8.OtherTests.test_dependency_junction_refused', False)):
+            report = {'tests_run': count, 'collected': [f'test_{i}' for i in range(count)], 'failures': [],
+                      'errors': [], 'skipped': [{'id': skipped, 'reason': 'x'}], 'unexpected_successes': []}
+            with self.subTest(skipped), mock.patch.object(runner, 'os', mock.NonCallableMock(name='posix')):
+                runner.os.name = 'posix'
+                self.assertEqual(runner.judge('updater-v8', 0, report)[0], accepted)
+
     def test_unexpected_success_rejected(self):
         """Garde existante : une attente d'échec devenue fausse reste signalée."""
         proc, report = self.collect_synthetic(unexpected_success=True)
@@ -324,10 +381,9 @@ class RunnerR1Tests(Base):
 
 
 class CheckPreflightTests(Base):
-    @unittest.skipUnless(os.name == 'nt', 'the fixture root length preflight applies to Windows only')
-    def test_preflight_refusal_writes_summary(self):
-        """R08-02 : un refus de préflight laisse le summary.json annoncé, sans lancer d'étape."""
-        repo = self.dir / 'repo'
+    def mini_repo(self, name='repo'):
+        """check.py seul, un paquet de trois fichiers de lecture, manifeste et provenance alignés."""
+        repo = self.dir / name
         (repo / 'tools').mkdir(parents=True)
         (repo / 'tests').mkdir()
         shutil.copyfile(ROOT / 'tools' / 'check.py', repo / 'tools' / 'check.py')
@@ -341,20 +397,67 @@ class CheckPreflightTests(Base):
         (repo / 'manifest.json').write_text(json.dumps({'files': entries}), encoding='utf-8')
         (repo / 'provenance.json').write_text(json.dumps({'files': [
             {'path': 'package/' + e['path'], 'sha256': e['sha256']} for e in entries]}), encoding='utf-8')
-        long_root = self.dir / ('x' * 100)
+        return repo
+
+    def run_check(self, repo, fixtures_root):
         proc = subprocess.run([sys.executable, '-B', str(repo / 'tools' / 'check.py')], cwd=repo,
-                              env={**os.environ, 'RC_CHECK_FIXTURES_ROOT': str(long_root)},
-                              capture_output=True, text=True, encoding='utf-8', timeout=60)
+                              env={**os.environ, 'RC_CHECK_FIXTURES_ROOT': str(fixtures_root)},
+                              capture_output=True, text=True, encoding='utf-8', timeout=120)
         self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        self.assertNotIn('Traceback', proc.stderr)
         summaries = list((repo / '.local').glob('*/summary.json'))
-        self.assertEqual(len(summaries), 1, proc.stdout)
-        summary = json.loads(summaries[0].read_text(encoding='utf-8'))
-        self.assertEqual(summary['inventory_problems'], [])
-        self.assertEqual(summary['candidate']['package_files'], 3)
-        self.assertTrue(str(summary['preflight_problem']['root']).startswith(str(long_root)))
-        self.assertEqual(summary['results'], [])
-        self.assertFalse(summary['all_passed'])
-        self.assertFalse(long_root.exists())
+        self.assertEqual(len(summaries), 1, proc.stdout + proc.stderr)
+        return proc, summaries[0].parent, json.loads(summaries[0].read_text(encoding='utf-8'))
+
+    @unittest.skipUnless(os.name == 'nt', 'the fixture root length preflight applies to Windows only')
+    def test_preflight_refusal_writes_summary(self):
+        """R08-02, R06-12 : une base trop longue, même écrite courte en relatif, est refusée par le
+        préflight avec son summary.json, sans lancer d'étape."""
+        for label, root in (('absolu', self.dir / ('x' * 100)), ('relatif', 'y' * 70)):
+            with self.subTest(label):
+                repo = self.mini_repo('repo-' + label)
+                long_root = (repo / root).resolve()
+                proc, _, summary = self.run_check(repo, root)
+                self.assertEqual(summary['inventory_problems'], [])
+                self.assertEqual(summary['candidate']['package_files'], 3)
+                self.assertTrue(str(summary['preflight_problem']['root']).startswith(str(long_root)))
+                self.assertEqual(summary['results'], [])
+                self.assertFalse(summary['all_passed'])
+                self.assertFalse(long_root.exists())
+
+    def test_inventory_refusal_writes_summary(self):
+        """R06-13, R06-17 : lecture obligatoire retirée ou BOM dans un JSON d'inventaire : refus nommé
+        à l'inventaire et summary.json, sans trace."""
+        for label, check in (('SKILL.md', 'pilot_reading_missing'), ('provenance.json', 'unreadable'),
+                             ('manifest.json', 'unreadable')):
+            with self.subTest(label):
+                repo = self.mini_repo('repo-' + label.split('.')[0])
+                if label == 'SKILL.md':
+                    (repo / 'package' / 'rc-coordinate-development' / label).unlink()
+                else:
+                    (repo / label).write_bytes(codecs.BOM_UTF8 + (repo / label).read_bytes())
+                proc, _, summary = self.run_check(repo, self.dir)
+                self.assertIn('inventory: FAILED', proc.stdout)
+                self.assertIn(check, [p['check'] for p in summary['inventory_problems']])
+                self.assertEqual(summary['results'], [])
+
+    def test_tree_bytecode_not_loaded(self):
+        """R06-16 : un .pyc forgé dans l'arbre, à l'en-tête valide, n'est pas chargé par une étape."""
+        repo = self.mini_repo()
+        source = repo / 'tests' / 'state' / 'test_mini.py'
+        source.parent.mkdir()
+        source.write_text('import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n'
+                          '        pass\n', encoding='utf-8')
+        code = compile(source.read_text(encoding='utf-8') + "\nprint('PYC FORGE CHARGE')\n", str(source), 'exec')
+        stat = source.stat()
+        cache = source.parent / '__pycache__' / f'{source.stem}.{sys.implementation.cache_tag}.pyc'  # hors préfixe
+        cache.parent.mkdir()
+        cache.write_bytes(importlib.util.MAGIC_NUMBER + bytes(4) + (int(stat.st_mtime) & 0xFFFFFFFF).to_bytes(4, 'little')
+                          + (stat.st_size & 0xFFFFFFFF).to_bytes(4, 'little') + marshal.dumps(code))
+        _, out, summary = self.run_check(repo, FIXTURES)
+        self.assertEqual(summary['results'][0]['step'], 'state')
+        self.assertEqual(summary['results'][0]['tests_run'], 1)
+        self.assertNotIn('PYC FORGE CHARGE', (out / 'state.txt').read_text(encoding='utf-8'))
 
 
 class QualificationScenarioTests(unittest.TestCase):
