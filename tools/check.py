@@ -25,7 +25,7 @@ records candidate identity, input digests, commands, working directories, releva
 environment, log hashes, collections and skips. Results go to a new .local/ folder.
 Fixture roots are short folders under RC_CHECK_FIXTURES_ROOT (default: the system temp
 folder), outside the clone, so a deep clone path cannot exceed the legacy Windows
-260-character limit; a preflight refuses a base that is still too long, records the refusal
+260-character limit; a preflight measures the resolved base and refuses one still too long, records the refusal
 in summary.json and runs no step. Only empty fixture
 roots are removed.
 Nothing is installed in an active profile and no network access is used.
@@ -43,21 +43,21 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 203, 'updater-v7': 30, 'updater-v8': 32, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 29, 'footprint': 11}
+EXPECTED = {'state': 203, 'updater-v7': 30, 'updater-v8': 32, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 33, 'footprint': 11}
 READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
 READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.
 STEPS = list(EXPECTED) + ['structure']
-# Skips accepted only off Windows (NTFS junction tests); none is accepted on Windows.
+# Skips accepted only off Windows (NTFS junction tests), as Class.method; none is accepted on Windows.
 NON_NT_SKIPS = {
-    'updater-v7': {'test_reparse_point_refused', 'test_reparse_target_root_refused'},
-    'updater-v8': {'test_dependency_junction_refused'},
+    'updater-v7': {'GuardTests.test_reparse_point_refused', 'GuardTests.test_reparse_target_root_refused'},
+    'updater-v8': {'PlanV8Tests.test_dependency_junction_refused'},
     'updater-from-v8': set(),
     'updater-from-v9': set(),
     'updater-from-v9.1': set(),
     'updater-from-v9.1.1': set(),
     'updater-from-v9.1.2': set(),
-    'package': {'test_preflight_refusal_writes_summary'},
+    'package': {'CheckPreflightTests.test_preflight_refusal_writes_summary'},
     'footprint': set(),
     'state': set(),
 }
@@ -103,11 +103,22 @@ def collect(start, top, out, pattern='test*.py'):
     return 0 if result.wasSuccessful() and not result.expectedFailures else 1
 
 
+def read_json(name, problems):
+    """manifest.json or provenance.json, UTF-8 without BOM; None and a problem otherwise."""
+    try:
+        return json.loads((ROOT / name).read_bytes().decode('utf-8'))
+    except (OSError, ValueError) as exc:
+        problems.append({'check': 'unreadable', 'path': name, 'reason': str(exc)})
+        return None
+
+
 def inventory():
     """Candidate identity and byte integrity; returns (identity, problems)."""
     problems = []
     manifest_path = ROOT / 'manifest.json'
-    manifest = json.loads(manifest_path.read_text(encoding='utf-8-sig'))
+    manifest, provenance = read_json('manifest.json', problems), read_json('provenance.json', problems)
+    if problems:
+        return {}, problems
     expected = {entry['path'] for entry in manifest['files']}
     actual = {p.relative_to(ROOT / 'package').as_posix()
               for p in (ROOT / 'package').rglob('*') if p.is_file()}
@@ -119,7 +130,6 @@ def inventory():
             raw = path.read_bytes()
             if sha(raw) != entry['sha256'] or len(raw) != entry['bytes']:
                 problems.append({'check': 'package_bytes', 'path': entry['path']})
-    provenance = json.loads((ROOT / 'provenance.json').read_text(encoding='utf-8'))
     listed = set()
     for item in provenance['files']:
         listed.add(item['path'])
@@ -135,8 +145,13 @@ def inventory():
     unlisted = sorted('package/' + p for p in actual if 'package/' + p not in listed)
     if unlisted:
         problems.append({'check': 'provenance_inventory', 'unlisted': unlisted})
-    reading = sum(len((ROOT / 'package/rc-coordinate-development' / name).read_text(encoding='utf-8').split())
-                  for name in READING)
+    reading = 0
+    for name in READING:
+        path = ROOT / 'package/rc-coordinate-development' / name
+        if path.is_file():
+            reading += len(path.read_text(encoding='utf-8').split())
+        else:
+            problems.append({'check': 'pilot_reading_missing', 'path': name})
     if reading > READING_BUDGET:
         problems.append({'check': 'pilot_reading', 'words': reading, 'budget': READING_BUDGET})
     identity = {'pilot_reading_words': reading, 'manifest_sha256': sha_file(manifest_path), 'manifest_format': manifest.get('format'),
@@ -191,7 +206,7 @@ def judge(name, exit_code, results):
         reasons.append('expected failures remain unqualified')
     allowed = NON_NT_SKIPS[name] if os.name != 'nt' else set()
     skipped = [s['id'] if isinstance(s, dict) else s for s in results.get('skipped', [])]
-    undeclared = [s for s in skipped if s.split('.')[-1] not in allowed]
+    undeclared = [s for s in skipped if '.'.join(s.split('.')[-2:]) not in allowed]
     if undeclared:
         reasons.append(f'undeclared skips {undeclared}')
     return not reasons, reasons
@@ -214,7 +229,8 @@ def main():
     preflight = None
     if not problems:
         # Short fixture roots outside the clone keep NTFS paths below the legacy 260-character limit.
-        base = Path(os.environ.get('RC_CHECK_FIXTURES_ROOT') or tempfile.gettempdir()) / ('rcchk-' + uuid.uuid4().hex[:6])
+        base = Path(os.environ.get('RC_CHECK_FIXTURES_ROOT') or tempfile.gettempdir()).resolve()
+        base = base / ('rcchk-' + uuid.uuid4().hex[:6])
         if os.name == 'nt' and len(str(base)) + FIXTURE_DEPTH_MARGIN > 259:
             preflight = {'check': 'fixture_root_length', 'root': str(base), 'not_run': STEPS}
             summary['preflight_problem'] = preflight
@@ -227,7 +243,9 @@ def main():
         roots.update({n: base / f'h{i}' for i, n in enumerate(from_steps)})
         for r in roots.values():
             r.mkdir()
+        # A fresh cache prefix: no bytecode found in the tree is loaded by a step.
         env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8',
+               'PYTHONPYCACHEPREFIX': str(out / 'pycache'),
                'TMP': str(out / 'tmp'), 'TEMP': str(out / 'tmp'),
                'RC_STATE_PACKAGE': str(ROOT / 'package'),
                'RC_UPDATE_LOT': str(ROOT),
