@@ -56,26 +56,20 @@ class AR2_01_InitialClaim(Base):
             self.run_cli('claim', self.program_path, '--actor', OWNER, '--role', 'pilot', '--expect-revision', 0)
         self.assertIsNone(self.op()['previous_owner'])
 
-    def test_failure_before_initial_replacement_is_resolved_by_the_claim_author_only(self):
+    def test_failure_before_initial_replacement_is_resolved_by_its_bytes_for_any_actor(self):
         before = sha(self.program_path)
         code, res = self.claim_with(mock.patch.object(rc.os, 'replace', side_effect=OSError('injected before replace')))
         self.assertEqual(code, 1, res)
         self.assertEqual(sha(self.program_path), before)
         op = self.op()
         self.assertEqual(op['old_sha256'], before)
-        code, res = cold('reconcile', self.program_path, '--actor', OTHER, '--op', op['id'], '--evidence', 'x')
-        self.assertEqual(code, 1, res)
-        self.assertIn('not the owner', res['error'])
-        code, res = cold('reconcile', self.program_path, '--actor', OTHER, '--op', op['id'], '--evidence', 'x',
-                         '--declare', 'not_committed')
-        self.assertEqual(code, 1, res)
         code, res = cold('claim', self.program_path, '--actor', OWNER, '--role', 'pilot', '--expect-revision', 0)
         self.assertEqual(code, 1, res)
         self.assertIn('unresolved state operation', res['error'])
-        code, res = cold('reconcile', self.program_path, '--actor', OWNER, '--op', op['id'],
+        code, res = cold('reconcile', self.program_path, '--actor', OTHER, '--op', op['id'],
                          '--evidence', 'program.json sha equals old_sha256 of the claim prepare')
         self.assertEqual(code, 0, res)
-        self.assertEqual((res['outcome'], res['by_claim_author'], res['declared']), ('not_committed', True, False))
+        self.assertEqual((res['outcome'], res['declared']), ('not_committed', False))
         code, res = cold('resume', self.program_path)
         self.assertEqual((code, res['uncertain_operations']), (0, []))
         code, res = cold('claim', self.program_path, '--actor', OWNER, '--role', 'pilot', '--expect-revision', 0)
@@ -96,9 +90,7 @@ class AR2_01_InitialClaim(Base):
         self.assertEqual(code, 1, res)
         op = self.op()
         self.assertEqual(sha(self.program_path), op['new_sha256'])
-        code, res = cold('reconcile', self.program_path, '--actor', OTHER, '--op', op['id'], '--evidence', 'x')
-        self.assertEqual(code, 1, res)
-        code, res = cold('reconcile', self.program_path, '--actor', OWNER, '--op', op['id'], '--evidence', 'sha = new')
+        code, res = cold('reconcile', self.program_path, '--actor', OTHER, '--op', op['id'], '--evidence', 'sha = new')
         self.assertEqual((code, res['outcome']), (0, 'committed'), res)
         code, res = cold('claim', self.program_path, '--actor', OWNER, '--role', 'pilot', '--expect-revision', 0)
         self.assertEqual(code, 1, res)  # no second claim effect
@@ -119,7 +111,7 @@ class AR2_01_InitialClaim(Base):
         code, res = cold('reconcile', self.program_path, '--actor', OWNER, '--op', op['id'], '--evidence', 'x',
                          '--declare', 'committed')
         self.assertEqual(code, 1, res)
-        self.assertIn('only the owner', res['error'])
+        self.assertIn('is not the owner', res['error'])
 
 
 class AR2_02_Attachment(Base):
@@ -174,9 +166,7 @@ class AR2_02_Attachment(Base):
         self.assertTrue(any(e.get('kind') == 'prepare' for e in journal(self.local_j)))
         self.assertTrue(any(e.get('kind') == 'prepare' for e in journal(self.shared_j)))
         op = self.assert_blocked_everywhere()
-        code, res = cold('reconcile', self.wave_path, '--actor', OTHER, '--op', op['id'], '--evidence', 'x')
-        self.assertEqual(code, 1, res)
-        code, res = cold('reconcile', self.wave_path, '--actor', OWNER, '--op', op['id'], '--evidence', 'sha = old')
+        code, res = cold('reconcile', self.wave_path, '--actor', OTHER, '--op', op['id'], '--evidence', 'sha = old')
         self.assertEqual((code, res['outcome']), (0, 'not_committed'), res)
         resolved_in = res.get('resolved_in')
         code, res = cold('resume', self.program_path)

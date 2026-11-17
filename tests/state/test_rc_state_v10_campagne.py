@@ -3,10 +3,14 @@ import contextlib
 import hashlib
 import io
 import json
+import os
+import subprocess
+import sys
 import unittest
 from unittest import mock
 
-from test_rc_state import OWNER, Base, rc, wave2
+from test_rc_state import OWNER, SCRIPT, Base, rc, wave2
+from test_rc_state import program as rc_program
 
 EVENT = 'task-7:run1'
 WAVE_SPEC = {'authorization': {'exclusions': []}, 'state': {'next_action': 'prepare documents'}}
@@ -172,6 +176,42 @@ class PrepareMode(Campaign):
         self.assertEqual((self.doc(wave)['revision'], self.doc(wave)['actors']), (1, []))
         self.ok(*resolve, '--role', 'Reviewer')
         self.assertEqual([(a['role'], a['status']) for a in self.doc(wave)['actors']], [('Reviewer', 'running')])
+        requalified = [{'op': 'update', 'path': 'actors', 'match': {'correlation': 'l1'},  # R01-08
+                        'value': {'status': 'completed', 'evidence': 'task read', 'role': 'champion'}}]
+        self.refused("actor l1: role 'champion' refused in a wave without launch authorization", 'write', wave,
+                     '--actor', OWNER, '--expect-revision', 2, '--ops', json.dumps(requalified))
+
+    def test_R01_07_launch_confirmed_only_with_the_actor_it_creates(self):
+        """R01-07, R03-04: confirming a launch by ops would leave no actor, so no relaunch guard and no role rule."""
+        wave = self.solo()
+        self.ok('intent', wave, 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'k1',
+                '--op', 'launch', '--target', 'cible')
+        confirm = [{'op': 'update', 'path': 'intents', 'match': {'correlation': 'k1'},
+                    'value': {'status': 'confirmed', 'result_ref': 'thread-champion-1'}}]
+        self.refused('intent k1: a launch is confirmed only with the actor it creates', 'write', wave, '--actor',
+                     OWNER, '--expect-revision', 1, '--ops', json.dumps(confirm))
+        self.assertEqual(self.doc(wave)['intents'][0]['status'], 'pending')
+
+    def test_P05_confirmed_send_makes_the_actor_it_reaches_alive_again(self):
+        champion = {'role': 'champion', 'model': None, 'ref': 'agent-1', 'correlation': 'champ/1',
+                    'status': 'completed', 'target': 'copies/import', 'evidence': 'round 1 handed back'}
+        for phase, fragment in (('launched', None), ('preparing', "live actor with role 'champion'")):
+            with self.subTest(phase=phase):
+                w = wave2(phase)
+                w['actors'] = [champion]
+                w['intents'] = [{'correlation': 'champ/2', 'op': 'send', 'target': 'copies/import',
+                                 'status': 'pending', 'result_ref': None}]
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                argv = ('intent', self.wave_path, 'resolve', '--actor', OWNER, '--expect-revision', 0,
+                        '--correlation', 'champ/2', '--status', 'confirmed', '--result-ref', 'message-896093')
+                if fragment:
+                    self.refused(fragment, *argv)
+                else:
+                    self.ok(*argv)
+                    actor = self.doc(self.wave_path)['actors'][0]
+                    self.assertEqual((actor['status'], actor['evidence']),
+                                     ('running', 'send champ/2 confirmed: message-896093'))
 
     def test_R01_03_live_champion_invalid_once_authorization_is_withdrawn(self):
         w = wave2()
@@ -196,11 +236,12 @@ class PrepareMode(Campaign):
                     'target': 'B'}
         wait = {'kind': 'quota', 'detail': 'rate limit', 'trigger': 'capacity', 'resume': 'resume'}
         for phase, origin, valid in (('ready', None, False), ('waiting_quota', 'preparing', False),
+                                     ('waiting_quota', None, False),
                                      ('launched', None, True), ('waiting_quota', 'launched', True)):
             with self.subTest(phase=phase, origin=origin):
                 w = wave2(phase)
                 w['actors'] = [champion]
-                if origin:
+                if phase in rc.WAITLIKE:
                     w['state']['waiting'] = dict(wait, **{'from': origin})
                 self.write(self.wave_path, w)
                 code, result = self.run_cli('check', self.wave_path)
@@ -277,16 +318,20 @@ class ReviewHashes(Campaign):
         self.assertEqual(self.ok('check', wave, '--check-paths')['errors'], [])
 
     def test_closed_wave_keeps_passing_check_paths_when_a_reviewed_document_changed(self):
-        for phase, errors in (('launched', 1), ('stopped', 0)):
+        for phase, errors in (('launched', 3), ('stopped', 0)):  # R02-10: consumed mandate and its review too
             with self.subTest(phase=phase):
                 w = wave2(phase)
                 w['artifacts']['doc'] = 'doc.txt'
-                w['reviews'].append({'artifact': 'doc', 'sha256': 'a' * 64, 'status': 'done',
-                                     'disposition': 'reviewed', 'reference': 'report.md'})
+                for name in ('doc', 'prompt_a'):
+                    w['reviews'].append({'artifact': name, 'sha256': 'a' * 64, 'status': 'done',
+                                         'disposition': 'reviewed', 'reference': 'report.md'})
                 self.write(self.wave_path, w)
                 (self.wave_path.parent / 'doc.txt').write_bytes(b'changed after review')
+                (self.wave_path.parent / 'socles').mkdir(exist_ok=True)
+                (self.wave_path.parent / 'socles/a.txt').write_bytes(b'mandate changed after closure')
                 code, result = self.run_cli('check', self.wave_path, '--check-paths')
-                self.assertEqual(len([e for e in result['errors'] if 'documentary review' in e]), errors, result)
+                self.assertEqual(len([e for e in result['errors'] if 'documentary review' in e
+                                      or 'sha256 mismatch' in e]), errors, result)
 
     def test_init_and_append_default_review_disposition_and_reference_to_null(self):
         review = {'artifact': 'doc', 'sha256': 'a' * 64, 'status': 'pending'}
@@ -443,6 +488,401 @@ class MalformedState(Campaign):
         self.assertEqual(self.journal(self.program_path)[-1]['kind'], 'claim')
 
 
+class StrictInputs(Campaign):
+    def test_values_the_format_does_not_allow_are_refused_before_any_write(self):
+        """R13-03, R01-04, R13-04, R01-13, R01-12, R03-09, R01-10, R03-08, R01-09, init launch_ready 0."""
+        (self.root / 'null.json').write_text('null', encoding='utf-8')
+        w = wave2('launched')
+        w['candidate'] = {'seq': 1, 'ref': 'm1', 'artifact': 'manifest', 'sha256': 'b' * 64}
+        w['reviews'] = [{'artifact': 'manifest', 'sha256': 'b' * 64, 'status': 'done', 'disposition': 'ok',
+                         'reference': 'r.md', 'candidate_seq': 1}]
+        w['decisions'] = []
+        mandate = dict(PROGRAM_SPEC['mandate'], sha256='not-a-digest')
+        auth = {'launch': True, 'exclusions': []}
+        cases = (
+            ('event blank id', 'has no text id', ('event', self.wave_path, '--actor', OWNER, '--id', ' ', '--kind', 'k')),
+            ('short form blank id', 'has no text id', ('write', self.wave_path, '--actor', OWNER, '--expect-revision',
+                                                       0, '--ops', '[]', '--record-event', '  ', '--kind', 'k')),
+            ('ops null', 'ops must be a nonempty list, got null',
+             ('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', 'null')),
+            ('ops file null', 'ops must be a nonempty list, got null',
+             ('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops-file', self.root / 'null.json')),
+            ('ops NaN', 'NaN is not JSON', ('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops',
+                                             '[{"op":"set","path":"envelope","value":{"reason":"r","max":NaN}}]')),
+            ('completed_partial without decision', 'completed_partial requires the unqualified scope named in decisions',
+             ('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--to', 'completed_partial')))
+        for label, fragment, argv in cases:
+            with self.subTest(label):
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                self.refused(fragment, *argv)
+                self.assertEqual(self.doc(self.wave_path)['revision'], 0)
+                self.assertFalse((self.root / 'journal.jsonl').exists())
+        for label, fragment, kind, spec in (
+                ('mandate.sha256', 'mandate.sha256: expected 64 hex characters or absent, got str', 'program',
+                 dict(PROGRAM_SPEC, mandate=mandate)),
+                ('launch without source', 'authorization.source: expected nonempty text when authorization.launch is '
+                 'true, got null', 'wave', dict(WAVE_SPEC, mode='prepare-and-launch', authorization=auth)),
+                ('launch_ready 0', 'init sets these fields itself; remove them from the spec: state.launch_ready',
+                 'wave', dict(WAVE_SPEC, state={'next_action': 'x', 'launch_ready': 0}))):
+            with self.subTest(label):
+                path, code, result = self.init(label.replace(' ', '-'), kind, spec)
+                self.assertEqual(code, 1, result)
+                self.assertIn(fragment, result['error'])
+                self.assertFalse(path.exists())
+
+
+class Messages(Campaign):
+    """What a command says is what happened, and what it advises is a command that converges."""
+
+    def test_R13_05_a_resolved_intent_is_refused_even_within_the_same_second(self):
+        wave = self.solo()
+        self.send_intent(wave)
+        resolve = ('intent', wave, 'resolve', '--actor', OWNER, '--correlation', 'c1', '--status', 'confirmed',
+                   '--result-ref', 'task-7')
+        with mock.patch.object(rc, 'now', return_value='2026-11-17T00:00:00+00:00'):
+            self.ok(*resolve[:3], '--expect-revision', 1, *resolve[3:])
+            self.refused('intent c1 is resolved and immutable (confirmed)', *resolve[:3], '--expect-revision', 2,
+                         *resolve[3:])
+        self.assertEqual(self.rev(wave), 2)
+
+    def test_R13_06_candidate_seq_given_for_an_event_already_received(self):
+        w = wave2()
+        w['candidate'] = {'seq': 2, 'ref': 'm2', 'artifact': 'manifest', 'sha256': 'b' * 64}
+        for received, given, outcome in ((None, 1, 'stale'), (2, 1, 'was received for candidate_seq 2, not 1')):
+            with self.subTest(received=received):
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'ev1', '--kind', 'done',
+                        *(('--candidate-seq', received) if received else ()))
+                code, result = self.run_cli('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0,
+                                            '--ops', '[{"op":"set","path":"state.next_action","value":"x"}]',
+                                            '--record-event', 'ev1', '--kind', 'done', '--candidate-seq', given)
+                self.assertEqual(code, 1, result)
+                self.assertIn(outcome, json.dumps(result))
+                self.assertEqual(self.rev(self.wave_path), 0)
+
+    def test_R13_07_R13_08_short_form_reports_what_happened_to_its_event(self):
+        wave = self.solo()
+        self.send_intent(wave)
+        code, result = self.short(wave, 1)
+        self.assertEqual(code, 0, result)
+        self.assertEqual((result['event']['applied'], result['event']['effect']),
+                         (True, 'applied by this write (revision 2)'))
+        w = wave2('launched')  # an event received, then the wave closed before applying it
+        w['intents'] = [{'correlation': 'c1', 'op': 'send', 'target': 'T', 'status': 'absent', 'result_ref': None}]
+        self.write(self.wave_path, w)
+        self.ok('event', self.wave_path, '--actor', OWNER, '--id', EVENT, '--kind', 'return')
+        w['state']['phase'] = 'stopped'
+        self.write(self.wave_path, w)
+        before = self.wave_path.read_bytes()
+        code, result = self.run_cli('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0,
+                                    '--ops', '[{"op":"set","path":"state.next_action","value":"x"}]',
+                                    '--record-event', EVENT, '--kind', 'return')
+        self.assertEqual((code, result['written']), (1, None), result)
+        self.assertIn('record its disposition with dispose', result['event']['effect'])
+        self.assertEqual(self.wave_path.read_bytes(), before)
+
+    def test_R07_05_R03_07_type_refusals_name_the_received_type(self):
+        program_cases = (('last_milestone', 'jalon', 'last_milestone: expected object {at, summary, ref}, got str'),
+                         ('decisions_pending', 'x', 'decisions_pending: expected list of objects, got str'),
+                         ('decisions_pending', [{'id': 'D1', 'question': 'q', 'option': 'o', 'effects': 'e',
+                                                 'suspends': 'A'}],
+                          'decisions_pending[0].suspends: expected list of known outcome ids, empty when it suspends '
+                          'nothing, got str'),
+                         ('outcomes', 'A', 'outcomes: expected nonempty list of objects, got str'),
+                         ('outcomes.0.depends_on', 'B', 'A: depends_on: expected list of known outcome ids, got str'),
+                         ('outcomes.0.waiting_on', 'quota', 'outcomes.A.waiting_on: expected object {kind, detail, '
+                          'trigger}, got str'),
+                         ('outcomes.1.id', 5, 'outcomes[1].id: expected nonempty text, got int'))
+        wave_cases = (('envelope', 3, 'envelope: expected object {reason}, got int'),
+                      ('candidate', 'abc', 'candidate: expected object {seq, ref, artifact, sha256}, got str'),
+                      ('socles.0.readiness', 'bad', "A: invalid readiness: expected one of blocked, partial, ready, "
+                       "got 'bad'"),
+                      ('socles.0.resources', 'x', 'A: resources must be a list, got str'),
+                      ('artifacts', {'a': 5}, 'a: local relative artifact path required (no escape), got int'))
+        for path, make, cases in ((self.program_path, rc_program, program_cases), (self.wave_path, wave2, wave_cases)):
+            for field, value, fragment in cases:
+                with self.subTest(field=field):
+                    doc, (head, *rest) = make(), field.split('.')
+                    if rest:
+                        doc[head][int(rest[0])][rest[1]] = value
+                    else:
+                        doc[head] = value
+                    self.write(path, doc)
+                    code, result = self.run_cli('check', path)
+                    self.assertIn(fragment, result['errors'])
+
+    def test_R02_08_event_follows_an_attachment_made_while_it_waited(self):
+        wave = self.solo()
+        p = rc_program()
+        p['outcomes'][0]['state_ref'] = 'solo/wave.json'
+        self.write(self.program_path, p)
+        real, done = rc.journal_path, []
+
+        def attach_meanwhile(path, doc):
+            if not done:
+                done.append(None)
+                done[0] = (self.run_cli('write', wave, '--actor', OWNER, '--expect-revision', 0, '--ops',
+                                         '[{"op":"set","path":"program_ref","value":"../program.json"}]'))
+            return real(path, doc)
+        with mock.patch.object(rc, 'journal_path', side_effect=attach_meanwhile):
+            self.assertEqual(self.ok('event', wave, '--actor', OWNER, '--id', EVENT, '--kind', 'review')
+                             ['classification'], 'new')
+        self.assertEqual(done[0][0], 0, done)
+        self.assertIn(EVENT, [e['id'] for e in self.journal(self.program_path)])
+        self.assertNotIn(EVENT, [e['id'] for e in self.journal(wave)])
+
+    def test_R02_09_two_prepare_lines_of_one_operation_that_differ_are_refused(self):
+        wave = self.solo()
+        with mock.patch.object(rc.os, 'replace', side_effect=OSError('stopped')):
+            self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'next'}])
+        prepare = [e for e in self.journal(wave) if e['kind'] == 'prepare'][-1]
+        forged = dict(prepare, old_sha256='0' * 64, new_sha256=hashlib.sha256(wave.read_bytes()).hexdigest())
+        with (wave.parent / 'journal.jsonl').open('a', encoding='utf-8') as stream:
+            stream.write(json.dumps(forged) + '\n')
+        self.refused('has prepare lines that differ (between or within journals)', 'reconcile', wave, '--actor', OWNER,
+                     '--op', prepare['id'], '--evidence', 'bytes')
+
+    def test_resume_lists_local_events_and_advises_commands_that_converge(self):
+        """R02-07, R03-03 (local journal of a referenced detached wave), R03-10 (stale), R03-06 (closed v1)."""
+        w = wave2('preparing')
+        w['program_ref'] = None
+        w['candidate'] = {'seq': 1, 'ref': 'm1', 'artifact': 'manifest', 'sha256': 'b' * 64}
+        self.write(self.wave_path, w)
+        self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'old-review', '--kind', 'review',
+                '--candidate-seq', 1)
+        self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'task-1:run-1', '--kind', 'review')
+        w['candidate'] = dict(w['candidate'], seq=2)
+        self.write(self.wave_path, w)
+        v1 = self.root / 'old/wave.json'
+        v1.parent.mkdir()
+        legacy = wave2('completed')
+        for key in ('revision', 'program_ref', 'candidate', 'envelope', 'actors', 'intents'):
+            legacy.pop(key)
+        legacy.update(schema_version=1)
+        legacy['state']['runtime_refs'] = ['thread-1']
+        self.write(v1, legacy)
+        p = rc_program()
+        p['outcomes'][1].update(status='accepted', depends_on=[], state_ref='old/wave.json')
+        self.write(self.program_path, p)
+        result = self.run_cli('resume', self.program_path)[1]
+        self.assertEqual(sorted(e['id'] for e in result['unapplied_events']), ['old-review', 'task-1:run-1'])
+        actions = ' | '.join(result['actions'])
+        self.assertIn('event task-1:run-1 (event:review) for waves/a/wave.json was received but never applied', actions)
+        self.assertIn(f'record it as stale with event {self.wave_path.resolve()} --actor <owner> --id old-review '
+                      '--kind review', actions)
+        self.assertNotIn('migrate', actions)
+
+
+class Windows(Campaign):
+    def test_R01_06_output_is_utf8_whatever_the_console_encoding(self):
+        folder = self.root / 'vague_Ω'
+        folder.mkdir()
+        (folder / 'spec.json').write_text(json.dumps(dict(WAVE_SPEC, state={'next_action': 'lot B1 → B2'})),
+                                          encoding='utf-8')
+        env = {k: v for k, v in os.environ.items() if k not in ('PYTHONUTF8', 'PYTHONIOENCODING')}
+        env['PYTHONIOENCODING'] = 'ascii'  # a code page without these characters
+        done = subprocess.run([sys.executable, '-B', str(SCRIPT), 'init', str(folder / 'wave.json'), '--kind', 'wave',
+                               '--actor', OWNER, '--role', 'pilot', '--spec', str(folder / 'spec.json')],
+                              capture_output=True, env=env)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertTrue(json.loads(done.stdout.decode('utf-8'))['written'].endswith('wave.json'))
+
+    def test_state_replacement_retries_a_transient_permission_error(self):
+        wave = self.solo()
+        real, calls = rc.os.replace, []
+
+        def busy_once(source, target):
+            calls.append(target)
+            if len(calls) == 1:
+                raise PermissionError('a reader holds the file')
+            return real(source, target)
+        with mock.patch.object(rc.os, 'replace', side_effect=busy_once):
+            self.assertEqual(self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'n'}])[0], 0)
+        self.assertEqual((len(calls), self.rev(wave)), (2, 1))
+
+
+class ReadyView(Campaign):
+    def test_P04_every_open_outcome_is_listed_with_what_it_waits_for(self):
+        spec = dict(PROGRAM_SPEC, outcomes=[{'id': 'R1', 'outcome': 'o', 'next_action': 'n'},
+                                            {'id': 'R2', 'outcome': 'o', 'next_action': 'n', 'depends_on': ['R1']},
+                                            {'id': 'R3', 'outcome': 'o', 'next_action': 'n', 'depends_on': ['R1']},
+                                            {'id': 'R4', 'outcome': 'o', 'next_action': 'n', 'status': 'failed',
+                                             'closure': {'source': 'run failed', 'remaining': 'all'}}])
+        path, code, result = self.init('index', 'program', spec)
+        self.assertEqual(code, 0, result)
+        view = self.ok('ready', path)
+        self.assertEqual((view['ready'], view['admitted'], view['waiting'], view['blocked']),
+                         (['R1'], [], {'R2': 'depends_on R1', 'R3': 'depends_on R1'}, ['R4']))
+
+
+class Leads(Campaign):
+    """Leads without replay script, corrected."""
+    wait = ('--waiting-kind', 'quota', '--detail', 'rate limit', '--trigger', 'capacity back', '--resume', 'resume')
+
+    def test_any_active_phase_can_wait_and_resumes_to_its_origin(self):
+        for phase, origin, back in (('planning', None, 'preparing'), ('ready', 'ready', 'ready')):
+            with self.subTest(phase=phase):
+                w = wave2(phase)
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--to',
+                        'waiting_quota', *self.wait)
+                self.assertEqual(self.doc(self.wave_path)['state']['waiting']['from'], origin)
+                self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--to', back)
+
+    def test_new_blocker_before_launch_resets_launch_ready(self):
+        w = wave2('ready')
+        w['reviews'] = [{'artifact': 'prompt_a', 'sha256': 'a' * 64, 'status': 'done', 'disposition': 'ok',
+                         'reference': 'r.md'}]
+        w['state']['launch_ready'] = True
+        self.write(self.wave_path, w)
+        result = self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', json.dumps(
+            [{'op': 'append', 'path': 'state.blockers', 'value': 'port taken'}]))
+        self.assertEqual(result['launch_ready_reset']['changed'], ['state.blockers'])
+
+    def test_state_refs_compared_as_the_platform_compares_paths(self):
+        p = rc_program()
+        p['outcomes'][1].update(status='admitted', depends_on=[], state_ref='waves/A/wave.json', resources=['port-1'])
+        self.write(self.program_path, p)
+        conflicts = self.run_cli('ready', self.program_path)[1]['resource_conflicts']
+        self.assertEqual(len(conflicts), 0 if os.name == 'nt' else 1, conflicts)
+
+    def test_role_and_model_only_with_a_confirmed_launch(self):
+        wave = self.solo()
+        self.send_intent(wave)
+        self.refused('--role and --model describe the actor of a confirmed launch', 'intent', wave, 'resolve',
+                     '--actor', OWNER, '--expect-revision', 1, '--correlation', 'c1', '--status', 'confirmed',
+                     '--result-ref', 'task-7', '--role', 'champion')
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            rc.main(['intent', str(wave), 'add', '--actor', OWNER, '--expect-revision', '1', '--correlation', 'c2',
+                     '--op', 'launch', '--target', 'B', '--role', 'champion'])
+
+
+class LaunchReadyScope(Campaign):
+    def test_R07_07_launch_ready_without_a_batch_names_batches(self):
+        w = wave2('ready')
+        w['batches'] = []
+        self.write(self.wave_path, w)
+        self.refused('a socle listed in batches', 'write', self.wave_path, '--actor', OWNER, '--expect-revision', 0,
+                     '--ops', json.dumps([{'op': 'set', 'path': 'state.launch_ready', 'value': True}]))
+
+
+class Successor(Campaign):
+    """A successor who has established the owner's stop always has a documented way on, named by resume."""
+    OTHER = 'thread:successor'
+
+    def takeover(self, path):
+        return self.ok('claim', path, '--actor', self.OTHER, '--role', 'pilot', '--expect-revision', self.rev(path),
+                       '--takeover', '--evidence', 'stop of the owner confirmed by the task list')
+
+    def test_R02_01_stop_during_a_write_is_reconciled_by_its_bytes_then_taken_over(self):
+        original = rc.append_journal
+
+        def no_commit(path, entry):
+            if entry.get('commits'):
+                raise OSError('owner stopped before the commit line')
+            return original(path, entry)
+        for point, patch, outcome in (
+                ('before replace', mock.patch.object(rc.os, 'replace', side_effect=OSError('stopped')), 'not_committed'),
+                ('before commit', mock.patch.object(rc, 'append_journal', side_effect=no_commit), 'committed')):
+            with self.subTest(point):
+                self.write(self.wave_path, wave2())
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                with patch:
+                    self.assertEqual(self.ops(self.wave_path, 0, [{'op': 'set', 'path': 'state.next_action',
+                                                                   'value': 'next'}])[0], 1)
+                code, cold = self.run_cli('resume', self.program_path)
+                op = cold['uncertain_operations'][0]['id']
+                self.assertTrue(any(f'run reconcile {self.wave_path.resolve()} --actor <you> --op {op}' in a
+                                    for a in cold['actions']), cold['actions'])
+                result = self.ok('reconcile', self.wave_path, '--actor', self.OTHER, '--op', op, '--evidence', 'bytes')
+                self.assertEqual((result['outcome'], result['declared']), (outcome, False))
+                self.takeover(self.wave_path)
+
+    def test_R02_04_takeover_of_the_index_inside_the_closure_window(self):
+        w = wave2('stopped')
+        self.write(self.wave_path, w)
+        window = 'A: contradictory state: outcome admitted but wave is stopped'
+        code, cold = self.run_cli('resume', self.program_path)
+        self.assertEqual(cold['consistency_errors'], [window])
+        self.assertTrue(any('outcome A is still admitted' in a and 'claim --takeover' in a for a in cold['actions']))
+        self.assertEqual(self.takeover(self.program_path)['consistency_errors'], [window])
+        self.ok('write', self.program_path, '--actor', self.OTHER, '--expect-revision', 1, '--ops', json.dumps(
+            [{'op': 'update', 'path': 'outcomes', 'match': {'id': 'A'},
+              'value': {'status': 'abandoned', 'closure': {'source': 'wave stopped', 'remaining': 'all'}}},
+             {'op': 'set', 'path': 'status', 'value': 'stopped'}]))
+        self.refused('takeover requires --takeover', 'claim', self.wave_path, '--actor', 'thread:third',
+                     '--role', 'pilot', '--expect-revision', 0)  # a takeover still needs its evidence
+
+    def test_R01_05_terminal_wave_of_a_stopped_owner_is_taken_over_then_disposed(self):
+        self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'e1', '--kind', 'review')
+        w = self.doc(self.wave_path)
+        w['state']['phase'] = 'stopped'
+        self.write(self.wave_path, w)
+        code, cold = self.run_cli('resume', self.program_path)
+        self.assertTrue(any('dispose' in a and 'e1' in a and 'claim --takeover' in a for a in cold['actions']))
+        self.takeover(self.wave_path)
+        self.assertEqual(self.doc(self.wave_path)['state']['phase'], 'stopped')
+        self.ok('dispose', self.wave_path, '--actor', self.OTHER, '--id', 'e1', '--disposition', 'late',
+                '--evidence', 'wave closed')
+        self.assertEqual(self.ok('event', self.wave_path, '--actor', self.OTHER, '--id', 'e9',
+                                 '--kind', 'review')['classification'], 'late')
+
+    def test_P02_launch_proven_without_receipt_is_confirmed_in_one_command(self):
+        w = wave2()
+        w['intents'] = [{'correlation': 'champ/1', 'op': 'launch', 'target': 'A', 'status': 'pending',
+                         'result_ref': None}]
+        self.write(self.wave_path, w)
+        resolve = ('write', self.wave_path, '--actor', self.OTHER, '--expect-revision', 1, '--resolve-intent',
+                   'champ/1', '--status', 'confirmed', '--role', 'champion')
+        self.takeover(self.wave_path)
+        self.refused('confirmed intent requires result_ref, or an evidence of what was observed', *resolve)
+        seen = 'commit 37b2549 on lot/count observed; its author stopped with its parent, no receipt'
+        self.ok(*resolve, '--evidence', seen, '--ops', json.dumps(
+            [{'op': 'update', 'path': 'actors', 'match': {'correlation': 'champ/1'}, 'value': {'status': 'interrupted'}}]))
+        doc = self.doc(self.wave_path)
+        self.assertEqual((doc['revision'], doc['intents'][0]['status'], doc['intents'][0]['result_ref'],
+                          doc['intents'][0]['evidence']), (2, 'confirmed', None, seen))
+        self.assertEqual([(a['ref'], a['status'], a['evidence']) for a in doc['actors']], [(None, 'interrupted', seen)])
+        self.ok('intent', self.wave_path, 'add', '--actor', self.OTHER, '--expect-revision', 2, '--correlation',
+                'champ/2', '--op', 'launch', '--target', 'A')
+
+    def test_detached_wave_attaches_although_an_event_id_belongs_to_another_wave(self):
+        """Lead left at the v10 hand-back: an id already owned by another wave of the program was an endless refusal."""
+        self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'shared-id', '--kind', 'review')  # waves/a
+        wave = self.solo()
+        p = rc_program()
+        p['outcomes'][1]['state_ref'] = 'solo/wave.json'
+        self.write(self.program_path, p)
+        self.ok('event', wave, '--actor', OWNER, '--id', 'shared-id', '--kind', 'review')  # local journal
+        attach = ('write', wave, '--actor', OWNER, '--ops', '[{"op":"set","path":"program_ref","value":"../program.json"}]')
+        self.refused('shared-id (its id already belongs to waves/a/wave.json in the program journal: apply it on this '
+                     'wave first', *attach[:4], '--expect-revision', 0, *attach[4:])
+        self.ok('ack', wave, '--actor', OWNER, '--expect-revision', 0, '--id', 'shared-id', '--reason', 'nothing to do')
+        result = self.ok(*attach[:4], '--expect-revision', 1, *attach[4:])
+        self.assertEqual(result['events_not_carried'], [{'id': 'shared-id', 'belongs_to': 'waves/a/wave.json'}])
+        self.assertEqual(self.doc(wave)['program_ref'], '../program.json')
+        carried = [e for e in self.journal(self.program_path) if e['id'] == 'shared-id']
+        self.assertEqual([e['wave'] for e in carried], ['waves/a/wave.json'])
+
+    def test_R02_05_moved_state_folder_keeps_accepting_writes(self):
+        wave = self.solo()
+        self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'a'}])
+        journal = wave.parent / 'journal.jsonl'
+        entries = self.journal(wave)
+        self.assertEqual([e['journals'] for e in entries if e['kind'] == 'prepare'][-1], ['journal.jsonl'])
+        for e in entries:  # as the previous version wrote them: absolute paths of the old folder
+            if e.get('journals'):
+                e['journals'] = [str(journal.resolve())]
+        journal.write_text(''.join(json.dumps(e) + '\n' for e in entries), encoding='utf-8')
+        moved = wave.parent.with_name('moved')
+        wave.parent.rename(moved)
+        self.assertEqual(self.ops(moved / 'wave.json', 1, [{'op': 'set', 'path': 'state.next_action',
+                                                             'value': 'b'}])[0], 0)
+
+
 class Phases(Campaign):
     def test_R07_01_wait_entered_from_planning_resumes_to_preparing(self):
         wave = self.solo()
@@ -453,16 +893,31 @@ class Phases(Campaign):
                      '--to', 'planning')
         self.ok('transition', wave, '--actor', OWNER, '--expect-revision', 1, '--to', 'preparing')
 
-    def test_wait_without_origin_cannot_resume_to_launched_unarmed(self):
-        w = wave2('planning')
-        w['state']['launch_ready'] = False
-        self.write(self.wave_path, w)
-        self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--to', 'blocked',
-                '--waiting-kind', 'dependency', '--detail', 'input missing', '--trigger', 'input delivered',
-                '--resume', 'prepare')
-        self.refused('launch_ready', 'transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1,
-                     '--to', 'launched')
-        self.assertEqual(self.doc(self.wave_path)['state']['phase'], 'blocked')
+    def test_wave_never_launched_reaches_no_product_phase_nor_champion(self):
+        """R13-01, R13-02, R07-01 to R07-03, R01-01 to R01-03, R02-02, R02-03, R03-01, R03-02."""
+        wait = {'kind': 'quota', 'detail': 'rate limit', 'trigger': 'capacity', 'resume': 'resume'}
+        champion = ('intent', self.wave_path, 'resolve', '--actor', OWNER, '--expect-revision', 1,
+                    '--correlation', 'l1', '--status', 'confirmed', '--result-ref', 'task-1', '--role', 'champion')
+        cases = (('transition to integrating', 'resume to preparing, not integrating',
+                  ('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--to', 'integrating')),
+                 ('transition to launched', 'resume to preparing, not launched',
+                  ('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--to', 'launched')),
+                 ('origin rewritten', 'waiting origin None cannot be changed', ('write', self.wave_path, '--actor',
+                  OWNER, '--expect-revision', 1, '--ops', json.dumps([{'op': 'set', 'path': 'state.waiting',
+                                                                      'value': dict(wait, **{'from': 'launched'})}]))),
+                 ('champion confirmed', 'in a wave not launched yet (phase blocked)', champion))
+        for label, fragment, argv in cases:
+            with self.subTest(label):
+                w = wave2('blocked')
+                w['state']['waiting'] = dict(wait, **{'from': None})
+                w['intents'] = [{'correlation': 'l1', 'op': 'launch', 'target': 'A', 'status': 'pending',
+                                 'result_ref': None}]
+                w['revision'] = 1
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                self.refused(fragment, *argv)
+                self.assertEqual(self.doc(self.wave_path)['revision'], 1)
+        self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--to', 'preparing')
 
 
 class Help(Campaign):
@@ -470,7 +925,10 @@ class Help(Campaign):
         expected = {'transition': ('transition FILE --actor A --expect-revision N --to preparing',),
                     'ack': ('ack FILE --actor A --expect-revision N --id task-1:run-1',),
                     'claim': ('claim FILE --actor A --role pilot --expect-revision N',),
-                    'event': ('event FILE --actor A --id task-1:run-1 --kind review', 'no --expect-revision')}
+                    'event': ('event FILE --actor A --id task-1:run-1 --kind review', 'no --expect-revision'),
+                    'intent': ('intent FILE add --actor A --expect-revision N --correlation',),  # R07-06
+                    'reconcile': ('reconcile FILE --actor A --op ',),
+                    'dispose': ('dispose FILE --actor A --id task-1:run-1 --disposition late --evidence',)}
         for command, fragments in expected.items():
             with self.subTest(command=command):
                 out = io.StringIO()
