@@ -57,7 +57,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 228, 'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 34, 'footprint': 16}
+EXPECTED = {'state': 228, 'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 35, 'footprint': 16}
 READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
 READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.
@@ -310,6 +310,7 @@ def main():
         ]
         for name, command, cwd, extra, results_path in steps:
             step_env = {**env, **extra}
+            cwd.mkdir(parents=True, exist_ok=True)
             with (out / (name + '.txt')).open('w', encoding='utf-8') as log:
                 proc = subprocess.run(command, cwd=cwd, env=step_env, stdout=log, stderr=subprocess.STDOUT, check=False)
             results = json.loads(results_path.read_text(encoding='utf-8')) if results_path.is_file() else None

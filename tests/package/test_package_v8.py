@@ -578,6 +578,13 @@ class CheckPreflightTests(Base):
                 self.assertIn(check, [p['check'] for p in summary['inventory_problems']])
                 self.assertEqual(summary['results'], [])
 
+    def test_unlisted_step_folder_writes_summary(self):
+        """R06-17 : une étape dont le dossier manque dans la copie échoue, et summary.json est écrit."""
+        _, _, summary = self.run_check(self.mini_repo(), FIXTURES)
+        self.assertEqual(summary['inventory_problems'], [])
+        self.assertEqual([r['step'] for r in summary['results']][0], 'state')
+        self.assertFalse(summary['results'][0]['passed'])
+
     def test_tree_bytecode_not_loaded(self):
         """R06-16, T2-10, R3B-C01 : les étapes tournent sur la copie des fichiers listés, sous -I -S -B ;
         ni un .pyc forgé, ni un module hors provenance, ni un sitecustomize.py atteint par PYTHONPATH n'y
