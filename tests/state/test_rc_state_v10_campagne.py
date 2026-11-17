@@ -860,14 +860,37 @@ class Successor(Campaign):
         self.takeover(self.wave_path)
         self.refused('confirmed intent requires result_ref, or an evidence of what was observed', *resolve)
         seen = 'commit 37b2549 on lot/count observed; its author stopped with its parent, no receipt'
+        stopped = 'parent stopped on quota, no final message'
         self.ok(*resolve, '--evidence', seen, '--ops', json.dumps(
-            [{'op': 'update', 'path': 'actors', 'match': {'correlation': 'champ/1'}, 'value': {'status': 'interrupted'}}]))
+            [{'op': 'update', 'path': 'actors', 'match': {'correlation': 'champ/1'},
+              'value': {'status': 'interrupted', 'evidence': stopped}}]))
         doc = self.doc(self.wave_path)
         self.assertEqual((doc['revision'], doc['intents'][0]['status'], doc['intents'][0]['result_ref'],
                           doc['intents'][0]['evidence']), (2, 'confirmed', None, seen))
-        self.assertEqual([(a['ref'], a['status'], a['evidence']) for a in doc['actors']], [(None, 'interrupted', seen)])
+        self.assertEqual([(a['ref'], a['status'], a['evidence']) for a in doc['actors']],
+                         [(None, 'interrupted', stopped)])
         self.ok('intent', self.wave_path, 'add', '--actor', self.OTHER, '--expect-revision', 2, '--correlation',
                 'champ/2', '--op', 'launch', '--target', 'A')
+
+    def test_E01_R2_ops_of_the_short_form_are_judged_from_the_resolved_state(self):
+        """v10.2 review, round 2: ops removing the actor a launch created, or undoing the revival of a send."""
+        done = {'role': 'champion', 'model': None, 'ref': 'thread-1', 'correlation': 'l1', 'status': 'completed',
+                'target': 'A', 'evidence': 'returned'}
+        undo = [{'op': 'update', 'path': 'actors', 'match': {'correlation': 'l1'},
+                 'value': {'status': 'completed', 'evidence': 'returned'}}]
+        for op, actors, ops, fragment in (
+                ('launch', [], [{'op': 'set', 'path': 'actors', 'value': []}], 'actor k1 removed'),
+                ('send', [done], undo, 'actor l1: running -> completed needs its evidence')):
+            with self.subTest(op=op):
+                w = wave2()
+                w.update(actors=actors, intents=[{'correlation': 'k1', 'op': op, 'target': 'A',
+                                                  'status': 'pending', 'result_ref': None}])
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                self.refused(fragment, 'write', self.wave_path, '--actor', OWNER, '--expect-revision', 0,
+                             '--resolve-intent', 'k1', '--status', 'confirmed', '--result-ref', 'message-1',
+                             *(('--role', 'champion') if op == 'launch' else ()), '--ops', json.dumps(ops))
+                self.assertEqual(self.doc(self.wave_path)['revision'], 0)
 
     def test_detached_wave_attaches_although_an_event_id_belongs_to_another_wave(self):
         """Lead left at the v10 hand-back: an id already owned by another wave of the program was an endless refusal."""

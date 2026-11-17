@@ -665,9 +665,9 @@ update merges value into the single item whose fields equal match; it refuses ze
 actor return in one command (signal receipt, intent resolution and application in a single revision):
   write FILE --actor A --expect-revision N --resolve-intent CORR --status confirmed --result-ref R
         --record-event ID --kind K [--candidate-seq S] [--ops ...]
-  ops apply after the resolution, so they can update the actor it creates (its status included, without more
-  evidence). A launch proven without receipt: --status confirmed --evidence "what was observed", no --result-ref;
-  the actor is born with ref null and takes the status the ops give it. The signal is recorded first, as
+  ops apply after the resolution and are judged from it: the actor it creates or revives stays, and a status
+  change needs an evidence not recorded before, or the signal this command applies. A launch proven without receipt: --status confirmed --evidence "what was observed", no --result-ref;
+  the actor is born with ref null and takes the status the ops give it, with their own evidence. The signal is recorded first, as
   event does; the write runs only when it is new or received but unapplied on a wave not closed, otherwise its
   class is reported, nothing is written and the exit code is 1. After the write, event.effect reads "applied by
   this write". A refused write, invalid --ops included, leaves the event recorded
@@ -804,8 +804,10 @@ def launch_context_changes(old, new):
     return changed
 
 
-def check_evolution(old, new, owner_change=False, applies_event=None):
-    """Invariants between two versions of the same document."""
+def check_evolution(old, new, owner_change=False, applies_event=None, before=None):
+    """Invariants between two versions of the same document. With before, new is what ops made of old (before is the
+    state preceding the resolution that produced old): existing intents stay unchanged, and an actor's status change
+    needs an evidence recorded neither in old nor in before, or the applied signal."""
     errors = []
     k = kind_of(old)
     if kind_of(new) != k:
@@ -850,6 +852,11 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
         for corr, intent in ni.items():
             if corr not in oi and sval(intent, 'status') != 'pending':
                 errors.append(f'intent {corr} must be created pending, before the runtime call')
+        changed = sorted(c for c, intent in oi.items() if ni.get(c) != intent) if before is not None else []
+        if changed:
+            errors.append(f'intent {changed[0]} changes only through intent resolve or write --resolve-intent, which '
+                          'record or revive its actor; ops leave existing intents unchanged')
+        prior = by_correlation(before.get('actors')) if before is not None else {}
         for corr, actor in oa.items():
             if corr not in na:
                 errors.append(f'actor {corr} removed (keep actors; mark their status)')
@@ -859,7 +866,8 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
                     errors.append(f'actor {corr}: known {field} is immutable')
             evidence = na[corr].get('evidence')
             if (sval(na[corr], 'status') != sval(actor, 'status') and applies_event is None
-                    and not (text(evidence) and evidence != actor.get('evidence'))):
+                    and not (text(evidence) and evidence not in (actor.get('evidence'),
+                                                                 prior.get(corr, {}).get('evidence')))):
                 errors.append(f'actor {corr}: {actor.get("status")} -> {na[corr].get("status")} needs its evidence: '
                               'give the actor a new "evidence" (task status read, delivered signal, file) or apply '
                               'the signal that proves it with --applies-event')
@@ -1814,11 +1822,9 @@ def cmd_write(args):
             raise StateError(f'refused: unknown key {", ".join(created)}: the {kind_of(doc)} format does not define it. '
                              'A path joins object keys with ".", never "/" (state.next_action, not state/next_action); '
                              'see write --help and init --template')
-        before, after = by_correlation(mid.get('intents')), by_correlation(new.get('intents'))
-        changed = sorted(c for c, intent in before.items() if after.get(c) != intent)
-        if changed:
-            raise StateError(f'refused: intent {changed[0]} changes only through intent resolve or write '
-                             '--resolve-intent, which record or revive its actor; ops leave existing intents unchanged')
+        errors = check_evolution(mid, new, applies_event=applies, before=doc) if ops else []
+        if errors:
+            raise StateError('refused: ' + '; '.join(errors))
         return new
 
     event, applies = None, args.applies_event
