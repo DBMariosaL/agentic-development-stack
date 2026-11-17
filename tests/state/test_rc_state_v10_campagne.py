@@ -717,6 +717,49 @@ class ReadyView(Campaign):
                          (['R1'], [], {'R2': 'depends_on R1', 'R3': 'depends_on R1'}, ['R4']))
 
 
+class Leads(Campaign):
+    """Leads without replay script, corrected."""
+    wait = ('--waiting-kind', 'quota', '--detail', 'rate limit', '--trigger', 'capacity back', '--resume', 'resume')
+
+    def test_any_active_phase_can_wait_and_resumes_to_its_origin(self):
+        for phase, origin, back in (('planning', None, 'preparing'), ('ready', 'ready', 'ready')):
+            with self.subTest(phase=phase):
+                w = wave2(phase)
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--to',
+                        'waiting_quota', *self.wait)
+                self.assertEqual(self.doc(self.wave_path)['state']['waiting']['from'], origin)
+                self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--to', back)
+
+    def test_new_blocker_before_launch_resets_launch_ready(self):
+        w = wave2('ready')
+        w['reviews'] = [{'artifact': 'prompt_a', 'sha256': 'a' * 64, 'status': 'done', 'disposition': 'ok',
+                         'reference': 'r.md'}]
+        w['state']['launch_ready'] = True
+        self.write(self.wave_path, w)
+        result = self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', json.dumps(
+            [{'op': 'append', 'path': 'state.blockers', 'value': 'port taken'}]))
+        self.assertEqual(result['launch_ready_reset']['changed'], ['state.blockers'])
+
+    def test_state_refs_compared_as_the_platform_compares_paths(self):
+        p = rc_program()
+        p['outcomes'][1].update(status='admitted', depends_on=[], state_ref='waves/A/wave.json', resources=['port-1'])
+        self.write(self.program_path, p)
+        conflicts = self.run_cli('ready', self.program_path)[1]['resource_conflicts']
+        self.assertEqual(len(conflicts), 0 if os.name == 'nt' else 1, conflicts)
+
+    def test_role_and_model_only_with_a_confirmed_launch(self):
+        wave = self.solo()
+        self.send_intent(wave)
+        self.refused('--role and --model describe the actor of a confirmed launch', 'intent', wave, 'resolve',
+                     '--actor', OWNER, '--expect-revision', 1, '--correlation', 'c1', '--status', 'confirmed',
+                     '--result-ref', 'task-7', '--role', 'champion')
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            rc.main(['intent', str(wave), 'add', '--actor', OWNER, '--expect-revision', '1', '--correlation', 'c2',
+                     '--op', 'launch', '--target', 'B', '--role', 'champion'])
+
+
 class LaunchReadyScope(Campaign):
     def test_R07_07_launch_ready_without_a_batch_names_batches(self):
         w = wave2('ready')

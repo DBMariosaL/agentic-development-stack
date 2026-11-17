@@ -32,17 +32,17 @@ WAVE_V2_PHASES = v1.PHASES | {'waiting_human', 'waiting_runtime', 'failed', 'sto
 WAITING_PHASES = {'waiting_children', 'waiting_quota', 'waiting_runtime', 'waiting_human'}
 WAITLIKE = WAITING_PHASES | {'blocked'}
 TERMINAL_PHASES = {'completed', 'completed_partial', 'failed', 'stopped'}
-ACTIVE_FROM_WAIT = {'preparing', 'launched', 'integrating'}
+ACTIVE_FROM_WAIT = {'preparing', 'ready', 'launched', 'integrating'}
 TRANSITIONS = {
-    'planning': {'preparing', 'blocked', 'stopped'},
-    'preparing': {'ready', 'waiting_children', 'waiting_quota', 'blocked', 'stopped'},
+    'planning': {'preparing', 'stopped'},
+    'preparing': {'ready', 'stopped'},
     'ready': {'preparing', 'launched', 'stopped'},
-    'launched': {'integrating', 'waiting_children', 'waiting_quota', 'waiting_runtime',
-                 'waiting_human', 'blocked', 'completed', 'completed_partial', 'failed',
-                 'stopped', 'handed_off'},
+    'launched': {'integrating', 'completed', 'completed_partial', 'failed', 'stopped', 'handed_off'},
     'handed_off': {'launched', 'integrating'},
 }
 TRANSITIONS['integrating'] = (TRANSITIONS['launched'] - {'integrating'}) | {'launched'}
+for _active in ('planning', 'preparing', 'ready', 'launched', 'integrating'):
+    TRANSITIONS[_active] |= WAITLIKE  # any active phase can wait; the wait records it as its origin
 for _wait in WAITLIKE:
     TRANSITIONS[_wait] = (ACTIVE_FROM_WAIT | WAITLIKE | {'failed', 'stopped'}) - {_wait}
 ACTOR_STATUSES = {'running', 'waiting', 'completed', 'failed', 'cancelled', 'interrupted', 'unknown'}
@@ -481,7 +481,7 @@ def ready_view(doc):
 
     def wave_of(oid):
         ref = by_id[oid].get('state_ref')
-        return posixpath.normpath(ref.replace('\\', '/')) if text(ref) else None
+        return os.path.normcase(posixpath.normpath(ref.replace('\\', '/'))) if text(ref) else None
 
     for i, a in enumerate(admitted):  # two admitted outcomes of the same wave share its resources by design
         for b in admitted[i + 1:]:
@@ -795,8 +795,7 @@ def launch_context_changes(old, new):
             and before_launch(ostate)):
         return []
     changed = [f for f in LAUNCH_CONTEXT if old.get(f) != new.get(f)]
-    if ostate.get('consumed') != nstate.get('consumed'):
-        changed.append('state.consumed')
+    changed += [f'state.{k}' for k in ('consumed', 'blockers') if ostate.get(k) != nstate.get(k)]
     return changed
 
 
@@ -1921,6 +1920,9 @@ def resolve_intent(doc, correlation, args):
                            'value': {'status': args.status, 'result_ref': args.result_ref, 'resolved_at': now(),
                                      **observed}}])
     intent = next(i for i in _items(doc['intents']) if i.get('correlation') == correlation)
+    if (args.role or args.model) and not (args.status == 'confirmed' and intent.get('op') == 'launch'):
+        raise StateError(f'--role and --model describe the actor of a confirmed launch; intent {correlation} is '
+                         f'{intent.get("op")} resolved {args.status}: drop them')
     if args.status == 'confirmed' and intent.get('op') == 'launch':
         if not isinstance(doc.get('actors'), list):
             raise StateError(f'actors must be a list, got {got(doc.get("actors"), "actors" in doc)}: repair it with '
@@ -2314,6 +2316,8 @@ def main(argv=None):
     if args.command == 'intent':
         if args.action == 'add' and not (args.op and args.target):
             parser.error('intent add needs --op and --target')
+        if args.action == 'add' and any((args.status, args.result_ref, args.evidence, args.role, args.model)):
+            parser.error('--status, --result-ref, --evidence, --role and --model belong to intent resolve')
         if args.action == 'resolve' and not args.status:
             parser.error('intent resolve needs --status')
     if args.command == 'write':
