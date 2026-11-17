@@ -143,7 +143,6 @@ def real(path):
 
 
 def inside(child, parent):
-    """child est parent ou en dessous ; parent existant : par identité de fichier, quelle que soit l'écriture."""
     try:
         target = os.stat(parent)
     except FileNotFoundError:
@@ -344,7 +343,6 @@ def check_package(package, new_files):
 # --------------------------------------------------------------------------- plan
 
 def clashes(unknown, managed):
-    """Fichiers inconnus à la place d'un chemin géré : même chemin à la casse près, ou dossier d'un chemin géré."""
     taken = {'/'.join(r.split('/')[:i]).casefold() for r in managed for i in range(2, r.count('/') + 2)}
     return sorted(r for r in unknown if r.casefold() in taken)
 
@@ -1101,12 +1099,17 @@ def _open_state(args):
     plan = load_plan(args.plan)
     prev, new, package, targets = plan_inputs(plan)
     state = state_dir(args.state_dir, plan, targets, package)
-    if not (state / 'journal.jsonl').exists():
-        raise UpdateError(f'Aucun journal d\'application pour ce plan : {state} ; un apply interrompu avant son '
-                          'journal n\'a rien écrit dans les cibles : relancer apply avec un nouveau --state-dir')
+    no_journal = not (state / 'journal.jsonl').exists()
+    message = (f'Aucun journal d\'application pour ce plan : {state} ; un apply interrompu avant son journal '
+               'n\'a rien écrit dans les cibles : relancer apply avec un nouveau --state-dir')
+    if no_journal and not (args.break_lock and (state / 'lock').exists()):
+        raise UpdateError(message)
     saved = load_plan(state / 'plan.json')
     if saved['fingerprint'] != plan['fingerprint']:
         raise UpdateError('Le plan fourni diffère du plan enregistré dans l\'état')
+    if no_journal:
+        (state / 'lock').unlink()
+        raise UpdateError(f'Verrou retiré : {state / "lock"} ; {message}')
     return plan, new, package, state
 
 

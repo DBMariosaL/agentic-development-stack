@@ -206,6 +206,7 @@ class Footprint(unittest.TestCase):
         clone = self.repo.parent / 'clone'
         subprocess.run(['git', 'clone', '-q', '--no-checkout', '--filter=blob:none', self.repo.as_uri(), str(clone)],
                        check=True, capture_output=True)
+        subprocess.run(['git', '-C', str(clone), 'config', 'protocol.file.allow', 'always'], check=True)
         before = sorted(clone.rglob('*'))
         refused = self.run_tool('--base', base, code=2, repo=clone)
         self.assertFalse(refused['ok'])
@@ -216,7 +217,7 @@ class Footprint(unittest.TestCase):
         deep = self.repo.parent / 'deep.json'
         deep.write_text('[' * 200000, encoding='utf-8')
         for args in (('--previous', str(deep)), ('--previous', ''), ('--test-ratio', 'nan'), ('--test-ratio', 'inf'),
-                     ('--test-ratio', '-5'), ('--test-slack', '-1')):
+                     ('--test-ratio', '-5'), ('--test-slack', '-1'), ('--test-slack', '1.5')):
             with self.subTest(args):
                 refused = self.run_tool('--base', base, *args, code=2)
                 self.assertFalse(refused['ok'])

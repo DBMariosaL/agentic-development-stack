@@ -589,14 +589,24 @@ class ApplyV8Tests(Base):
         self.assertNotIn(999, [e['seq'] for e in self.journal()])
 
     def test_apply_stopped_before_journal(self):
+        initial = self.snapshot()
         self.preflight()
         with mock.patch.object(rc_update.Journal, 'append', side_effect=OSError('arrêt avant le journal')):
             self.assertEqual(self.apply()[0], 1)
+        lock = self.state / self.plan_doc()['plan_id'] / 'lock'
         for command in ('resume', 'rollback'):
             with self.subTest(command):
+                lock.write_bytes(b'4242')  # verrou laissé par un processus tué avant son journal
                 code, out = self.run_main(command, '--plan', self.plan, '--state-dir', self.state)
                 self.assertEqual(code, 1, out)
                 self.assertIn('nouveau --state-dir', out['error'])
+                self.assertTrue(lock.exists())
+                code, out = self.run_main(command, '--plan', self.plan, '--state-dir', self.state, '--break-lock')
+                self.assertEqual(code, 1, out)
+                self.assertIn('Verrou retiré', out['error'])
+                self.assertIn('nouveau --state-dir', out['error'])
+                self.assertFalse(lock.exists())
+        self.assertEqual(self.snapshot(), initial)
 
     def test_cli_errors_exit_1_with_utf8_json(self):
         self.preflight()

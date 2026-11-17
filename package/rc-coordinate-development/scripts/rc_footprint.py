@@ -5,8 +5,9 @@ lists new files and added comment lines, and emits signals that point where to l
 Signals are neither acceptance nor refusal and never change the exit code: 0 when the
 measure succeeded, 2 on usage error, unknown repository or reference, or unusable --previous.
 The measure depends only on the two commits: plumbing diff with pinned options, every file
-read as text, no inherited GIT_* variable, no replace refs, no lazy fetch (an object missing
-from a partial clone is an unknown reference). Read-only: no network, no write.
+read as text, no inherited GIT_* variable, no replace refs. Read-only: no write and no network
+from git 2.45 on, where GIT_NO_LAZY_FETCH stops the lazy fetch of a partial clone (a missing
+object is then an unknown reference); an older git ignores it and may fetch missing objects.
 """
 import argparse
 import codecs
@@ -55,11 +56,12 @@ class UsageError(Exception):
 
 Repo = namedtuple('Repo', 'path config')
 ENV = {name: value for name, value in os.environ.items() if not name.upper().startswith('GIT_')}
+ENV['GIT_NO_LAZY_FETCH'] = '1'
 
 
 def git(repo, *args):
     cmd = ['git', '--no-optional-locks', '--no-replace-objects', '-C', repo.path, *repo.config,
-           '-c', 'core.quotepath=off', '-c', 'protocol.allow=never', *args]
+           '-c', 'core.quotepath=off', *args]
     proc = subprocess.run(cmd, capture_output=True, env=ENV)
     if proc.returncode:
         raise UsageError(proc.stderr.decode('utf-8', 'replace').strip() or f'git {args[0]} failed')
@@ -91,7 +93,6 @@ def classify(path):
 
 
 def changes(repo, base, candidate):
-    """Rows (path, added, removed), new files and added lines (path, line, text), counted on the text patch."""
     tokens = diff(repo, base, candidate, '--name-status', '-z').split('\0')
     counts, new_files, index = {}, set(), 0
     while index < len(tokens) - 1:
@@ -135,7 +136,6 @@ def header_path(raw, prefix):
 
 
 def patch_lines(patch):
-    """(path, sign, new line number, text) of each added or removed line of a -U0 patch."""
     old = path = None
     line = old_left = new_left = 0
     for raw in patch.split('\n'):
@@ -190,7 +190,7 @@ def signals(rows, classes, comment_info, args, previous, empty):
     tests, product, docs = (classes[name]['added'] for name in ('tests', 'product', 'docs'))
     if tests > args.test_ratio * product + args.test_slack:
         found.append({'id': 'tests_outweigh_product',
-                      'detail': f'tests +{tests} > {args.test_ratio:g} x product +{product} + {args.test_slack:g}: '
+                      'detail': f'tests +{tests} > {args.test_ratio:g} x product +{product} + {args.test_slack}: '
                                 'have the added tests classified with references/test-review-brief.md'})
     if docs > classes['docs']['removed'] or classes['docs']['new_files']:
         grown = {path for path, added, _ in rows if added and classify(path) == 'docs'}
@@ -226,11 +226,14 @@ def footprint(args):
             'limits': LIMITS}
 
 
-def amount(text):
-    value = float(text)
-    if not 0 <= value < math.inf:
-        raise ValueError(text)
-    return value
+def non_negative(kind):
+    def parse(text):
+        value = kind(text)
+        if not 0 <= value < math.inf:
+            raise ValueError(text)
+        return value
+    parse.__name__ = f'non-negative {kind.__name__}'
+    return parse
 
 
 def build_parser():
@@ -239,10 +242,10 @@ def build_parser():
     parser.add_argument('--base', required=True, help='reference the candidate is measured against')
     parser.add_argument('--candidate', default='HEAD', help='measured reference (default: HEAD)')
     parser.add_argument('--previous', metavar='FILE.json', help='earlier output of this tool on the same base')
-    parser.add_argument('--test-ratio', type=amount, default=3.0,
+    parser.add_argument('--test-ratio', type=non_negative(float), default=3.0,
                         help='tests_outweigh_product ratio, finite and non-negative (default: 3)')
-    parser.add_argument('--test-slack', type=amount, default=100,
-                        help='tests_outweigh_product slack, finite and non-negative (default: 100)')
+    parser.add_argument('--test-slack', type=non_negative(int), default=100,
+                        help='tests_outweigh_product slack, non-negative integer (default: 100)')
     parser.add_argument('--safe-directory', action='store_true',
                         help='pass -c safe.directory=REPO to every git call, for a repository owned by another '
                              'account; REPO must be its top-level folder; git configuration files are not changed')
