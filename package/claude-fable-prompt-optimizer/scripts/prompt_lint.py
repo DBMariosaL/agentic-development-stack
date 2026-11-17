@@ -241,7 +241,7 @@ SIDE_EFFECT_VERBS = re.compile(
 AUTONOMY_MARKER = re.compile(
     r"\b(operating autonomously|user is not watching|without asking|end your turn only when|"
     r"proceed without asking|finishing work|avoid stopping while you still owe|do not stop unless needed|"
-    r"sans (?:t|vous )?.?arr[eê]ter|sans demander|va au bout|ce que tu d[eé]cides seul|remonte dans ta remise|dis-le dans ta remise|outil refus[eé])\b",
+    r"sans (?:t|vous )?.?arr[eê]ter|sans demander|va au bout|ce que tu d[eé]cides seul|ce qui remonte|remonte dans ta remise|dis-le dans ta remise|outil refus[eé])\b",
     re.I,
 )
 

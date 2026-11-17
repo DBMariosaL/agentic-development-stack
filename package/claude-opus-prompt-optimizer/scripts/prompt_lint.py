@@ -306,7 +306,7 @@ STOP_RULE = re.compile(
     r"\b(stop and ask|ask (?:me|the user) (?:only|before|first|when)|check in (?:only|when|before)|"
     r"keep going|carry on|continue without|don'?t stop|without stopping|blocked on me|"
     r"requires? (?:explicit )?confirmation|before anything destructive|"
-    r"ce que tu d[eé]cides seul|remonte dans ta remise|dis-le dans ta remise|outil refus[eé])\b",
+    r"ce que tu d[eé]cides seul|ce qui remonte|remonte dans ta remise|dis-le dans ta remise|outil refus[eé])\b",
     re.I,
 )
 RESEARCH_MARKER = re.compile(
