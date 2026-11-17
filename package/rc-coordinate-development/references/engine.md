@@ -33,7 +33,7 @@ Champs complets que l'outil exige ; `init --template program|wave` imprime le sq
 | `ready` | `preparing`, `launched`, `stopped` |
 | `launched`, `integrating` | entre elles, `waiting_children`, `waiting_quota`, `waiting_runtime`, `waiting_human`, `blocked`, `completed`, `completed_partial`, `failed`, `stopped`, `handed_off` |
 | `waiting_*`, `blocked` | la phase active d'où l'attente est sortie (`preparing` pour `from: null`), une autre attente, `failed`, `stopped` |
-| `handed_off` | `launched`, `integrating` (par le nouveau titulaire) |
+| `handed_off` | `launched`, `integrating` (titulaire repris par `claim`, ou le même qui reprend sa vague) |
 
 Un signal tardif sur une vague terminale est consigné au journal sans changer l'état. Entre la clôture d'une vague et l'écriture de l'index, `check` de l'index signale `outcome admitted but wave is completed` : fenêtre attendue, refermée par l'écriture de l'index. `claim` ne refuse que les incohérences qu'il introduirait (celles déjà là sont rapportées sous `consistency_errors`) et reste ouvert sur une vague terminale, dont il ne change que le titulaire.
 
