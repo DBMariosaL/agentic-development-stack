@@ -14,6 +14,7 @@ sys.dont_write_bytecode = True
 
 import codecs  # noqa: E402
 import contextlib  # noqa: E402
+import ctypes  # noqa: E402
 import hashlib  # noqa: E402
 import importlib.util  # noqa: E402
 import json  # noqa: E402
@@ -437,7 +438,7 @@ class RunnerR1Tests(Base):
         for label, step, change, code, system, expected in (
                 ('témoin', 'updater-v8', {}, 0, 'nt', None),
                 ('code de sortie', 'updater-v8', {}, 1, 'nt', 'exit code'),
-                ('résultats absents', 'updater-v8', None, 0, 'nt', 'no results file'),
+                ('résultats absents ou illisibles', 'updater-v8', None, 0, 'nt', 'no readable results file'),
                 ('compte attendu', 'updater-v8', {'tests_run': 1, 'collected': ['a']}, 0, 'nt', 'collection'),
                 ('identifiants collectés', 'updater-v8', {'collected': ['a']}, 0, 'nt', 'collected ids differ'),
                 ('échec', 'updater-v8', {'failures': ['a']}, 0, 'nt', 'failures or errors'),
@@ -531,8 +532,8 @@ class CheckPreflightTests(Base):
                 self.assertFalse(long_root.exists())
 
     def test_inventory_refusal_writes_summary(self):
-        """Chaque règle de l'inventaire : refus nommé, summary.json, aucune étape, aucune trace (R06-13,
-        R06-17, R3B-C04)."""
+        """Chaque règle de l'inventaire, et des étapes sur la copie : refus nommé, summary.json, copie
+        retirée, aucune trace (R06-13, R06-17, R3B-C04, R4-C02 à C05, R4-C07)."""
         reading = 'package/rc-coordinate-development/SKILL.md'
 
         def provenance(repo, change):
@@ -549,6 +550,24 @@ class CheckPreflightTests(Base):
             provenance(repo, lambda files: files.append(
                 {'path': 'package/rc-coordinate-development/extra.md', 'sha256': hashlib.sha256(b'x\n').hexdigest()}))
 
+        def lock(repo):
+            path = repo / 'docs/x.md'
+            if os.name != 'nt':
+                path.chmod(0)
+                return lambda: path.chmod(0o644)
+            kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+            kernel.CreateFileW.restype = ctypes.c_void_p
+            kernel.CreateFileW.argtypes = [ctypes.c_wchar_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p,
+                                           ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p]
+            kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+            handle = kernel.CreateFileW(str(path), 0x80000000, 0, None, 3, 0, None)  # lecture, sans partage
+            return lambda: kernel.CloseHandle(handle)
+
+        bad_results = ("import atexit, pathlib, sys\n"
+                       "atexit.register(lambda: pathlib.Path(sys.argv[4]).write_text('{'))\n")
+        rewrite = ("import pathlib\np = pathlib.Path(__file__).resolve().parents[2] / 'tools' / 'check.py'\n"
+                   "p.write_bytes(p.read_bytes() + b'\\n')\n")
+
         def extra_in_manifest(repo):
             append(repo, 'package/rc-coordinate-development/extra.md')
             doc = json.loads((repo / 'manifest.json').read_text(encoding='utf-8'))
@@ -557,6 +576,17 @@ class CheckPreflightTests(Base):
             (repo / 'manifest.json').write_text(json.dumps(doc), encoding='utf-8')
 
         for label, sources, words, change, check in (
+                ('chemin qui remonte', None, 1, lambda repo: provenance(repo, lambda files: files.append(
+                    {'path': '../outside.py', 'sha256': '0' * 64})), 'provenance_path'),
+                ('chemin absolu', None, 1, lambda repo: provenance(repo, lambda files: files.append(
+                    {'path': str(repo / 'tools' / 'check.py'), 'sha256': '0' * 64})), 'provenance_path'),
+                ('destination en double', None, 1, lambda repo: provenance(repo, lambda files: files.append(
+                    {**files[-1], 'path': files[-1]['path'].upper()})), 'provenance_duplicate'),
+                ('entrée illisible', {'docs/x.md': 'x\n'}, 1, lock, 'unreadable'),
+                ('résultat d\'étape illisible', {'tests/state/test_bad.py': bad_results}, 1, lambda repo: None,
+                 'no readable results file'),
+                ('copie modifiée par une étape', {'tests/state/test_rewrite.py': rewrite}, 1, lambda repo: None,
+                 'copy_changed'),
                 ('lecture obligatoire retirée', None, 1, lambda repo: (repo / reading).unlink(), 'pilot_reading_missing'),
                 ('budget de lecture', None, 4000, lambda repo: None, 'pilot_reading'),
                 ('provenance à BOM', None, 1, lambda repo: (repo / 'provenance.json').write_bytes(
@@ -574,11 +604,17 @@ class CheckPreflightTests(Base):
                 ('fichier du paquet hors provenance', None, 1, extra_in_manifest, 'provenance_inventory')):
             with self.subTest(label):
                 repo = self.mini_repo('repo-' + str(abs(hash(label)) % 10 ** 6), sources, b'mot ' * words + b'\n')
-                change(repo)
-                proc, _, summary = self.run_check(repo, FIXTURES)
-                self.assertIn('inventory: FAILED', proc.stdout)
-                self.assertIn(check, [p['check'] for p in summary['inventory_problems']])
-                self.assertEqual(summary['results'], [])
+                release = change(repo)
+                try:
+                    proc, _, summary = self.run_check(repo, FIXTURES)
+                finally:
+                    if callable(release):
+                        release()
+                found = [p['check'] for p in summary['inventory_problems']] + \
+                    [reason for result in summary['results'] for reason in result['reasons']]
+                self.assertTrue(any(check in item for item in found), found)
+                self.assertEqual(summary['results'] == [], check not in ('copy_changed', 'no readable results file'))
+                self.assertFalse(summary['copy'] and Path(summary['copy']).exists())
 
     def test_unlisted_step_folder_writes_summary(self):
         """R06-17 : une étape dont le dossier manque dans la copie échoue, et summary.json est écrit."""
