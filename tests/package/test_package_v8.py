@@ -107,7 +107,7 @@ class PackageTests(Base):
         bad = failing(validator.validate(copy))
         self.assertTrue(bad)
         for name, detail in bad.items():
-            self.assertTrue(str(detail).endswith('current-model.md'), (name, detail))
+            self.assertIn('current-model.md', str(detail), name)
             self.assertTrue(name.startswith('gpt-prompt-optimizer'), name)
 
     def test_missing_script_resource_red(self):
@@ -115,7 +115,7 @@ class PackageTests(Base):
         (copy / 'claude-opus-prompt-optimizer' / 'scripts' / 'opus_api_check.py').unlink()
         bad = failing(validator.validate(copy))
         self.assertTrue(bad)
-        self.assertEqual(set(bad.values()), {'scripts/opus_api_check.py'})
+        self.assertEqual({detail.split(' (')[0] for detail in bad.values()}, {'scripts/opus_api_check.py'})
 
     def test_missing_icon_red(self):
         copy = self.copy()
@@ -128,7 +128,7 @@ class PackageTests(Base):
         path = copy / 'claude-opus-prompt-optimizer' / 'references' / 'behavior-fixes.md'
         path.write_bytes(path.read_bytes() + b'\nSee [missing](#no-such-section).\n')
         bad = failing(validator.validate(copy))
-        self.assertEqual(list(bad.values()), ['#no-such-section'])
+        self.assertEqual(list(bad.values()), ['#no-such-section (no simple ATX heading has this id)'])
 
     def validate_with_payload(self, payload, extra=None):
         """Payload ajouté à unslop/references/patterns.md ; extra : {chemin du paquet: octets ajoutés}."""
@@ -146,7 +146,7 @@ class PackageTests(Base):
     def test_reference_link_to_missing_file_red(self):
         code, bad = self.validate_with_payload('\n[missing][dead]\n\n[dead]: does-not-exist.md\n')
         self.assertEqual(code, 1)
-        self.assertEqual(list(bad.values()), ['does-not-exist.md'])
+        self.assertEqual(list(bad.values()), [f'does-not-exist.md ({validator.DEAD})'])
 
     def test_windows_machine_path_red(self):
         code, bad = self.validate_with_payload('\nmachine path: C:\\private\\example.txt\n')
@@ -154,42 +154,50 @@ class PackageTests(Base):
         self.assertEqual(list(bad), [os.path.join('unslop', 'references', 'patterns.md') + ':no_machine_snapshot'])
 
     def test_valid_link_forms_accepted(self):
-        files = {'unslop/references/my file.md': b'x\n', 'unslop/references/a(1).md': b'x\n'}
-        for payload in ('\n[self](<patterns.md>)\n',
-                        '\n[t][lbl]\n\n[lbl]: <my file.md>\n\n[u](my%20file.md) [v](a(1).md)\n',
-                        '\n## Zed\n\n## Zed\n\n## Zed 1\n\n[a](#zed-1) [b](#zed-1-1)\n',
-                        '\nMy Setext Title\n===\n\n  ## Indented Head\n\n## See [docs](patterns.md) _now_\n\n'
-                        '[a](#my-setext-title) [b](#indented-head) [c](#see-docs-now)\n',
-                        '\n```markdown\n[example](example-only.md)\n```\n',
-                        '\n- item\n\n    ```markdown\n    [example](example-only.md)\n    ```\n',
-                        '\nsyntax: `[example](example-only.md)`\n',
-                        '\nsyntax: `[example](example-only.md)\ncontinued` end\n',
-                        '\ntext\n\n    [example](example-only.md)\n',
-                        '\n## H\n    [example](example-only.md)\n'):
+        for payload in ('\n[t][lbl]\n\n[lbl]:\n  patterns.md\n',
+                        '\n[x](patterns%2Emd)\n',
+                        '\n## Zed\n\n## Zed\n\n## Zed 1\n\n  ## Indented Head\n\n'
+                        '[a](#zed-1) [b](#zed-1-1) [c](#indented-head)\n',
+                        '\n```markdown\n[example](https://example.com/example-only.md)\n```\n',
+                        '\n- [role]: [model], effort [level]\n',
+                        '\nsee references/patterns.md.\n',
+                        '\n<a href="patterns.md">x</a> <img src="../assets/icon.svg">\n'):
             with self.subTest(payload):
-                self.assertEqual(self.validate_with_payload(payload, files), (0, {}))
+                self.assertEqual(self.validate_with_payload(payload), (0, {}))
 
     def test_broken_forms_refused(self):
-        """R06 : un lien mort, une ressource absente ou un chemin machine ne passe sous aucune forme ;
-        une construction hors du sous-ensemble est refusée par son nom, jamais comme lien mort."""
+        """Lien mort, ancre morte, ressource absente ou chemin machine : refusés sous toute forme,
+        exemples de code compris ; une forme que la règle ne lit pas est refusée par la règle."""
         for payload, extra, expected in (
                 ('\n[a [b] c](absent.md)\n', {}, 'absent.md'),
-                ('\n[![alt](../assets/icon.svg)](absent.md)\n', {}, 'absent.md'),
-                ('\n[a\\]b](absent.md)\n', {}, 'absent.md'),
+                ('\n```\n[example](example-only.md)\n```\n', {}, 'carries a scheme'),
                 ('\n[t][lbl]\n\n[lbl]:\n  absent.md\n', {}, 'absent.md'),
-                ('\n```code``` is inline here.\n\n[x](absent.md)\n', {}, 'absent.md'),
-                ('\nA \\`[x](absent.md)\\` b\n', {}, 'absent.md'),
+                ('\n- item\n  - inner\n    - [lbl]: absent.md\n\n[t][lbl]\n', {}, 'absent.md'),
+                ('\n> [lbl]: absent.md\n', {}, 'absent.md'),
+                ('\n[lbl]: <absent file.md>\n', {}, 'unsupported destination'),
+                ('\n[lbl]: absent.md (title)\n', {}, 'absent.md'),
+                ('\n<a href="absent.md">x</a>\n', {}, 'absent.md'),
+                ('\n<img src="absent.svg">\n', {}, 'absent.svg'),
+                ('\n[t](a(1).md)\n', {}, 'unsupported destination'),
                 ('\n[x](PATTERNS.MD)\n', {}, 'PATTERNS.MD'),
                 ('\n[x](patterns.md.)\n', {}, 'patterns.md.'),
-                ('\n[x](..\\references\\patterns.md)\n', {}, 'patterns.md'),
-                ('\nrun `python scripts/absent.py --x`\n', {}, 'scripts/absent.py'),
-                ('\nrun `./scripts/absent.py`\n', {}, 'scripts/absent.py'),
+                ('\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n    ```\n\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n```x``` inline\n\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n## See [a](patterns.md)\n\n[x](#see-apatternsmd)\n', {}, 'no simple ATX heading'),
+                ('\n## A [b][c]\n\n[c]: patterns.md\n\n[x](#a-bc)\n', {}, 'no simple ATX heading'),
+                ('\n## A &amp; B\n\n[x](#a-amp-b)\n', {}, 'no simple ATX heading'),
+                ('\n## A <b>B</b>\n\n[x](#a-bbb)\n', {}, 'no simple ATX heading'),
+                ('\n## A\\*B\n\n[x](#ab)\n', {}, 'no simple ATX heading'),
+                ('\n## _Foo_ bar\n\n[x](#_foo_-bar)\n', {}, 'no simple ATX heading'),
+                ('\nsee scripts/absent.py.\n', {}, 'scripts/absent.py'),
+                ('\nrun `python --file=scripts/absent.py`\n', {}, 'scripts/absent.py'),
+                ('\nrun ./scripts/absent.py\n', {}, 'scripts/absent.py'),
+                ('\nRead `references/my file.md`\n', {'unslop/references/my file.md': b'x\n'}, 'blank'),
                 ('\nsee c:\\users\\me\\secret.txt\n', {}, 'no_machine_snapshot'),
                 ('\nsee \\\\srv\\share\\x\n', {}, 'no_machine_snapshot'),
                 ('\nsee /home/me/secret.txt\n', {}, 'no_machine_snapshot'),
                 ('\nsnap ' + 'A1B2C3D4E5' * 4 + '\n', {}, 'no_machine_snapshot'),
-                ('\n> [t][lbl]\n>\n> [lbl]: absent.md\n', {}, 'block quote'),
-                ('\n- item\nlazy line\n\n    [x](absent.md)\n', {}, 'block indented'),
                 ('', {'unslop/references/patterns.md': b'\xff'}, 'utf8'),
                 ('', {'gpt-prompt-optimizer/scripts/prompt_lint.py': b'\x00'}, 'compiles')):
             with self.subTest(payload or extra):
@@ -381,12 +389,15 @@ class RunnerR1Tests(Base):
 
 
 class CheckPreflightTests(Base):
-    def mini_repo(self, name='repo'):
-        """check.py seul, un paquet de trois fichiers de lecture, manifeste et provenance alignés."""
+    def mini_repo(self, name='repo', sources=None):
+        """check.py, un paquet de trois fichiers de lecture et les sources données, toutes inventoriées."""
         repo = self.dir / name
         (repo / 'tools').mkdir(parents=True)
         (repo / 'tests').mkdir()
         shutil.copyfile(ROOT / 'tools' / 'check.py', repo / 'tools' / 'check.py')
+        for rel, text in (sources or {}).items():
+            (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (repo / rel).write_text(text, encoding='utf-8')
         entries = []
         for name in ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md'):
             path = repo / 'package' / 'rc-coordinate-development' / name
@@ -395,8 +406,10 @@ class CheckPreflightTests(Base):
             entries.append({'path': 'rc-coordinate-development/' + name,
                             'sha256': hashlib.sha256(b'mot\n').hexdigest(), 'bytes': 4})
         (repo / 'manifest.json').write_text(json.dumps({'files': entries}), encoding='utf-8')
-        (repo / 'provenance.json').write_text(json.dumps({'files': [
-            {'path': 'package/' + e['path'], 'sha256': e['sha256']} for e in entries]}), encoding='utf-8')
+        listed = [{'path': 'package/' + e['path'], 'sha256': e['sha256']} for e in entries]
+        listed += [{'path': rel, 'sha256': hashlib.sha256((repo / rel).read_bytes()).hexdigest()}
+                   for rel in ['tools/check.py', *(sources or {})]]
+        (repo / 'provenance.json').write_text(json.dumps({'files': listed}), encoding='utf-8')
         return repo
 
     def run_check(self, repo, fixtures_root):
@@ -426,14 +439,17 @@ class CheckPreflightTests(Base):
                 self.assertFalse(long_root.exists())
 
     def test_inventory_refusal_writes_summary(self):
-        """R06-13, R06-17 : lecture obligatoire retirée ou BOM dans un JSON d'inventaire : refus nommé
-        à l'inventaire et summary.json, sans trace."""
+        """R06-13, R06-17, CTL-07 : lecture obligatoire retirée, BOM dans un JSON d'inventaire ou source
+        Python hors provenance : refus nommé à l'inventaire et summary.json, sans trace."""
         for label, check in (('SKILL.md', 'pilot_reading_missing'), ('provenance.json', 'unreadable'),
-                             ('manifest.json', 'unreadable')):
+                             ('manifest.json', 'unreadable'), ('tests/state/test_000.py', 'provenance_inventory')):
             with self.subTest(label):
-                repo = self.mini_repo('repo-' + label.split('.')[0])
+                repo = self.mini_repo('repo-' + Path(label).stem)
                 if label == 'SKILL.md':
                     (repo / 'package' / 'rc-coordinate-development' / label).unlink()
+                elif label.endswith('.py'):
+                    (repo / label).parent.mkdir(parents=True)
+                    (repo / label).write_text('import unittest\n', encoding='utf-8')
                 else:
                     (repo / label).write_bytes(codecs.BOM_UTF8 + (repo / label).read_bytes())
                 proc, _, summary = self.run_check(repo, self.dir)
@@ -443,11 +459,9 @@ class CheckPreflightTests(Base):
 
     def test_tree_bytecode_not_loaded(self):
         """R06-16 : un .pyc forgé dans l'arbre, à l'en-tête valide, n'est pas chargé par une étape."""
-        repo = self.mini_repo()
+        repo = self.mini_repo(sources={'tests/state/test_mini.py': 'import unittest\n\n\nclass T(unittest.TestCase):\n'
+                                                                   '    def test_a(self):\n        pass\n'})
         source = repo / 'tests' / 'state' / 'test_mini.py'
-        source.parent.mkdir()
-        source.write_text('import unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n'
-                          '        pass\n', encoding='utf-8')
         code = compile(source.read_text(encoding='utf-8') + "\nprint('PYC FORGE CHARGE')\n", str(source), 'exec')
         stat = source.stat()
         cache = source.parent / '__pycache__' / f'{source.stem}.{sys.implementation.cache_tag}.pyc'  # hors préfixe

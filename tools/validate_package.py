@@ -16,19 +16,28 @@ tools/rc_update.py (single registry). Rules depend on the role of each skill:
   icons resolved from the skill root, the invocation policy recorded at snapshot time
   (Unslop stays explicit-only), and closure of their local resources.
 
-For every skill: Markdown links and in-page anchors, resource paths
-(``references/``, ``scripts/``, ``assets/``, ``agents/``) cited in code spans, also inside a
-command line, compilation and standard-library imports of Python files, UTF-8 text, no
-cache or temporary file, regular files only, no machine path (drive letter, UNC, /home/,
-/Users/) or 40-hex snapshot in Markdown. A link or resource is sound only if it names a
-package file at exact case, with '/' separators: the verdict does not depend on the host
-file system. With --provenance, the bytes of every package file are compared with the
-recorded provenance.
+For every skill: compilation and standard-library imports of Python files, UTF-8 text, no
+cache or temporary file, regular files only, no blank in a file name, no machine path
+(drive letter, UNC, /home/, /Users/) or 40-hex snapshot in Markdown. With --provenance,
+the bytes of every package file are compared with the recorded provenance.
 
-Markdown is not parsed as CommonMark. The validator reads a declared subset, the one the
-package uses (see ``blocks``), and refuses a construct outside it by naming it and saying
-how to rewrite it, rather than guessing; HTML blocks and HTML links are refused. A bracketed label with no
-definition (``[P][R]``) is plain text, as in CommonMark.
+Markdown is scanned as raw text; the validator does not tell code from prose. The rules:
+
+1. Destinations. Whatever follows '](' anywhere, every '[label]: destination' at the start
+   of a line whatever its indentation, list marker or quote marker (destination on the
+   next line included), and every href= or src= is a destination. It carries a scheme
+   (ignored), or is an anchor alone, or is a relative path that must name a package file
+   exactly, %xx decoded. Anything else, or a destination with a character outside
+   letters, digits and ._-/%#, is refused by name. An example in code that must not
+   resolve is written with a scheme.
+2. Resources. Every word references/..., scripts/... or assets/... in a Markdown file of a
+   skill must name a file of that skill exactly.
+3. Anchors. An anchor is sound only if it equals the id of a simple ATX heading (indented
+   0-3 spaces) outside a ``` or ~~~ fence, numbered on repeats as on GitHub. A heading
+   with a link, an entity, HTML, a backslash or an underscore at a word edge gives no id;
+   Setext headings give none. The fence toggle is the only structure read; a fence line
+   indented 4+ spaces or with a tab, or a backtick fence whose info string holds a
+   backtick, puts the rest of the file in a fence, which refuses rather than accepts.
 
 The frontmatter and UI readers accept only the subsets present in these files; they are
 not YAML parsers. Structural success certifies neither the quality of a prompt, nor the
@@ -61,158 +70,43 @@ DEPENDENCY_POLICY = {
     'unslop': {'allow_implicit_invocation': False, 'default_prompt': False},
 }
 TEXT_SUFFIXES = {'.md', '.py', '.yaml', '.yml', '.svg', '.txt', '.json'}
-RESOURCE = re.compile(r'(?:references|scripts|assets|agents)/[\w.\-/]+')
 MACHINE = re.compile(r'(?<![A-Za-z])[A-Za-z]:[\\/]|\\\\[^\s\\]+\\|/(?:home|Users)/|[0-9A-Fa-f]{40}')
-FENCE = re.compile(r'( *)(`{3,}(?=[^`]*$)|~{3,})')
-MARKER = re.compile(r' {0,3}(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)')
-ATX = re.compile(r' {0,3}#{1,6}(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*')
-INLINE = re.compile(r'\\[!-/:-@\[-`{-~]|`+')
-DEST = r'[ \t]*\n?[ \t]*(?:<([^<>\n]*)>|((?:[^\s()]|\([^\s()]*\))+))'
-INLINE_DEST = re.compile(DEST + r'(?:\s+(?:"[^"]*"|\'[^\']*\'|\([^()]*\)))?\s*\)')
-REFERENCE = re.compile(r'^ {0,3}(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)*\[[^\]]+\]:' + DEST, re.M)
-UNREADABLE_LINK = ('link not read: write [text](path), [text](<path with spaces>) '
-                   'or [text](path "title"); HTML links are not read')
+DESTINATIONS = re.compile(
+    r'\]\(([^)\n]*)'
+    r'|^[ \t>]*(?:(?:[-*+]|\d{1,9}[.)])[ \t>]+)*\[[^\]\n]+\]:[ \t]*\n?[ \t>]*(<[^>\n]*>|\S*)'
+    r'(?=[ \t]*(?:"[^"\n]*"|\'[^\'\n]*\'|\([^)\n]*\))?[ \t]*$)'
+    r'|(?:href|src)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))', re.M)
+RESOURCE = re.compile(r'(?:(?<=\./)|(?<![\w./\-]))(?:references|scripts|assets)/[\w.\-/]*[\w\-]')
+HEADING = re.compile(r' {0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*')
+NOT_SIMPLE = re.compile(r'\]\(|\]\[|&#?\w+;|<|\\|(?<!\w)_|_(?!\w)')
+DEAD = 'not a package file at exact case; an example in code carries a scheme'
+ANCHORLESS = 'no simple ATX heading has this id'
+UNSAFE = "unsupported destination: use letters, digits and ._-/%# or a URL with a scheme"
 
 
-def blocks(text):
-    """Read the supported Markdown subset; returns (prose chunks, headings, refusals).
-
-    Supported: ATX headings indented 0-3 spaces, Setext headings, paragraphs, tables, nested
-    lists, fenced code blocks (also inside list items), indented code blocks outside lists,
-    code spans (also across the lines of one paragraph), backslash escapes, inline links and
-    images, reference definitions. Refused with their line, because they change what is code
-    and what is prose: block quotes, HTML blocks, tab indentation, and a block indented four
-    spaces or more after a blank line inside a list.
-    """
-    chunks, headings, refused = [], [], []
-    chunk, fence, in_list, prev = [], None, False, 'blank'
-
-    def flush():
-        if chunk:
-            chunks.append('\n'.join(chunk))
-            chunk.clear()
-
-    def refuse(number, construct):
-        if prev != 'skip':
-            refused.append((number, construct))
-        return 'skip'
-
-    for number, line in enumerate(text.split('\n'), 1):
-        indent = len(line) - len(line.lstrip(' '))
-        if fence:
-            if line.strip() and indent < fence[1]:
-                fence = None  # the line leaves the list item that held the fence
-            else:
-                closing = re.fullmatch(r' *(`+|~+)[ \t]*', line)
-                if closing and closing[1][0] == fence[0][0] and len(closing[1]) >= len(fence[0]) \
-                        and indent <= fence[1] + 3:
-                    fence = None
-                continue
-        if not line.strip():
-            flush()
-            prev = 'blank'
+def anchors(text):
+    """Ids of the simple ATX headings outside fences, GitHub numbering of repeats."""
+    seen, fence = {}, None
+    for line in text.split('\n'):
+        stripped = line.lstrip(' \t')
+        opening = re.match(r'(`{3,}|~{3,})(.*)', stripped)
+        if opening:
+            margin = line[:len(line) - len(stripped)]
+            if len(margin) >= 4 or '\t' in margin or (opening[1][0] == '`' and '`' in opening[2]):
+                break  # in doubt, the rest of the file is in a fence
+            if fence is None:
+                fence = opening[1]
+            elif opening[1][0] == fence[0] and len(opening[1]) >= len(fence) and not opening[2].strip():
+                fence = None
             continue
-        marker, heading = MARKER.match(line), ATX.fullmatch(line)
-        if indent == 0 and not marker and (prev != 'para' or heading):
-            in_list = False
-        opening = FENCE.match(line)
-        if opening and (indent < 4 or prev != 'para'):
-            flush()
-            fence, prev = (opening[2], indent), 'code'
-        elif indent >= 4 and prev != 'para':
-            flush()
-            prev = refuse(number, 'block indented 4+ spaces after a blank line in a list: indent it by the '
-                                  "item's content width (2 for '- ', 3 for '1. ') or use a fenced block") \
-                if in_list else 'code'
-        elif re.match(r' {0,3}>', line):
-            flush()
-            prev = refuse(number, 'block quote: rewrite without ">"')
-        elif re.match(r' {0,3}<(?![A-Za-z][\w+.-]*:)[A-Za-z/!?]', line):
-            flush()
-            prev = refuse(number, 'HTML block: put it in a fenced code block or write Markdown')
-        elif heading:
-            flush()
-            headings.append(heading[1] or '')
-            chunks.append(heading[1] or '')
-            prev = 'heading'
-        elif prev == 'para' and re.fullmatch(r' {0,3}(=+|-+)[ \t]*', line) \
-                and not MARKER.match(chunk[0]) and not chunk[0].lstrip().startswith('|'):
-            headings.append(' '.join(part.strip() for part in chunk))
-            flush()
-            prev = 'heading'
-        else:
-            if '\t' in line[:indent + 1]:
-                refused.append((number, 'tab indentation: indent with spaces'))
-            in_list = in_list or bool(marker)
-            if prev != 'para' or marker or line.lstrip().startswith('|'):
-                flush()
-            chunk.append(line)
-            prev = 'para'
-    flush()
-    return chunks, headings, refused
-
-
-def inline(chunk):
-    """Chunk with backslash escapes as \\x1a and code spans as \\x1b; returns (text, span contents)."""
-    out, spans, pos = [], [], 0
-    while match := INLINE.search(chunk, pos):
-        out.append(chunk[pos:match.start()])
-        pos = match.end()
-        if match[0][0] == '\\':
-            out.append('\x1a')
-            continue
-        close = re.compile(f'(?<!`){match[0]}(?!`)').search(chunk, pos)
-        if close:
-            spans.append(chunk[pos:close.start()])
-            out.append('\x1b')
-            pos = close.end()
-        else:
-            out.append(match[0])
-    out.append(chunk[pos:])
-    return ''.join(out), spans
-
-
-def link_targets(chunks):
-    """Destinations after every '](' and of reference definitions, outside code; None if unreadable."""
-    targets = []
-    for chunk in chunks:
-        text, _ = inline(chunk)
-        for match in re.finditer(r'\]\(', text):
-            dest = INLINE_DEST.match(text, match.end())
-            targets.append(None if dest is None else dest[1] if dest[1] is not None else dest[2])
-        targets += [m[1] if m[1] is not None else m[2] for m in REFERENCE.finditer(text)]
-        if re.search(r'<(?:a|img)\s', text, re.I):
-            targets.append(None)
-    return targets
-
-
-def slug(heading):
-    """GitHub anchor of a heading's rendered text: links and images reduced to their text,
-    emphasis and inline HTML removed, code spans kept."""
-    text, spans = inline(heading)
-    text = re.sub(r'!?\[([^\]]*)\]\([^)]*\)', r'\1', text)
-    text = re.sub(r'\*+|(?<!\w)_+|_+(?!\w)|<[^>]*>', '', text)
-    for span in spans:
-        text = text.replace('\x1b', span.strip(), 1)
-    return re.sub(r'[^\w\- ]', '', text.strip().lower()).replace(' ', '-')
-
-
-def anchors(headings):
-    """Heading anchors with GitHub's numbering of repeats: Zed, Zed, Zed 1 give zed, zed-1, zed-1-1."""
-    seen = {}
-    for heading in headings:
-        base = anchor = slug(heading)
-        while anchor in seen:
-            seen[base] += 1
-            anchor = f'{base}-{seen[base]}'
-        seen[anchor] = 0
+        heading = HEADING.fullmatch(line) if fence is None else None
+        if heading and not NOT_SIMPLE.search(heading[1]):
+            base = anchor = re.sub(r'[^\w\- ]', '', heading[1].lower()).replace(' ', '-')
+            while anchor in seen:
+                seen[base] += 1
+                anchor = f'{base}-{seen[base]}'
+            seen[anchor] = 0
     return set(seen)
-
-
-def resolve(names, folder, target):
-    """Package path that target names from folder, only if a file has exactly that path."""
-    path = posixpath.normpath(posixpath.join(folder, target)) if isinstance(target, str) else None
-    return path if path in names else None
 
 
 def scalar(value):
@@ -308,18 +202,14 @@ def stdlib_imports(source, filename):
 
 def validate(root, provenance=None):
     root = root.resolve()
-    checks, files, texts, parsed = [], [], {}, {}
+    checks, files, texts = [], [], {}
 
     def check(name, condition, detail=''):
         checks.append({'check': name, 'passed': bool(condition), 'detail': detail})
 
-    def parse(key):
-        if key not in parsed:
-            text = texts[key]
-            if key.endswith('SKILL.md'):  # frontmatter lines blanked, numbering kept
-                text = re.sub(r'\A---\n.*?\n---\n', lambda m: '\n' * m[0].count('\n'), text, flags=re.S)
-            parsed[key] = blocks(text)
-        return parsed[key]
+    def resolve(folder, target):
+        path = posixpath.normpath(posixpath.join(folder, target)) if isinstance(target, str) else None
+        return path if path in names else None
 
     paths = sorted(p for p in root.rglob('*') if p.is_file())
     names = {p.relative_to(root).as_posix() for p in paths}
@@ -357,7 +247,6 @@ def validate(root, provenance=None):
                 check(f'{name}:metadata_keys', set(meta) == {'name', 'description'})
                 check(f'{name}:no_unfinished_scaffold', not re.search(r'^\s*\[TODO:', body, re.M))
                 check(f'{name}:no_automatic_reference_import', not re.search(r'^@\S+', body, re.M))
-                check(f'{name}:no_machine_snapshot', not MACHINE.search(body))
             except (ValueError, json.JSONDecodeError) as exc:
                 check(f'{name}:frontmatter_subset', False, str(exc))
             if ui is not None:
@@ -405,7 +294,7 @@ def validate(root, provenance=None):
                           f'{len(short) if isinstance(short, str) else 0} characters')
                     for key in ('icon_small', 'icon_large'):
                         if key in interface:
-                            icon = resolve(names, name, interface[key])
+                            icon = resolve(name, interface[key])
                             check(f'{name}:ui_{key}', icon and icon.startswith(name + '/'), interface[key])
                     expected = DEPENDENCY_POLICY.get(name)
                     check(f'{name}:ui_policy_known', expected is not None)
@@ -427,6 +316,8 @@ def validate(root, provenance=None):
         key = rel.as_posix()
         text = texts.get(key)
         check(f'file:{rel}:regular', not path.is_symlink())
+        if re.search(r'\s', key):
+            check(f'file:{rel}:name', False, 'file name contains a blank: rename it without spaces')
         if '__pycache__' in path.parts or path.suffix in {'.pyc', '.lock', '.tmp'}:
             check(f'{rel}:no_cache_or_temp', False)
         if path.suffix == '.py' and text is not None:
@@ -440,36 +331,27 @@ def validate(root, provenance=None):
         if path.suffix != '.md' or text is None:
             continue
         check(f'{rel}:no_machine_snapshot', not MACHINE.search(text))
-        chunks, headings, refused = parse(key)
-        for number, construct in refused:
-            check(f'{rel}:unsupported:{number}', False, construct)
         skill, folder = rel.parts[0], posixpath.dirname(key)
-        for index, target in enumerate(link_targets(chunks)):
-            if target is None:
-                check(f'{rel}:link:{index}', False, UNREADABLE_LINK)
-                continue
-            if re.match(r'^[a-z][a-z0-9+.-]*://', target) or target.startswith('mailto:'):
+        for index, match in enumerate(DESTINATIONS.finditer(text)):
+            target = next(g for g in match.groups() if g is not None).strip()
+            if re.match(r'[A-Za-z][A-Za-z0-9+.-]*:', target):
                 continue
             file_part, _, anchor = target.partition('#')
-            anchor = unquote(anchor)
-            if not file_part:
-                check(f'{rel}:link:{index}', anchor in anchors(headings), target)
-                continue
-            dest = resolve(names, folder, unquote(file_part))
-            ok = dest is not None
-            if ok and anchor and dest.endswith('.md'):
-                ok = dest in texts and anchor in anchors(parse(dest)[1])
-            check(f'{rel}:link:{index}', ok, target)
-        index = 0
-        for chunk in chunks:
-            for span in inline(chunk)[1]:
-                for token in span.split():
-                    token = token.strip('"\'(),;:')
-                    token = token[2:] if token.startswith('./') else token
-                    if RESOURCE.fullmatch(token):
-                        found = [p for p in (resolve(names, skill, token), resolve(names, folder, token)) if p]
-                        check(f'{rel}:resource:{index}', any(p.startswith(skill + '/') for p in found), token)
-                        index += 1
+            if not re.fullmatch(r'[\w.\-/%]*(?:#[\w.\-%]*)?', target) or not target:
+                ok, reason = False, UNSAFE
+            elif not file_part:
+                ok, reason = unquote(anchor) in anchors(text), ANCHORLESS
+            else:
+                dest = resolve(folder, unquote(file_part))
+                ok = dest is not None and (not anchor or not dest.endswith('.md')
+                                           or (dest in texts and unquote(anchor) in anchors(texts[dest])))
+                reason = ANCHORLESS if dest else DEAD
+            check(f'{rel}:link:{index}', ok, target if ok else f'{target} ({reason})')
+        for index, word in enumerate(RESOURCE.findall(text)):
+            found = [p for p in (resolve(skill, word), resolve(folder, word)) if p and p.startswith(skill + '/')]
+            blank = any(n.startswith(posixpath.normpath(posixpath.join(skill, word)) + ' ') for n in names)
+            if not blank:  # a word cut at a blank of an existing file name: its name check reports it
+                check(f'{rel}:resource:{index}', found, word if found else f'{word} (not a file of the skill at exact case)')
     if provenance is not None:
         records = {}
         for item in json.loads(Path(provenance).read_text(encoding='utf-8'))['files']:
@@ -488,7 +370,8 @@ def validate(root, provenance=None):
             'passed': sum(c['passed'] for c in checks),
             'failed': sum(not c['passed'] for c in checks), 'files': files,
             'limits': ['Structural subset validator; frontmatter and UI readers are not YAML parsers.',
-                       'Markdown is read as a declared subset, not as CommonMark; constructs outside it are refused.',
+                       'Markdown is scanned as raw text: every destination and resource word is checked, '
+                       'code examples included; anchors resolve only to simple ATX headings.',
                        'Dependency copies are checked as delivered, not rewritten; their prompt quality is not assessed.',
                        'Python files are compiled and their imports listed; vendored scripts are not executed here.',
                        'No runtime, launch, model quality or product behavior is certified.']}
