@@ -156,6 +156,7 @@ class PackageTests(Base):
     def test_valid_link_forms_accepted(self):
         for payload in ('\n[t][lbl]\n\n[lbl]:\n  patterns.md\n',
                         '\n[x](patterns%2Emd)\n',
+                        '\n[x](<patterns.md>) [y][l]\n\n[l]: <patterns.md>\n',
                         '\n## Zed\n\n## Zed\n\n## Zed 1\n\n  ## Indented Head\n\n'
                         '[a](#zed-1) [b](#zed-1-1) [c](#indented-head)\n',
                         '\n```markdown\n[example](https://example.com/example-only.md)\n```\n',

@@ -14,7 +14,7 @@ Toute création ou modification d'état passe par [rc_state.py](../scripts/rc_st
 | `wave.json` (`schema_version: 2`) | lots, artefacts, revues, acteurs, intentions, candidat | titulaire de la vague, normalement le pilote |
 | `journal.jsonl` | événements reçus et décisions, en ajout seul | `rc_state.py` |
 
-Ces fichiers seuls font foi ; un résumé ou tableau de suivi cite sa source et ne sert pas à décider. Décisions produit et backlog restent dans leur source projet. Sauf attribution, les enfants n'écrivent pas ces fichiers : ils remettent des deltas. `owner` vaut `{role, ref}` avec une référence réellement retournée, ou `null` ; reprise de propriété seulement sur transfert consigné ou arrêt constaté (`claim --takeover --evidence`).
+Ces fichiers seuls font foi ; un résumé ou tableau de suivi cite sa source et ne sert pas à décider. Décisions produit et backlog restent dans leur source projet. Sauf attribution, les enfants n'écrivent pas ces fichiers : ils remettent des deltas. `owner` vaut `{role, ref}` avec une référence retournée ou convenue, ou `null` ; reprise de propriété seulement sur transfert consigné ou arrêt constaté (`claim --takeover --evidence`).
 
 Le dossier de vague (`wave.json`, mandats sous `socles/`, raccord commun, `supervisor.txt` pour un superviseur séparé, preuves sous `evidence/`) vit à un emplacement durable hors du dépôt produit ou dans un chemin qu'il ignore. Une preuve citée a une référence résoluble : chemin et empreinte, jamais l'empreinte seule. Le dépôt produit garde au plus une note courte par vague ; inventaires, patchs, bilans et reçus restent dehors ou regénérables.
 

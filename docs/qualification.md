@@ -2,7 +2,7 @@
 
 ## Version v10 « pertinence » (16 novembre 2026)
 
-Statut : **candidate**. Aucune installation dans un profil actif ; deux essais comparatifs de pilotes et une campagne de trente agents sur de petits programmes.
+Statut : **candidate**. Aucune installation dans un profil actif ; deux essais comparatifs de pilotes et deux campagnes sur de petits programmes, trente agents GPT-6.1 Sol puis vingt-cinq agents Fable 5.2 dans la configuration retenue.
 
 - Origine et choix : [sources v10](sources-v10.md).
 - Contrôles déterministes : `python -B tools/check.py` vert sur le commit de tête de la branche `v10-pertinence`. Il gagne l'étape `footprint`, une étape `updater-from-v9.1.2`, et l'inventaire refuse une lecture obligatoire du pilote au-delà de 3 953 mots, son niveau en v9.1.2. Collectes déclarées dans `EXPECTED`.
@@ -123,11 +123,53 @@ Deux revues GPT-6.1 Sol ont relu ces corrections sur le candidat `d2a4d14`, avec
 
 Ce que la campagne ne dit pas : les pilotes étaient des GPT-6.1 Sol, pas la configuration retenue ; presque tous ont lu un skill du profil réel avant leur consigne, ce qui tient à leur hôte ; aucune seconde campagne n'a suivi les corrections, seulement le rejeu des scripts et une revue.
 
+### Campagne Fable (17 novembre 2026)
+
+Vingt-cinq agents Claude Fable 5.2 en raisonnement moyen sur le paquet gelé au commit `58bc15e`, dans la configuration retenue : pilote Fable, champions Opus 5.5, réviseurs GPT-6.1 Sol. Neuf attaques ciblées en lecture seule et quinze essais de conduite, un pilote par scénario et deux pour la reprise à froid ; le kit est celui de la campagne précédente, retouché par son auteur. La racine a rejoué chaque retour. Deux coupures de quota ont arrêté les pilotes en plein travail, sous-agents compris ; l'hôte les a relancés et chacun a repris depuis son état.
+
+| Essai de conduite | Issue constatée |
+|---|---|
+| Démarrage simple, un lot à risque bas | terminé |
+| Contrat commité puis consommé par deux lots | tenu ; l'assemblage est revu par Sol en deux tours |
+| Lot irréalisable (réseau exclu) | livré et prouvé hors ligne après une revue Sol à trois constats bloquants, recette serveur suspendue sur décision |
+| Relais entre pilotes | tenu ; le successeur a dû ouvrir une vague entière pour la revue globale |
+| Cycle de jardinage | produit +8/−29 lignes, tests de 14 à 12, aucun test ajouté |
+| Mandat contradictoire | partie faisable livrée, le reste suspendu sur décision |
+| Mode préparation seule | aucun lancement |
+| Superviseur séparé | tenu malgré l'arrêt réel du superviseur : successeur par reprise de propriété ; la remise du champion, perdue avec son parent, a coûté un second champion |
+| Ressource partagée | lots mis en série par une dépendance, auteurs distincts ; sans la dépendance, `ready` signale le conflit |
+| Accord manquant sur des données réelles | tenu : fichier réel intact, purge répétée sur une copie, décision consignée |
+| Reprise à froid | tenue depuis le seul dossier d'état ; le candidat hérité est revu avant d'être accepté |
+| Modèle imposé indisponible | lot bloqué sans substitution |
+| Écrits hérités faux | un sur trois : la fausse note de reprise est réfutée par exécution et supprimée ; un document faux reste parce qu'il interdisait sa propre modification ; une règle sans commande reste, signal noté |
+| Tests en excès | règle fautive d'`AGENTS.md` retirée à la source, seize tests remplacés par deux (tests +47/−183) |
+| Revue d'un chemin à risque | chaîne complète tenue ; une affirmation fausse d'`AGENTS.md` est éprouvée puis retirée |
+
+Fait le plus net des essais : cinq revues Sol sur cinq ont trouvé le même critère explicite non tenu (une valeur invalide devait rendre le code 2), après autant d'acceptations par le pilote seul, à risque bas ; les trois pilotes qui n'ont lancé aucune revue l'ont livré sans le voir.
+
+Les attaques ont rendu quatre-vingt-quinze constats, chacun avec son script, plusieurs agents retrouvant les mêmes défauts : quarante-neuf sur `rc_state.py` (une attente ouverte avant le lancement menait à une phase de produit ou à un champion vivant, trouvée par cinq agents ; un pilote tué en cours d'écriture laissait son successeur sans commande pour reprendre), six sur `rc_update.py` (préfixe `\\?\` qui contournait le contrôle d'emplacement, verrou laissé par un arrêt brutal), douze sur `rc_footprint.py` (un `.gitattributes` de la copie de travail changeait la mesure des mêmes commits), dix-sept sur `validate_package.py` et `check.py` (liens morts déclarés sains, bytecode forgé qui neutralisait une suite), onze sur les documents. La sortie des outils dans l'encodage de la console Windows a été rencontrée quinze fois.
+
+Corrections, par trois auteurs Opus 5.5 et la racine, chacune avec un cas qui échoue quand sa règle est retirée :
+
+- `rc_state.py` : une vague jamais lancée n'a aucun acteur vivant hors réviseur et n'atteint aucune phase de produit ; un successeur reprend après tout arrêt du titulaire et `resume` nomme la suite ; une intention ne se confirme que par la commande qui crée ou réactive son acteur ; un lancement avéré sans reçu se confirme sur une preuve ; les écritures restent dans le dossier d'état, même copié.
+- `rc_update.py` : dossiers comparés par identité de fichier, verrou levable par `--break-lock`, retour arrière qui recrée les dossiers disparus.
+- `rc_footprint.py` : la mesure ne dépend que des deux commits et ne télécharge rien (git 2.45 ou plus récent) ; `docs_added` ne se lève que sur un ajout net.
+- `validate_package.py` : il ne lit plus la structure du Markdown. Toute destination et tout chemin de ressource, exemples de code compris, doit nommer un fichier du paquet à la casse exacte ; un exemple porte un schéma ; une ancre vise un titre simple. Trois revues successives avaient trouvé des trous dans la distinction entre code et prose, dont le paquet n'a pas besoin.
+- `check.py` : aucun bytecode de l'arbre n'est chargé ; une source Python absente de la provenance est refusée.
+
+Règles changées pour le pilote : avant un jalon présentable, la revue du candidat est globale et indépendante quel que soit le risque, sans ouvrir de vague ; un écrit faux se corrige même s'il interdit sa propre modification, l'accord étant celui du mandat ; chaque acteur écrit sa remise dans un fichier avant son message final ; un pilote attendu par son parent finit son tour sur une remise `partial` quand un réveil existe. Les annexes T3 Code et superviseur séparé décrivent l'acteur qui ne rend aucun reçu avant sa fin.
+
+Quatre revues GPT-6.1 Sol ont relu ces corrections sur le candidat `4a85971`, avec scripts et mutations. Elles ont trouvé treize défauts bloquants, tous corrigés : un dans le moteur (une reprise d'acteur confirmée sans le réactiver), deux dans la mise à jour et l'empreinte (téléchargement encore possible par une autorisation de protocole locale, verrou non levé avant le premier journal), trois dans les textes (dont deux contradictions introduites par ce lot), sept dans le validateur et le contrôle complet, qui ont conduit à retirer la lecture du Markdown.
+
+Rejeu sur la version corrigée : les dix scripts des revues sortent 0, comme quatre-vingt-deux des quatre-vingt-quinze scripts de la campagne. Les treize autres ne montrent aucun défaut restant : trois jugent un comportement gardé par décision (la table des phases était fausse, elle est corrigée) ; trois portent sur des formes Markdown saines que le validateur refuse désormais par règle ; trois rejouent une ancienne commande ou une entrée devenue interdite, et leur correction est prouvée autrement (variante du script, vrai `check.py` avec le bytecode forgé) ; quatre cherchent un texte fautif qui a changé. Les scripts de la campagne précédente rendent les mêmes codes qu'avant ce lot, sauf un : un exemple de lien dans un bloc de code, alors accepté, est refusé par la nouvelle règle du validateur.
+
+Ce que la campagne ne dit pas : les programmes sont petits et tout a tourné sous Windows ; la version corrigée n'a pas subi de seconde campagne, seulement le rejeu des scripts et les revues ; les `prompt_lint.py` des optimiseurs GPT et Opus, gardés identiques à l'octet, ne reconnaissent que des rubriques anglaises ; `rc_state.py` a grandi (2 208 à 2 359 lignes) malgré les cas particuliers retirés.
+
 Limites :
 
 - Deux pilotes ont conduit la v10 sur deux petits programmes. La convergence de revue n'a jamais approché son enveloppe.
 - La détection des commentaires est une heuristique par extension : docstrings et commentaires de fin de ligne lui échappent.
-- Configuration prévue pour le premier essai réel, non éprouvée : pilote Fable qui décide et encadre, champions Opus, réviseurs GPT-6.1 Sol. Les essais de la v9.1 portaient sur un pilote `gpt-6.1-sol`.
+- La configuration retenue (pilote Fable qui décide et encadre, champions Opus, réviseurs GPT-6.1 Sol) n'est éprouvée que sur les petits programmes de la campagne Fable, pas sur un projet réel.
 - Le skill Fable porte des faits fournisseurs lus le 16 novembre 2026 ; aucun prompt écrit avec lui n'a été mesuré sur un modèle.
 - Le coût d'administration du moteur ne change pas.
 

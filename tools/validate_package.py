@@ -345,6 +345,8 @@ def validate(root, provenance=None):
         skill, folder = rel.parts[0], posixpath.dirname(key)
         for index, match in enumerate(DESTINATIONS.finditer(text)):
             target = next(g for g in match.groups() if g is not None).strip()
+            if target.startswith('<') and target.endswith('>'):
+                target = target[1:-1]
             if re.match(r'[A-Za-z][A-Za-z0-9+.-]*:', target):
                 continue
             file_part, _, anchor = target.partition('#')
