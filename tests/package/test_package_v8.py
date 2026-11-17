@@ -160,7 +160,8 @@ class PackageTests(Base):
                         '\n## Zed\n\n## Zed\n\n## Zed 1\n\n  ## Indented Head\n\n'
                         '[a](#zed-1) [b](#zed-1-1) [c](#indented-head)\n',
                         '\n```markdown\n[example](https://example.com/example-only.md)\n```\n',
-                        '\n- [role]: [model], effort [level]\n',
+                        '\n[x](patterns.md#content) [y](../references/patterns.md#language)\n',
+                        '\n## A [W]\n\n[x](#a-w)\n',
                         '\nsee references/patterns.md.\n',
                         '\nsee <a href="patterns.md">x</a> <img src="../assets/icon.svg">\n',
                         '\n<https://example.com>\n',
@@ -179,6 +180,10 @@ class PackageTests(Base):
                 ('\n> [lbl]: absent.md\n', {}, 'absent.md'),
                 ('\n[lbl]: <absent file.md>\n', {}, 'unsupported destination'),
                 ('\n[lbl]: absent.md (title)\n', {}, 'absent.md'),
+                ('\n[l]: absent.md extra\n', {}, 'absent.md'),
+                ('\n- [role]: [model], effort [level]\n', {}, 'unsupported destination'),
+                ('\n[x](../assets/icon.svg#absent)\n', {}, 'no simple ATX heading'),
+                ('\n[x](patterns.md#no-such-heading)\n', {}, 'no simple ATX heading'),
                 ('\nsee <a href="absent.md">x</a>\n', {}, 'absent.md'),
                 ('\nsee <img src="absent.svg">\n', {}, 'absent.svg'),
                 ('\n[t](a(1).md)\n', {}, 'unsupported destination'),
@@ -187,6 +192,12 @@ class PackageTests(Base):
                 ('\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
                 ('\n    ```\n\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
                 ('\n```x``` inline\n\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n\t```\n\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n- ```\n  # Hidden\n  ```\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n- ```\nx\n```\n# Hidden\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n> ```\n# Hidden\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\nSetext Title\n===\n\n[x](#setext-title)\n', {}, 'no simple ATX heading'),
+                ('\n## A [b]\n\n[b]: patterns.md\n\n[x](#a-b)\n', {}, 'no simple ATX heading'),
                 ('\n## See [a](patterns.md)\n\n[x](#see-apatternsmd)\n', {}, 'no simple ATX heading'),
                 ('\n## A [b][c]\n\n[c]: patterns.md\n\n[x](#a-bc)\n', {}, 'no simple ATX heading'),
                 ('\n## A &amp; B\n\n[x](#a-amp-b)\n', {}, 'no simple ATX heading'),
@@ -198,6 +209,7 @@ class PackageTests(Base):
                 ('\nsee scripts/absent.py.\n', {}, 'scripts/absent.py'),
                 ('\nrun `python --file=scripts/absent.py`\n', {}, 'scripts/absent.py'),
                 ('\nrun ./scripts/absent.py\n', {}, 'scripts/absent.py'),
+                ('\nreferences/patterns.md+absent\n', {}, 'unsupported resource word'),
                 ('\nRead `references/my file.md`\n', {'unslop/references/my file.md': b'x\n'}, 'blank'),
                 ('\nsee c:\\users\\me\\secret.txt\n', {}, 'no_machine_snapshot'),
                 ('\nsee \\\\srv\\share\\x\n', {}, 'no_machine_snapshot'),
@@ -386,6 +398,15 @@ class RunnerR1Tests(Base):
                 runner.os.name = 'posix'
                 self.assertEqual(runner.judge('updater-v8', 0, report)[0], accepted)
 
+    def test_collect_refuses_non_isolated(self):
+        """T2-08, T2-10 : le collecteur lancé hors de python -I ne produit pas de résultats."""
+        (self.dir / 'test_synthetic.py').write_text('import unittest\n', encoding='utf-8')
+        report = self.dir / 'results.json'
+        proc = subprocess.run([sys.executable, '-B', str(ROOT / 'tools' / 'check.py'), '--collect', str(self.dir),
+                               str(self.dir), str(report)], cwd=self.dir, capture_output=True, timeout=30)
+        self.assertEqual(proc.returncode, 2)
+        self.assertEqual(json.loads(report.read_text(encoding='utf-8'))['tests_run'], 0)
+
     def test_unexpected_success_rejected(self):
         """Garde existante : une attente d'échec devenue fausse reste signalée."""
         proc, report = self.collect_synthetic(unexpected_success=True)
@@ -417,9 +438,9 @@ class CheckPreflightTests(Base):
         (repo / 'provenance.json').write_text(json.dumps({'files': listed}), encoding='utf-8')
         return repo
 
-    def run_check(self, repo, fixtures_root):
+    def run_check(self, repo, fixtures_root, **env):
         proc = subprocess.run([sys.executable, '-B', str(repo / 'tools' / 'check.py')], cwd=repo,
-                              env={**os.environ, 'RC_CHECK_FIXTURES_ROOT': str(fixtures_root)},
+                              env={**os.environ, 'RC_CHECK_FIXTURES_ROOT': str(fixtures_root), **env},
                               capture_output=True, text=True, encoding='utf-8', timeout=120)
         self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
         self.assertNotIn('Traceback', proc.stderr)
@@ -444,17 +465,17 @@ class CheckPreflightTests(Base):
                 self.assertFalse(long_root.exists())
 
     def test_inventory_refusal_writes_summary(self):
-        """R06-13, R06-17, CTL-07 : lecture obligatoire retirée, BOM dans un JSON d'inventaire ou source
-        Python hors provenance : refus nommé à l'inventaire et summary.json, sans trace."""
+        """R06-13, R06-17, CTL-07, T2-07 : lecture obligatoire retirée, BOM dans un JSON d'inventaire ou
+        fichier de tests/ hors provenance : refus nommé à l'inventaire et summary.json, sans trace."""
         for label, check in (('SKILL.md', 'pilot_reading_missing'), ('provenance.json', 'unreadable'),
-                             ('manifest.json', 'unreadable'), ('tests/state/test_000.py', 'provenance_inventory')):
+                             ('manifest.json', 'unreadable'), ('tests/_fixtures/t.txt', 'provenance_inventory')):
             with self.subTest(label):
                 repo = self.mini_repo('repo-' + Path(label).stem)
                 if label == 'SKILL.md':
                     (repo / 'package' / 'rc-coordinate-development' / label).unlink()
-                elif label.endswith('.py'):
+                elif label.startswith('tests/'):
                     (repo / label).parent.mkdir(parents=True)
-                    (repo / label).write_text('import unittest\n', encoding='utf-8')
+                    (repo / label).write_text('x\n', encoding='utf-8')
                 else:
                     (repo / label).write_bytes(codecs.BOM_UTF8 + (repo / label).read_bytes())
                 proc, _, summary = self.run_check(repo, self.dir)
@@ -463,7 +484,8 @@ class CheckPreflightTests(Base):
                 self.assertEqual(summary['results'], [])
 
     def test_tree_bytecode_not_loaded(self):
-        """R06-16 : un .pyc forgé dans l'arbre, à l'en-tête valide, n'est pas chargé par une étape."""
+        """R06-16, T2-10 : ni un .pyc forgé dans l'arbre, à l'en-tête valide, ni un sitecustomize.py
+        atteint par PYTHONPATH ne sont chargés par une étape."""
         repo = self.mini_repo(sources={'tests/state/test_mini.py': 'import unittest\n\n\nclass T(unittest.TestCase):\n'
                                                                    '    def test_a(self):\n        pass\n'})
         source = repo / 'tests' / 'state' / 'test_mini.py'
@@ -473,10 +495,13 @@ class CheckPreflightTests(Base):
         cache.parent.mkdir()
         cache.write_bytes(importlib.util.MAGIC_NUMBER + bytes(4) + (int(stat.st_mtime) & 0xFFFFFFFF).to_bytes(4, 'little')
                           + (stat.st_size & 0xFFFFFFFF).to_bytes(4, 'little') + marshal.dumps(code))
-        _, out, summary = self.run_check(repo, FIXTURES)
+        (repo / 'sitecustomize.py').write_text("print('SITECUSTOMIZE CHARGE')\n", encoding='utf-8')
+        _, out, summary = self.run_check(repo, FIXTURES, PYTHONPATH=str(repo))
         self.assertEqual(summary['results'][0]['step'], 'state')
         self.assertEqual(summary['results'][0]['tests_run'], 1)
-        self.assertNotIn('PYC FORGE CHARGE', (out / 'state.txt').read_text(encoding='utf-8'))
+        log = (out / 'state.txt').read_text(encoding='utf-8')
+        self.assertNotIn('PYC FORGE CHARGE', log)
+        self.assertNotIn('SITECUSTOMIZE CHARGE', log)
 
 
 class QualificationScenarioTests(unittest.TestCase):

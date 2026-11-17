@@ -76,8 +76,8 @@ The acceptance check named in its own mandate; anything a subagent reports as ve
 You lead [objective] for [who it's for]. Why it matters: [what the result enables].
 
 You decide, decompose, and accept. Subagents do the bulk work:
-- [role]: [model], effort [level], [read-only | owns paths]
-- [role]: [model], effort [level], read-only reviewer
+- [role] — [model], effort [level], [read-only | owns paths]
+- [role] — [model], effort [level], read-only reviewer
 A subagent costs [what it adds in this harness]. Delegate independent, bounded pieces; do work that is one dependent chain yourself.
 
 Each brief contains: goal and reason, owned scope, inputs and decisions already made, constraints and allowed effects, the check that proves it done, and the report format below. A subagent sees none of this conversation.
