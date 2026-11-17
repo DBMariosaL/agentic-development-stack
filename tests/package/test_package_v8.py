@@ -51,6 +51,9 @@ SCRIPTS = ['gpt-prompt-optimizer/scripts/prompt_lint.py', 'gpt-prompt-optimizer/
            'claude-fable-prompt-optimizer/scripts/profile_eval_dataset.py',
            'claude-fable-prompt-optimizer/scripts/fable_api_check.py']
 MAINTAINED_HERE = {'claude-fable-prompt-optimizer'}
+# Copies dont prompt_lint.py reconnaît aussi les rubriques d'un mandat français.
+ADAPTED_HERE = {'package/gpt-prompt-optimizer/scripts/prompt_lint.py',
+                'package/claude-opus-prompt-optimizer/scripts/prompt_lint.py'}
 
 
 def failing(result):
@@ -347,7 +350,7 @@ class DependencyRecordTests(Base):
         self.assertEqual(counts, {'gpt-prompt-optimizer': 15, 'claude-opus-prompt-optimizer': 15,
                                   'claude-fable-prompt-optimizer': 14, 'unslop': 4})
         for f in records:
-            if f['path'].split('/')[1] not in MAINTAINED_HERE:
+            if f['path'].split('/')[1] not in MAINTAINED_HERE and f['path'] not in ADAPTED_HERE:
                 self.assertEqual(f['adaptation'], 'byte-identical', f['path'])
                 self.assertEqual(f['sha256'], f['source_sha256'], f['path'])
             data = (ROOT / f['path']).read_bytes()
@@ -371,6 +374,84 @@ class VendoredScriptTests(Base):
                 proc = self.run_script(rel, '--help')
                 self.assertEqual(proc.returncode, 0, proc.stderr)
                 self.assertIn('usage', proc.stdout)
+
+    def test_french_rubrics_recognized(self):
+        """Chaque détecteur de rubrique manquante des trois prompt_lint.py lit la rubrique dans un
+        mandat français : chaque forme ajoutée a sa ligne, qui ne passe que par elle (présente, aucun
+        avertissement ; retirée, l'avertissement revient). Un mot courant ne compte que si le titre entier
+        est une rubrique connue, hors d'un bloc de code ; ailleurs, l'avertissement reste."""
+        sections = {
+            'task': '## Résultat attendu\n\nAjoute une commande de lecture au journal.\n',
+            'scope': '## Domaine\n\nÀ toi : journal/cli.py. Hors domaine : tout autre fichier.\n',
+            'permissions': '## Effets permis\n\nEffets permis : lancer les tests. Interdits : réseau.\n',
+            'delegation': '## Délégation\n\nTu ne lances aucun sous-agent.\n',
+            'stop': '## Remontées\n\nCe que tu décides seul : le découpage des commits.\n',
+            'done': '## Terminé quand\n\nLa suite est verte sur le dernier commit.\n',
+        }
+        body = '\n\nLe texte de la rubrique.\n'
+        variants = {
+            'task': [t + body for t in ('## Résultat', '## Résultat demandé', '## Objet', '## Objet de ce tour',
+                                        '## Besoin', '## Besoin (lot 2)', '## Exigences', '## Défaut',
+                                        '## Ce qui est demandé', '## Ce que le pilote attend en plus du brief',
+                                        '## Portée de ce tour', '## Passe ciblée : contrat')]
+            + ['Le résultat attendu est un rapport court.\n'],
+            'done': ['Terminé quand la suite est verte.\n', 'Le lot est fini quand la suite est verte.\n',
+                     'Critères de fin : la suite est verte.\n'],
+            'scope': ['Le domaine : journal/cli.py.\n', 'Tu es en lecture seule.\n',
+                      'Aucun changement hors de journal/cli.py.\n', 'Ni document ni commentaire.\n'],
+            'stop': ['Ce que tu décides seul : le découpage.\n', 'Ce qui remonte : une décision de produit.\n',
+                     'Remonte dans ta remise tout besoin hors du lot.\n',
+                     'Livre sans y toucher et dis-le dans ta remise.\n',
+                     "Outil refusé : rapporte-le avec l'erreur.\n"],
+            'permissions': ['Effets permis : lancer les tests.\n', 'Interdits : les fichiers hors du lot.\n',
+                            'Aucun push.\n', 'Ni commit ni push.\n'],
+            'delegation': ['Tu ne lances aucun sous-agent.\n'],
+        }
+        prose = {'task': ("Le résultat, l'objet, le besoin, les exigences et le défaut sont décrits ailleurs ; "
+                          'la passe ciblée aussi.\n')}
+        decoys = {
+            'task': ['## Résultats des essais précédents\n\nAucun essai concluant.\n',
+                     '## Besoins futurs\n\nRien.\n',
+                     'Voici un exemple de document reçu :\n\n```markdown\n## Besoin\n## Objet\n```\n',
+                     '~~~\n## Résultat\n~~~\n'],
+            'done': ['## Fin de fichier sans saut de ligne\n\nCette entrée doit être conservée.\n'],
+            'permissions': ['Le format autorisé accepte trois colonnes.\n'],
+        }
+        context = ('# Mandat\n\nTu es l\'agent champion du lot, travail long-running, dans le shell. Tu peux modifier '
+                   'les fichiers ; chaque étape finit par un commit. Le pilote répartit le travail entre les '
+                   'subagents de la vague.\n\n' + ' '.join(f'mot{i}' for i in range(400)) + '\n\n')
+        rows = (
+            ('gpt', 'missing_task', 'task'), ('gpt', 'missing_done_criteria', 'done'),
+            ('gpt', 'missing_permission_boundary', 'permissions'), ('gpt', 'missing_delegation_merge', 'delegation'),
+            ('claude-opus', 'generic_missing_task', 'task'), ('claude-opus', 'opus_missing_scope_boundary', 'scope'),
+            ('claude-opus', 'opus_missing_done_criterion', 'done'), ('claude-opus', 'opus_missing_stop_rule', 'stop'),
+            ('claude-opus', 'generic_missing_permission_boundary', 'permissions'),
+            ('claude-opus', 'opus_unbounded_delegation', 'delegation'),
+            ('claude-fable', 'generic_missing_task', 'task'), ('claude-fable', 'generic_missing_done_criteria', 'done'),
+            ('claude-fable', 'generic_missing_scope_boundary', 'scope'),
+            ('claude-fable', 'fable_missing_autonomy_contract', 'stop'),
+            ('claude-fable', 'generic_missing_permission_boundary', 'permissions'),
+            ('claude-fable', 'generic_missing_delegation_contract', 'delegation'))
+
+        def codes(script, rubric=None, text=''):
+            path = self.dir / f'mandat-{script}.md'
+            path.write_text(context + ''.join(text if k == rubric else v for k, v in sections.items()), encoding='utf-8')
+            proc = subprocess.run([sys.executable, '-I', '-X', 'utf8', '-B',
+                                   str(PACKAGE / f'{script}-prompt-optimizer/scripts/prompt_lint.py'),
+                                   str(path), '--format', 'json'],
+                                  capture_output=True, text=True, encoding='utf-8', timeout=120)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            return {w['code'] for w in json.loads(proc.stdout)['warnings']}
+
+        for script, code, rubric in rows:
+            for text in [sections[rubric]] + variants[rubric]:
+                with self.subTest(script=script, code=code, text=text):
+                    self.assertNotIn(code, codes(script, rubric, text))
+            with self.subTest(script=script, code=code, text=None):
+                self.assertIn(code, codes(script, rubric))
+            for text in ([prose[rubric]] if rubric in prose else []) + decoys.get(rubric, []):
+                with self.subTest(script=script, code=code, text=text):
+                    self.assertIn(code, codes(script, rubric, text))
 
     def test_scripts_synthetic_inputs(self):
         (self.dir / 'p.txt').write_text('You are a helpful assistant. Think step by step.\n', encoding='utf-8')

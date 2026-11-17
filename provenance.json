@@ -156,7 +156,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-prepare-socle-prompts/SKILL.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "90f3fa8a0cf74caa7169f9cd15a69cfc2c4b5ce46546770291c2ea6bd2a6849e",
-      "sha256": "a7dec79dd47e3bbb657266ee8803be81d74f12b0c642f360366b19ecee43cbda",
+      "sha256": "16fa87decd7ab9fc206b67bbf1fadec6ebf24e097ab6fd6bca7f9635c210917a",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-prepare-socle-prompts/SKILL.md",
@@ -228,7 +228,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "d6fed78c8fb4c07953834aa140814529e0e4121b1735112df0b625ed2d89b49f",
+      "sha256": "38d88ff0917f7281ce25083d513b8865ff5a43b25753ebf4abdf6a2b8a2732de",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -580,7 +580,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/check.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
-      "sha256": "29537a3ee23f0fb30f99db28738e2841d548ed7fb3950fa04f04fee175a2a5d2",
+      "sha256": "8f66996a7cf7b0923c369f08c6fd00c227319187e6401f4548aaef5299f12656",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/check.py",
@@ -612,7 +612,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/package/test_package_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
-      "sha256": "a765ca495928ed2c1eb2b45241f1e4a446d45d4413044a96610a40ec589329a2",
+      "sha256": "7a1c28eb8fc87bf8788eee1506c7db317831ed5ec5aac05839b5a76fe9dddde1",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/package/test_package_v8.py",
@@ -968,14 +968,23 @@
     },
     {
       "path": "package/gpt-prompt-optimizer/scripts/prompt_lint.py",
-      "source_group": "upstream-snapshot-20261109",
-      "source": "%USERPROFILE%\\.codex\\skills\\gpt-prompt-optimizer\\scripts\\prompt_lint.py",
-      "snapshot": "evidence/stack-update-review-flow-20261109/upstream-snapshot/gpt-prompt-optimizer/scripts/prompt_lint.py",
-      "collected_at_utc": "2026-11-09T09:29:06.423728+00:00",
-      "bytes": 9295,
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/gpt-prompt-optimizer/scripts/prompt_lint.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "813dfb2d7418474c8519bcd732c74be11de42908867d2334fcd8d25a1f258076",
-      "sha256": "813dfb2d7418474c8519bcd732c74be11de42908867d2334fcd8d25a1f258076",
-      "adaptation": "byte-identical"
+      "sha256": "f4241069b9e5e6021af0bda8bb6da5b3a670a76a66131d7927599d6785f7fb34",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "package/gpt-prompt-optimizer/scripts/prompt_lint.py",
+        "source_group": "upstream-snapshot-20261109",
+        "source": "%USERPROFILE%\\.codex\\skills\\gpt-prompt-optimizer\\scripts\\prompt_lint.py",
+        "snapshot": "evidence/stack-update-review-flow-20261109/upstream-snapshot/gpt-prompt-optimizer/scripts/prompt_lint.py",
+        "collected_at_utc": "2026-11-09T09:29:06.423728+00:00",
+        "bytes": 9295,
+        "source_sha256": "813dfb2d7418474c8519bcd732c74be11de42908867d2334fcd8d25a1f258076",
+        "sha256": "813dfb2d7418474c8519bcd732c74be11de42908867d2334fcd8d25a1f258076",
+        "adaptation": "byte-identical"
+      },
+      "bytes": 10209
     },
     {
       "path": "package/gpt-prompt-optimizer/SKILL.md",
@@ -1133,14 +1142,23 @@
     },
     {
       "path": "package/claude-opus-prompt-optimizer/scripts/prompt_lint.py",
-      "source_group": "upstream-snapshot-20261109",
-      "source": "%USERPROFILE%\\.codex\\skills\\claude-opus-prompt-optimizer\\scripts\\prompt_lint.py",
-      "snapshot": "evidence/stack-update-review-flow-20261109/upstream-snapshot/claude-opus-prompt-optimizer/scripts/prompt_lint.py",
-      "collected_at_utc": "2026-11-09T09:29:06.423728+00:00",
-      "bytes": 22977,
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/claude-opus-prompt-optimizer/scripts/prompt_lint.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "4ddc3e6e25ec274215711885c63b00298a95534f6cdd635e42fe72dacc121158",
-      "sha256": "4ddc3e6e25ec274215711885c63b00298a95534f6cdd635e42fe72dacc121158",
-      "adaptation": "byte-identical"
+      "sha256": "b0b838fb57db99158f615e5179114fc6b7b8c0002d461ed5712e732fc78964e1",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "package/claude-opus-prompt-optimizer/scripts/prompt_lint.py",
+        "source_group": "upstream-snapshot-20261109",
+        "source": "%USERPROFILE%\\.codex\\skills\\claude-opus-prompt-optimizer\\scripts\\prompt_lint.py",
+        "snapshot": "evidence/stack-update-review-flow-20261109/upstream-snapshot/claude-opus-prompt-optimizer/scripts/prompt_lint.py",
+        "collected_at_utc": "2026-11-09T09:29:06.423728+00:00",
+        "bytes": 22977,
+        "source_sha256": "4ddc3e6e25ec274215711885c63b00298a95534f6cdd635e42fe72dacc121158",
+        "sha256": "4ddc3e6e25ec274215711885c63b00298a95534f6cdd635e42fe72dacc121158",
+        "adaptation": "byte-identical"
+      },
+      "bytes": 24077
     },
     {
       "path": "package/claude-opus-prompt-optimizer/SKILL.md",
@@ -1698,7 +1716,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/dependencies.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "d48c1c4bc2c60b9615085bbd9ccb0c5d3cc67954ae9693e94228ce1fbced4c3b",
-      "sha256": "bb668723a0eeff0073b9601b121dbe77752fd4179753cbd756b64f3fa2033379",
+      "sha256": "31e966ec36fcb87f78c3c4c9d691f40ff8abb5a16c69b02e2b592112f6e7d4c1",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "docs/dependencies.md",
@@ -1770,7 +1788,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "e4e8a4c10cedac4c4effc056c9c24e4173aa4bec8e0711909b87ce11474ae1d6",
+      "sha256": "e54645c57e9b771be4eda9069122cfa6614a7096383da2cd171a99d06874a3fd",
       "adaptation": "v10 creation"
     },
     {
@@ -1778,7 +1796,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/qualification.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": null,
-      "sha256": "94c12a1207776253ef6e814805e0f131e5a11df0bebf178fb564ed22dd76834f",
+      "sha256": "7732e5ff1b671743c2b369837c5bab48f96a6d415b17853d5a7a9bfb0598f5a8",
       "adaptation": "v10 edit"
     },
     {
@@ -1893,9 +1911,9 @@
       "path": "package/claude-fable-prompt-optimizer/scripts/prompt_lint.py",
       "source_group": "rc-stack-v10-20261116",
       "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/scripts/prompt_lint.py (owner profile, 2026-09-03, Fable 5.1)",
-      "bytes": 21510,
+      "bytes": 22588,
       "source_sha256": "547b90dfe90d35b352a6a39291c0a2ac5aa8806e362b6d71a7c83e89c263f5f7",
-      "sha256": "38b42b4038f472d2ca012dc07799dc8a40b8354d49492e02d58f95e2cbf55575",
+      "sha256": "66657dd2a6d59b650e2ab991ed4519ef7ce6dfb3f966bc8dc07672c08b84a615",
       "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
     },
     {
@@ -1937,6 +1955,22 @@
       "source": "v9.1.2 929c5db4c8b12636ec71f101f6293fb9eb49a7ed",
       "source_sha256": null,
       "sha256": "90f3fa8a0cf74caa7169f9cd15a69cfc2c4b5ce46546770291c2ea6bd2a6849e",
+      "adaptation": "byte-identical historical fixture"
+    },
+    {
+      "path": "tests/fixtures/v8/package/gpt-prompt-optimizer/scripts/prompt_lint.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "dependency bytes of v8 to v9.1.2, frozen when prompt_lint.py learned the French rubrics",
+      "source_sha256": null,
+      "sha256": "813dfb2d7418474c8519bcd732c74be11de42908867d2334fcd8d25a1f258076",
+      "adaptation": "byte-identical historical fixture"
+    },
+    {
+      "path": "tests/fixtures/v8/package/claude-opus-prompt-optimizer/scripts/prompt_lint.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "dependency bytes of v8 to v9.1.2, frozen when prompt_lint.py learned the French rubrics",
+      "source_sha256": null,
+      "sha256": "4ddc3e6e25ec274215711885c63b00298a95534f6cdd635e42fe72dacc121158",
       "adaptation": "byte-identical historical fixture"
     }
   ],
