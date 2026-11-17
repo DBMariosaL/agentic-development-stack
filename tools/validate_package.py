@@ -21,26 +21,29 @@ cache or temporary file, regular files only, no blank in a file name, no machine
 (drive letter, UNC, /home/, /Users/) or 40-hex snapshot in Markdown. With --provenance,
 the bytes of every package file are compared with the recorded provenance.
 
-Markdown is scanned as raw text; the validator does not tell code from prose. The rules:
+Markdown is scanned as raw text: the validator does not tell code from prose, does not
+render Markdown and does not read HTML. What it guarantees, one sentence per rule:
 
-1. Destinations. Whatever follows '](' anywhere, every '[label]: destination' at the start
-   of a line whatever its indentation, list marker or quote marker (destination on the
-   next line included), and every href= or src= is a destination. It carries a scheme
-   (ignored), or is an anchor alone, or is a relative path that must name a package file
-   exactly, %xx decoded. Anything else, or a destination with a character outside
-   letters, digits and ._-/%#, is refused by name. An example in code that must not
-   resolve is written with a scheme.
-2. Resources. Every word references/..., scripts/... or assets/... in a Markdown file of a
-   skill must name a file of that skill exactly.
-3. Anchors. An anchor is sound only if it equals the id of a simple ATX heading (indented
-   0-3 spaces) outside a ``` or ~~~ fence, numbered on repeats as on GitHub. A heading
-   with a link, an entity, HTML, a backslash or an underscore at a word edge gives no id;
-   Setext headings give none. The fence toggle is the only structure read; a fence line
-   indented 4+ spaces or with a tab, or a backtick fence whose info string holds a
-   backtick, puts the rest of the file in a fence, which refuses rather than accepts.
-   A heading inside HTML could count, so HTML that hides headings is refused by name:
-   '<!--' anywhere, and outside a fence a line that starts (indented 0-3 spaces) with '<'
-   then a letter, '/' or '!', unless it is an autolink with a scheme (<https://...>).
+1. Destinations. Every text after '](' (up to ')' or the end of the line), the first word
+   after every '[label]:' that starts a line (after indentation and list or quote markers,
+   or on the next line), and every href= or src= value is accepted only if it has a
+   scheme (not checked further), or is '#anchor' with an anchor of rule 3, or is a
+   relative path of letters, digits and ._-/%# that, %xx decoded and without chevrons,
+   names a package file at exact case and carries an anchor only into a Markdown file
+   whose rule-3 ids hold it; anything else is refused with the rule that failed.
+2. Resources. Every word starting with references/, scripts/ or assets/ in a Markdown
+   file, taken whole up to a blank, a code delimiter, a sentence mark or '#', is accepted only
+   if it is made of letters, digits and ._-/ and names a file of its skill at exact case
+   from the skill root; a file name with a blank is refused for itself.
+3. Anchors. The only ids are those of ATX headings indented 0-3 spaces, outside a ``` or
+   ~~~ fence, whose text holds no link, defined [label], entity, HTML, backslash or
+   underscore at a word edge, numbered on repeats as on GitHub; Setext headings give
+   none, and a fence mark after a list or quote marker, indented 4+ spaces or by a tab,
+   or a backtick fence whose info string holds a backtick puts the rest of the file in a
+   fence, so that doubt refuses rather than accepts.
+4. HTML that could hide a heading is refused by name: '<!--' anywhere, and outside a
+   fence a line that starts (indented 0-3 spaces) with '<' then a letter, '/' or '!',
+   unless it is an autolink with a scheme.
 
 The frontmatter and UI readers accept only the subsets present in these files; they are
 not YAML parsers. Structural success certifies neither the quality of a prompt, nor the
@@ -74,12 +77,14 @@ DEPENDENCY_POLICY = {
 }
 TEXT_SUFFIXES = {'.md', '.py', '.yaml', '.yml', '.svg', '.txt', '.json'}
 MACHINE = re.compile(r'(?<![A-Za-z])[A-Za-z]:[\\/]|\\\\[^\s\\]+\\|/(?:home|Users)/|[0-9A-Fa-f]{40}')
+DEFINITION = r'^[ \t>]*(?:(?:[-*+]|\d{1,9}[.)])[ \t>]+)*\['
+LABELS = re.compile(DEFINITION + r'([^\]\n]+)\]:', re.M)
 DESTINATIONS = re.compile(
     r'\]\(([^)\n]*)'
-    r'|^[ \t>]*(?:(?:[-*+]|\d{1,9}[.)])[ \t>]+)*\[[^\]\n]+\]:[ \t]*\n?[ \t>]*(<[^>\n]*>|\S*)'
-    r'(?=[ \t]*(?:"[^"\n]*"|\'[^\'\n]*\'|\([^)\n]*\))?[ \t]*$)'
+    r'|' + DEFINITION + r'[^\]\n]+\]:[ \t]*\n?[ \t>]*(\S*)'
     r'|(?:href|src)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))', re.M)
-RESOURCE = re.compile(r'(?:(?<=\./)|(?<![\w./\-]))(?:references|scripts|assets)/[\w.\-/]*[\w\-]')
+RESOURCE = re.compile(r'(?:(?<=\./)|(?<![\w./\-]))(?:references|scripts|assets)/[^\s`"\'()<>\[\]{},;:!?|*#]+')
+SAFE_RESOURCE = re.compile(r'(?:references|scripts|assets)/[\w.\-/]*[\w\-]')
 HEADING = re.compile(r' {0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*')
 NOT_SIMPLE = re.compile(r'\]\(|\]\[|&#?\w+;|<|\\|(?<!\w)_|_(?!\w)')
 HTML_LINE = re.compile(r' {0,3}<(?![A-Za-z][A-Za-z0-9+.-]*:)[A-Za-z/!]')
@@ -92,12 +97,14 @@ def outline(text):
     """Ids of the simple ATX headings outside fences, GitHub numbering of repeats, and the
     numbers of the lines outside fences that open an HTML block."""
     seen, fence, html = {}, None, []
+    defined = {' '.join(label.split()).lower() for label in LABELS.findall(text)}
     for number, line in enumerate(text.split('\n'), 1):
         stripped = line.lstrip(' \t')
-        opening = re.match(r'(`{3,}|~{3,})(.*)', stripped)
+        inner = re.sub(r'^(?:(?:[-*+]|\d{1,9}[.)]|>)[ \t]*)+', '', stripped)
+        opening = re.match(r'(`{3,}|~{3,})(.*)', inner)
         if opening:
             margin = line[:len(line) - len(stripped)]
-            if len(margin) >= 4 or '\t' in margin or (opening[1][0] == '`' and '`' in opening[2]):
+            if len(margin) >= 4 or '\t' in margin or inner != stripped or (opening[1][0] == '`' and '`' in opening[2]):
                 break  # in doubt, the rest of the file is in a fence
             if fence is None:
                 fence = opening[1]
@@ -107,7 +114,9 @@ def outline(text):
         if fence is None and HTML_LINE.match(line):
             html.append(number)
         heading = HEADING.fullmatch(line) if fence is None else None
-        if heading and not NOT_SIMPLE.search(heading[1]):
+        labels = {' '.join(label.split()).lower() for label in re.findall(r'\[([^\]\n]+)\]', heading[1])} \
+            if heading else set()
+        if heading and not NOT_SIMPLE.search(heading[1]) and not labels & defined:
             base = anchor = re.sub(r'[^\w\- ]', '', heading[1].lower()).replace(' ', '-')
             while anchor in seen:
                 seen[base] += 1
@@ -356,14 +365,17 @@ def validate(root, provenance=None):
                 ok, reason = unquote(anchor) in outline(text)[0], ANCHORLESS
             else:
                 dest = resolve(folder, unquote(file_part))
-                ok = dest is not None and (not anchor or not dest.endswith('.md')
-                                           or (dest in texts and unquote(anchor) in outline(texts[dest])[0]))
+                ok = dest is not None and (not anchor or (dest.endswith('.md') and dest in texts
+                                                          and unquote(anchor) in outline(texts[dest])[0]))
                 reason = ANCHORLESS if dest else DEAD
             check(f'{rel}:link:{index}', ok, target if ok else f'{target} ({reason})')
         for index, word in enumerate(RESOURCE.findall(text)):
-            found = [p for p in (resolve(skill, word), resolve(folder, word)) if p and p.startswith(skill + '/')]
+            word = word.rstrip('.')
+            found = (resolve(skill, word) or '').startswith(skill + '/')
             blank = any(n.startswith(posixpath.normpath(posixpath.join(skill, word)) + ' ') for n in names)
-            if not blank:  # a word cut at a blank of an existing file name: its name check reports it
+            if not SAFE_RESOURCE.fullmatch(word):
+                check(f'{rel}:resource:{index}', False, f'{word} (unsupported resource word: use letters, digits and ._-/)')
+            elif not blank:  # a word cut at a blank of an existing file name: its name check reports it
                 check(f'{rel}:resource:{index}', found, word if found else f'{word} (not a file of the skill at exact case)')
     if provenance is not None:
         records = {}

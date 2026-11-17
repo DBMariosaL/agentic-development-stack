@@ -2,7 +2,7 @@
 
 Steps:
   inventory   manifest.json against package/, provenance.json against every listed file,
-              every package file and every Python source of tools/ and tests/ listed,
+              every file of package/, tools/ and tests/ (outside __pycache__) listed,
               pilot mandatory reading against READING_BUDGET
   state       tests/state, unchanged v7 state regressions
   updater-v7  tests/updater/test_rc_update.py, unchanged, against the frozen v7 fixture
@@ -29,6 +29,8 @@ folder; give an absolute folder outside the clone), so a deep clone path cannot 
 260-character limit; a preflight measures the resolved base and refuses one still too long, records the refusal
 in summary.json and runs no step. Only empty fixture
 roots are removed.
+Every step runs under python -I -B -X pycache_prefix=<fresh folder>; the collector refuses
+to run outside isolated mode.
 Nothing is installed in an active profile and no network access is used.
 """
 import datetime
@@ -44,7 +46,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 227, 'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 33, 'footprint': 16}
+EXPECTED = {'state': 227, 'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 34, 'footprint': 16}
 READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
 READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.
@@ -82,6 +84,11 @@ def canonical(obj):
 
 def collect(start, top, out, pattern='test*.py'):
     """Subprocess mode: discover and run a unittest suite, write ids, counts and skips."""
+    if not sys.flags.isolated:  # results come only from an isolated interpreter
+        Path(out).write_text(json.dumps({'error': 'collect runs only under python -I', 'tests_run': 0,
+                                         'collected': []}) + '\n', encoding='utf-8')
+        return 2
+    sys.stdout.reconfigure(encoding='utf-8', errors='backslashreplace')
     loader = unittest.TestLoader()
     suite = loader.discover(start_dir=start, pattern=pattern, top_level_dir=top)
     ids = []
@@ -143,8 +150,8 @@ def inventory():
             problems.append({'check': 'provenance_sha256', 'path': item['path']})
         if item.get('adaptation') == 'byte-identical' and got != item.get('source_sha256'):
             problems.append({'check': 'provenance_source', 'path': item['path']})
-    sources = [p.relative_to(ROOT).as_posix() for base in ('tools', 'tests') for p in (ROOT / base).rglob('*.py')
-               if '_fixtures' not in p.parts]
+    sources = [p.relative_to(ROOT).as_posix() for base in ('tools', 'tests') for p in (ROOT / base).rglob('*')
+               if p.is_file() and '__pycache__' not in p.parts]
     unlisted = sorted(p for p in [f'package/{name}' for name in actual] + sources if p not in listed)
     if unlisted:
         problems.append({'check': 'provenance_inventory', 'unlisted': unlisted})
@@ -246,9 +253,9 @@ def main():
         roots.update({n: base / f'h{i}' for i, n in enumerate(from_steps)})
         for r in roots.values():
             r.mkdir()
-        # A fresh cache prefix: no bytecode found in the tree is loaded by a step.
+        # Steps run isolated (no PYTHON* variable, no script folder on sys.path) with a fresh cache prefix.
+        py = [sys.executable, '-I', '-B', '-X', 'pycache_prefix=' + str(out / 'pycache')]
         env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8',
-               'PYTHONPYCACHEPREFIX': str(out / 'pycache'),
                'TMP': str(out / 'tmp'), 'TEMP': str(out / 'tmp'),
                'RC_STATE_PACKAGE': str(ROOT / 'package'),
                'RC_UPDATE_LOT': str(ROOT),
@@ -258,24 +265,24 @@ def main():
                'RC_UPDATE_FIXTURES': str(roots['f'])}
         me = str(Path(__file__).resolve())
         steps = [
-            ('state', [sys.executable, '-B', me, '--collect', '.', '.', str(out / 'state.json')],
+            ('state', [*py, me, '--collect', '.', '.', str(out / 'state.json')],
              ROOT / 'tests/state', {}, out / 'state.json'),
-            ('updater-v7', [sys.executable, '-B', str(ROOT / 'tests/updater/test_rc_update.py'),
+            ('updater-v7', [*py, str(ROOT / 'tests/updater/test_rc_update.py'),
                             '--results-out', str(out / 'updater-v7.json')], ROOT, {}, out / 'updater-v7.json'),
-            ('updater-v8', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'), str(ROOT / 'tests/updater'),
+            ('updater-v8', [*py, me, '--collect', str(ROOT / 'tests/updater'), str(ROOT / 'tests/updater'),
                             str(out / 'updater-v8.json'), 'test_rc_update_v8.py'],
              ROOT, {'RC_UPDATE_FIXTURES': str(roots['g'])}, out / 'updater-v8.json'),
         ] + [
-            (n, [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/updater'), str(ROOT / 'tests/updater'),
+            (n, [*py, me, '--collect', str(ROOT / 'tests/updater'), str(ROOT / 'tests/updater'),
                  str(out / (n + '.json')), 'test_update_from_previous.py'],
              ROOT, {'RC_UPDATE_FIXTURES': str(roots[n]), 'RC_UPDATE_FROM': n[len('updater-from-'):]},
              out / (n + '.json'))
             for n in from_steps
         ] + [
-            ('package', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/package'), str(ROOT / 'tests/package'),
+            ('package', [*py, me, '--collect', str(ROOT / 'tests/package'), str(ROOT / 'tests/package'),
                          str(out / 'package.json')],
              ROOT, {'RC_PACKAGE_FIXTURES': str(roots['p'])}, out / 'package.json'),
-            ('footprint', [sys.executable, '-B', me, '--collect', str(ROOT / 'tests/footprint'),
+            ('footprint', [*py, me, '--collect', str(ROOT / 'tests/footprint'),
                            str(ROOT / 'tests/footprint'), str(out / 'footprint.json')],
              ROOT, {}, out / 'footprint.json'),
         ]
@@ -300,7 +307,7 @@ def main():
                 'skipped': results.get('skipped') if results else None,
                 'passed': passed, 'reasons': reasons})
             print(name + ': ' + ('passed' if passed else 'FAILED ' + '; '.join(reasons)), flush=True)
-        command = [sys.executable, '-B', str(ROOT / 'tools/validate_package.py'), str(ROOT / 'package'),
+        command = [*py, str(ROOT / 'tools/validate_package.py'), str(ROOT / 'package'),
                    '--output', str(out / 'structure.json'), '--provenance', str(ROOT / 'provenance.json')]
         with (out / 'structure.txt').open('w', encoding='utf-8') as log:
             proc = subprocess.run(command, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, check=False)
