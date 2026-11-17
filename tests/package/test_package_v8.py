@@ -377,40 +377,45 @@ class VendoredScriptTests(Base):
 
     def test_french_rubrics_recognized(self):
         """Chaque détecteur de rubrique manquante des trois prompt_lint.py lit la rubrique dans un
-        mandat français, sous chacun des titres relevés dans les mandats de la campagne : présente, aucun
-        avertissement ; retirée, l'avertissement revient ; un mot courant réservé aux titres ne compte pas
-        dans une phrase."""
+        mandat français : chaque forme ajoutée a sa ligne, qui ne passe que par elle (présente, aucun
+        avertissement ; retirée, l'avertissement revient). Un mot courant ne compte que si le titre entier
+        est une rubrique connue, hors d'un bloc de code ; ailleurs, l'avertissement reste."""
         sections = {
             'task': '## Résultat attendu\n\nAjoute une commande de lecture au journal.\n',
             'scope': '## Domaine\n\nÀ toi : journal/cli.py. Hors domaine : tout autre fichier.\n',
             'permissions': '## Effets permis\n\nEffets permis : lancer les tests. Interdits : réseau.\n',
             'delegation': '## Délégation\n\nTu ne lances aucun sous-agent.\n',
-            'stop': '## Remontées\n\nRemonte une décision que ce texte ne tranche pas, sans t\'arrêter sur le reste.\n',
+            'stop': '## Remontées\n\nCe que tu décides seul : le découpage des commits.\n',
             'done': '## Terminé quand\n\nLa suite est verte sur le dernier commit.\n',
         }
         body = '\n\nLe texte de la rubrique.\n'
         variants = {
-            'task': [t + body for t in ('## Résultat', '## Résultat demandé', '## Objet de la revue', '## Besoin',
-                                        '## Livrables', '## Exigences', '## Défaut à corriger', '# Revue globale',
-                                        '## Ce qui est demandé', '## Portée de ce tour')]
-            + ['Résultat demandé : un rapport court.\n'],
-            'done': [t + body for t in ('## Fini quand', "## Critères d'acceptation", '## Fin et remise')],
-            'scope': [t + body for t in ('## Domaine et effets permis', '## Limites', '## Portée de ce tour',
-                                         '## Ce qui ne change pas')]
-            + ['Tu es en lecture seule.\n', 'Hors de ton lot : tout le reste.\n',
-               "Tu n'écris que dans ta copie.\n", 'Ta copie, la seule où tu écris.\n'],
-            'stop': [t + body for t in ('## Ce que tu décides seul, ce qui remonte', '## Ce que tu décides seul',
-                                        '## Autonomie et simplicité')]
-            + ['Remonte dans ta remise tout besoin hors du lot.\n', 'Livre sans y toucher et dis-le dans ta remise.\n'],
-            'permissions': [t + body for t in ('## Effets permis',)]
-            + ['Tu es en lecture seule.\n', "Tu n'écris que sous ta copie.\n", 'Aucun accès réseau, aucun push.\n',
-               'Ni réseau ni push.\n'],
-            'delegation': ['Tu ne lances aucun sous-agent.\n', 'Tu ne lances aucun acteur ni sous-agent.\n'],
+            'task': [t + body for t in ('## Résultat', '## Résultat demandé', '## Objet', '## Objet de ce tour',
+                                        '## Besoin', '## Besoin (lot 2)', '## Exigences', '## Défaut',
+                                        '## Ce qui est demandé', '## Ce que le pilote attend en plus du brief',
+                                        '## Portée de ce tour', '## Passe ciblée : contrat')]
+            + ['Le résultat attendu est un rapport court.\n'],
+            'done': ['Terminé quand la suite est verte.\n', 'Le lot est fini quand la suite est verte.\n',
+                     'Critères de fin : la suite est verte.\n'],
+            'scope': ['Le domaine : journal/cli.py.\n', 'Tu es en lecture seule.\n',
+                      'Aucun changement hors de journal/cli.py.\n', 'Ni document ni commentaire.\n'],
+            'stop': ['Ce que tu décides seul : le découpage.\n', 'Remonte dans ta remise tout besoin hors du lot.\n',
+                     'Livre sans y toucher et dis-le dans ta remise.\n',
+                     "Outil refusé : rapporte-le avec l'erreur.\n"],
+            'permissions': ['Effets permis : lancer les tests.\n', 'Interdits : les fichiers hors du lot.\n',
+                            'Aucun push.\n', 'Ni commit ni push.\n'],
+            'delegation': ['Tu ne lances aucun sous-agent.\n'],
         }
-        prose = {'task': "Le résultat et l'objet de ce besoin sont décrits ailleurs.\n",
-                 'done': 'La fin du lot approche.\n',
-                 'scope': 'Les limites et la portée du lot sont connues.\n',
-                 'stop': 'Ton autonomie est large.\n'}
+        prose = {'task': ("Le résultat, l'objet, le besoin, les exigences et le défaut sont décrits ailleurs ; "
+                          'la passe ciblée aussi.\n')}
+        decoys = {
+            'task': ['## Résultats des essais précédents\n\nAucun essai concluant.\n',
+                     '## Besoins futurs\n\nRien.\n',
+                     'Voici un exemple de document reçu :\n\n```markdown\n## Besoin\n## Objet\n```\n',
+                     '~~~\n## Résultat\n~~~\n'],
+            'done': ['## Fin de fichier sans saut de ligne\n\nCette entrée doit être conservée.\n'],
+            'permissions': ['Le format autorisé accepte trois colonnes.\n'],
+        }
         context = ('# Mandat\n\nTu es l\'agent champion du lot, travail long-running, dans le shell. Tu peux modifier '
                    'les fichiers ; chaque étape finit par un commit. Le pilote répartit le travail entre les '
                    'subagents de la vague.\n\n' + ' '.join(f'mot{i}' for i in range(400)) + '\n\n')
@@ -443,9 +448,9 @@ class VendoredScriptTests(Base):
                     self.assertNotIn(code, codes(script, rubric, text))
             with self.subTest(script=script, code=code, text=None):
                 self.assertIn(code, codes(script, rubric))
-            if rubric in prose:
-                with self.subTest(script=script, code=code, text=prose[rubric]):
-                    self.assertIn(code, codes(script, rubric, prose[rubric]))
+            for text in ([prose[rubric]] if rubric in prose else []) + decoys.get(rubric, []):
+                with self.subTest(script=script, code=code, text=text):
+                    self.assertIn(code, codes(script, rubric, text))
 
     def test_scripts_synthetic_inputs(self):
         (self.dir / 'p.txt').write_text('You are a helpful assistant. Think step by step.\n', encoding='utf-8')
