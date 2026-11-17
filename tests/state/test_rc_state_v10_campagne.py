@@ -459,6 +459,50 @@ class MalformedState(Campaign):
         self.assertEqual(self.journal(self.program_path)[-1]['kind'], 'claim')
 
 
+class StrictInputs(Campaign):
+    def test_values_the_format_does_not_allow_are_refused_before_any_write(self):
+        """R13-03, R01-04, R13-04, R01-13, R01-12, R03-09, R01-10, R03-08, R01-09, init launch_ready 0."""
+        (self.root / 'null.json').write_text('null', encoding='utf-8')
+        w = wave2('launched')
+        w['candidate'] = {'seq': 1, 'ref': 'm1', 'artifact': 'manifest', 'sha256': 'b' * 64}
+        w['reviews'] = [{'artifact': 'manifest', 'sha256': 'b' * 64, 'status': 'done', 'disposition': 'ok',
+                         'reference': 'r.md', 'candidate_seq': 1}]
+        w['decisions'] = []
+        mandate = dict(PROGRAM_SPEC['mandate'], sha256='not-a-digest')
+        auth = {'launch': True, 'exclusions': []}
+        cases = (
+            ('event blank id', 'has no text id', ('event', self.wave_path, '--actor', OWNER, '--id', ' ', '--kind', 'k')),
+            ('short form blank id', 'has no text id', ('write', self.wave_path, '--actor', OWNER, '--expect-revision',
+                                                       0, '--ops', '[]', '--record-event', '  ', '--kind', 'k')),
+            ('ops null', 'ops must be a nonempty list, got null',
+             ('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', 'null')),
+            ('ops file null', 'ops must be a nonempty list, got null',
+             ('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops-file', self.root / 'null.json')),
+            ('ops NaN', 'NaN is not JSON', ('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops',
+                                             '[{"op":"set","path":"envelope","value":{"reason":"r","max":NaN}}]')),
+            ('completed_partial without decision', 'completed_partial requires the unqualified scope named in decisions',
+             ('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--to', 'completed_partial')))
+        for label, fragment, argv in cases:
+            with self.subTest(label):
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                self.refused(fragment, *argv)
+                self.assertEqual(self.doc(self.wave_path)['revision'], 0)
+                self.assertFalse((self.root / 'journal.jsonl').exists())
+        for label, fragment, kind, spec in (
+                ('mandate.sha256', 'mandate.sha256: expected 64 hex characters or absent, got str', 'program',
+                 dict(PROGRAM_SPEC, mandate=mandate)),
+                ('launch without source', 'authorization.source: expected nonempty text when authorization.launch is '
+                 'true, got null', 'wave', dict(WAVE_SPEC, mode='prepare-and-launch', authorization=auth)),
+                ('launch_ready 0', 'init sets these fields itself; remove them from the spec: state.launch_ready',
+                 'wave', dict(WAVE_SPEC, state={'next_action': 'x', 'launch_ready': 0}))):
+            with self.subTest(label):
+                path, code, result = self.init(label.replace(' ', '-'), kind, spec)
+                self.assertEqual(code, 1, result)
+                self.assertIn(fragment, result['error'])
+                self.assertFalse(path.exists())
+
+
 class Successor(Campaign):
     """A successor who has established the owner's stop always has a documented way on, named by resume."""
     OTHER = 'thread:successor'

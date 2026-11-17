@@ -148,8 +148,17 @@ def now():
     return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
 
 
+def _no_constant(name):
+    raise ValueError(f'{name} is not JSON')
+
+
+def strict_json(data):
+    """JSON as any strict reader accepts it: NaN, Infinity and -Infinity refused."""
+    return json.loads(data, parse_constant=_no_constant)
+
+
 def load(path):
-    return json.loads(Path(path).read_text(encoding='utf-8-sig'))
+    return strict_json(Path(path).read_text(encoding='utf-8-sig'))
 
 
 def sha256_file(path):
@@ -318,6 +327,10 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
             errors.append(message)  # v1 rule shared by v2; no version prefix in a v2 report
 
     require(kind_of(doc) == 'wave2', 'schema_version must be the integer 2')
+    auth = doc.get('authorization') if isinstance(doc.get('authorization'), dict) else {}
+    require(auth.get('launch') is not True or text(auth.get('source')),
+            f'authorization.source: expected nonempty text when authorization.launch is true, '
+            f'got {got(auth.get("source"), "source" in auth)}')
     require(type(doc.get('revision')) is int and doc['revision'] >= 0, 'revision must be a non-negative integer')
     artifacts = doc.get('artifacts') if isinstance(doc.get('artifacts'), dict) else {}
     ref = doc.get('program_ref')
@@ -391,9 +404,11 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
     for index, review in enumerate(doc.get('reviews') if isinstance(doc.get('reviews'), list) else []):
         if not isinstance(review, dict):
             continue
-        seq = review.get('candidate_seq')  # null (unknown or out of candidate) is the same as absent
-        require(seq is None or type(seq) is int,
-                f'review candidate_seq must be an integer or null: reviews[{index}].candidate_seq got {got(seq)}')
+        seq = review.get('candidate_seq')  # null (documentary review) is the same as absent
+        top = cand['seq'] if cand_ok and isinstance(cand, dict) else 0
+        require(seq is None or (type(seq) is int and 1 <= seq <= top),
+                f'reviews[{index}].candidate_seq: expected null or the seq of a frozen candidate (1 to {top}), got '
+                + (repr(seq) if type(seq) is int else got(seq)))
     if member(phase, WAITLIKE):
         require(_wait_shape(state.get('waiting')),
                 f'{phase} requires state.waiting {{kind, detail, trigger, resume, from}}')
@@ -414,9 +429,10 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
             require(bool(covering) and all(member(sval(r, 'status'), v1.DISPOSED_STATUSES) for r in covering),
                     f'{phase} requires disposed reviews of candidate artifact {cand["artifact"]} '
                     f'with its sha256 on candidate_seq {cand["seq"]}')
-    if phase == 'failed':
-        require(any(text(d) for d in doc.get('decisions', []) if isinstance(d, str)) if isinstance(doc.get('decisions'), list) else False,
-                'failed requires a recorded cause and resumption condition in decisions')
+    if phase in {'failed', 'completed_partial'}:
+        require(isinstance(doc.get('decisions'), list) and any(text(d) for d in doc['decisions']),
+                'failed requires a recorded cause and resumption condition in decisions' if phase == 'failed' else
+                'completed_partial requires the unqualified scope named in decisions')
     return errors
 
 
@@ -490,6 +506,9 @@ def validate_program(doc, directory=None, check_paths=False, self_path=None):
     require(owner is None or (isinstance(owner, dict) and text(owner.get('role')) and text(owner.get('ref'))),
             'owner must be null or {role, ref}')
     errors.extend(field_errors(doc.get('mandate'), 'mandate', MANDATE_FIELDS, 'mandate' in doc))
+    mandate = doc.get('mandate') if isinstance(doc.get('mandate'), dict) else {}
+    require('sha256' not in mandate or digest(mandate['sha256']),
+            f'mandate.sha256: expected 64 hex characters or absent, got {got(mandate.get("sha256"))}')
     skills = doc.get('skills_consumed')
     bad_skills = [i for i, s in enumerate(skills) if not (isinstance(s, dict) and text(s.get('name'))
                                                            and digest(s.get('sha256')))] if isinstance(skills, list) else None
@@ -971,8 +990,11 @@ def journal_path(path, doc):
 def append_journal(jpath, entry):
     """Append one line to a journal that is a regular, singly-linked file (created exclusively if absent)."""
     jpath = Path(jpath)
+    problem = entry_problem(entry)
+    if problem:  # never write a line that read_journal would declare damaged
+        raise StateError(f'journal entry refused before writing: it {problem}')
     check_ancestors(jpath)
-    line = (json.dumps(entry, ensure_ascii=False, sort_keys=True) + '\n').encode('utf-8')
+    line = (json.dumps(entry, ensure_ascii=False, sort_keys=True, allow_nan=False) + '\n').encode('utf-8')
     flags = os.O_WRONLY | os.O_APPEND | getattr(os, 'O_BINARY', 0)
     try:
         if _is_link(os.lstat(jpath)):
@@ -998,6 +1020,19 @@ JOURNAL_TEXT_FIELDS = ('kind', 'commits', 'resolves', 'applies_event', 'attaches
                        'wave', 'file', 'op_kind', 'outcome', 'classification', 'tmp')
 
 
+def entry_problem(entry):
+    """Why a journal entry is unusable, or None; the same rule for writing and reading."""
+    if not isinstance(entry, dict):
+        return f'is a JSON {got(entry)}, not an entry object'
+    if not text(entry.get('id')):
+        return f'has no text id (got {got(entry.get("id"), "id" in entry)})'
+    bad = [k for k in JOURNAL_TEXT_FIELDS if entry.get(k) is not None and not isinstance(entry[k], str)]
+    if entry.get('journals') is not None and not (isinstance(entry['journals'], list)
+                                                   and all(isinstance(x, str) for x in entry['journals'])):
+        bad.append('journals')
+    return 'has malformed fields: ' + ', '.join(f'{k} ({got(entry[k])})' for k in bad) if bad else None
+
+
 def journal_line_error(jpath, number, why):
     return StateError(f'journal {jpath} line {number} {why} (interrupted write?); move the damaged line aside with its '
                       'evidence before any other action')
@@ -1015,20 +1050,12 @@ def read_journal(jpath):
         if not line.strip():
             continue
         try:
-            entry = json.loads(line)
+            entry = strict_json(line)
         except ValueError:
             raise journal_line_error(jpath, number, 'is not valid JSON')
-        if not isinstance(entry, dict):
-            raise journal_line_error(jpath, number, f'is a JSON {got(entry)}, not an entry object')
-        if not text(entry.get('id')):
-            raise journal_line_error(jpath, number, f'has no text id (got {got(entry.get("id"), "id" in entry)})')
-        bad = [k for k in JOURNAL_TEXT_FIELDS if entry.get(k) is not None and not isinstance(entry[k], str)]
-        if entry.get('journals') is not None and not (isinstance(entry['journals'], list)
-                                                       and all(isinstance(x, str) for x in entry['journals'])):
-            bad.append('journals')
-        if bad:
-            raise journal_line_error(jpath, number, 'has malformed fields: ' + ', '.join(
-                f'{k} ({got(entry[k])})' for k in bad))
+        problem = entry_problem(entry)
+        if problem:
+            raise journal_line_error(jpath, number, problem)
         entries.append(entry)
     return entries
 
@@ -1117,7 +1144,7 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
     path = checked_path(path)
     with Lock(path):
         old_bytes = path.read_bytes()
-        old = json.loads(old_bytes.decode('utf-8-sig'))
+        old = strict_json(old_bytes.decode('utf-8-sig'))
         if kind_of(old) not in {'program', 'wave2'}:
             raise StateError('guarded writes need a program or a v2 wave; migrate v1 first')
         if old.get('revision') != expected_revision:
@@ -1179,7 +1206,7 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
                     raise StateError(f'event {applies_event} was received for candidate_seq {seq}, older than the current '
                                      f'candidate {current}: it is stale and applies to nothing; record it as stale with '
                                      f'event --id {applies_event}')
-            new_bytes = (json.dumps(new, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+            new_bytes = (json.dumps(new, ensure_ascii=False, indent=2, allow_nan=False) + '\n').encode('utf-8')
             op_id = f'op:{ident}:{new["revision"]}:{secrets.token_hex(4)}'
             tmp = write_exclusive_temp(path.parent, path.name, new_bytes)
             recorded = []
@@ -1403,7 +1430,7 @@ def cmd_migrate(args):
     if errors:
         raise StateError('migrated document invalid: ' + '; '.join(errors))
     with open(dest, 'x', encoding='utf-8', newline='\n') as stream:
-        stream.write(json.dumps(new, ensure_ascii=False, indent=2) + '\n')
+        stream.write(json.dumps(new, ensure_ascii=False, indent=2, allow_nan=False) + '\n')
     return {'migrated': str(dest), 'from_sha256': new['migrated_from']['sha256'],
             'unknown_actors': [a['correlation'] for a in new['actors']]}, False
 
@@ -1465,7 +1492,7 @@ INIT_TEMPLATES = {
         'reviews': 'default []: list of {artifact: key of artifacts, sha256: 64 hex, status: one of ' +
                    ', '.join(sorted(v1.REVIEW_STATUSES)) + ', disposition: default null: text or null, reference: '
                    'default null: text or null (both text when status is done or not_required), '
-                   'candidate_seq: int or null}',
+                   'candidate_seq: null (documentary review) or the seq of a frozen candidate, 1 to the current seq}',
         'decisions': 'default []: list of strings',
         'envelope': 'default null: null or {reason: text, ...}',
         'state': {'next_action': 'required: nonempty text', 'blockers': 'default []: list of strings',
@@ -1510,12 +1537,14 @@ def build_initial(kind, spec, actor, role):
                   'state': ({'blockers': [], 'consumed': {}},
                             {'phase': 'planning', 'owner': owner, 'launch_ready': False, 'waiting': None,
                              'runtime_refs': None})}
-    fixed = [k for k, v in managed.items() if k in spec and spec[k] != v]
+    def differs(a, b):
+        return type(a) is not type(b) or a != b
+    fixed = [k for k, v in managed.items() if k in spec and differs(spec[k], v)]
     fixed += ['migrated_from'] if 'migrated_from' in spec else []
     for key, (_, values) in nested.items():
         part = spec.get(key)
         if isinstance(part, dict):
-            fixed += [f'{key}.{k}' for k, v in values.items() if k in part and part[k] != v]
+            fixed += [f'{key}.{k}' for k, v in values.items() if k in part and differs(part[k], v)]
     if fixed:
         raise StateError('init sets these fields itself; remove them from the spec: ' + ', '.join(fixed) +
                          f' (see init --template {kind})')
@@ -1558,7 +1587,7 @@ def replaceable_state(path, actor, kind):
     """Old state that init --replace-invalid may replace: readable, invalid, revision 0, no owner but the actor."""
     old_bytes = path.read_bytes()
     try:
-        old = json.loads(old_bytes.decode('utf-8-sig'))
+        old = strict_json(old_bytes.decode('utf-8-sig'))
     except ValueError as exc:
         raise StateError(f'--replace-invalid refused: {path.name} is not readable JSON ({exc}); its revision and owner '
                          'cannot be checked: move it aside yourself with its evidence, then run init')
@@ -1665,14 +1694,14 @@ def cmd_init(args):
     errors += [f'unknown key {key}' for key in unknown_keys(doc)]
     if errors:
         raise StateError('refused: initial state invalid: ' + '; '.join(errors))
-    new_bytes = (json.dumps(doc, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    new_bytes = (json.dumps(doc, ensure_ascii=False, indent=2, allow_nan=False) + '\n').encode('utf-8')
     jpath = journal_path(path, doc)
     with Lock(path):
         old = replaceable_state(path, args.actor, args.kind) if exists else None
         journals = set(participating_journals(path, doc)) | {jpath}
         if old is not None:
             try:
-                journals |= set(participating_journals(path, json.loads(old['bytes'].decode('utf-8-sig'))))
+                journals |= set(participating_journals(path, strict_json(old['bytes'].decode('utf-8-sig'))))
             except (StateError, TypeError, AttributeError):
                 pass
         journals = sorted(journals, key=str)
@@ -1737,15 +1766,18 @@ def cmd_init(args):
 
 def read_ops(args):
     try:
-        return load(args.ops_file) if args.ops_file else json.loads(args.ops) if args.ops is not None else None
+        ops = load(args.ops_file) if args.ops_file else strict_json(args.ops) if args.ops is not None else None
     except (OSError, ValueError) as exc:
         raise StateError(f'--ops{"-file" if args.ops_file else ""} unreadable or not valid JSON: {exc}')
+    if (args.ops_file or args.ops is not None) and not (isinstance(ops, list) and ops):
+        raise StateError(f'ops must be a nonempty list, got {got(ops)}')
+    return ops
 
 
 def cmd_write(args):
     def mutate(doc):
         mid = resolve_intent(doc, args.resolve_intent, args) if args.resolve_intent else doc
-        new = apply_ops(mid, ops) if ops is not None else mid
+        new = apply_ops(mid, ops) if ops else mid
         created = [k for k in unknown_keys(new) if k not in unknown_keys(doc)]
         if created:
             raise StateError(f'refused: unknown key {", ".join(created)}: the {kind_of(doc)} format does not define it. '

@@ -154,7 +154,7 @@ class Init(InitBase):
         self.assertEqual(result['spec']['mandate']['scope'], 'required: list of strings')
         self.assertEqual(result['spec']['mandate']['end_criteria'], 'required: nonempty text')
         wave = self.ok('init', '--template', 'wave')
-        self.assertIn('candidate_seq: int or null', wave['spec']['reviews'])
+        self.assertIn('candidate_seq: null (documentary review) or the seq of a frozen candidate', wave['spec']['reviews'])
         for field in ('seq: int >= 1', 'ref: text, exact reference of the frozen candidate', 'artifact: key of artifacts',
                       'sha256: 64 hex'):
             self.assertIn(field, wave['set_by_init']['candidate'])
@@ -336,9 +336,15 @@ class ReviewCandidateSeq(Base):
                   'reference': 'r.md', 'candidate_seq': None}
         w['reviews'] = [review]
         self.assertEqual(rc.validate_wave2(w, self.wave_path.parent), [])
-        w['reviews'] = [dict(review, candidate_seq='1')]
-        errors = rc.validate_wave2(w, self.wave_path.parent)
-        self.assertTrue(any('candidate_seq must be an integer or null' in e and 'got str' in e for e in errors), errors)
+        w['candidate'] = {'seq': 1, 'ref': 'm1', 'artifact': 'manifest', 'sha256': 'b' * 64}
+        for seq, valid in (('1', False), (0, False), (-1, False), (2, False), (1, True)):  # R01-11, piste seq > current
+            with self.subTest(seq=seq):
+                w['reviews'] = [dict(review, candidate_seq=seq)]
+                errors = rc.validate_wave2(w, self.wave_path.parent)
+                self.assertEqual(errors == [], valid, errors)
+                if not valid:
+                    self.assertIn('reviews[0].candidate_seq: expected null or the seq of a frozen candidate (1 to 1), '
+                                  'got ' + ('str' if seq == '1' else repr(seq)), errors)
         ops = json.dumps([{'op': 'append', 'path': 'reviews', 'value': review}])
         self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)
 
