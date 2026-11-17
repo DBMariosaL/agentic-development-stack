@@ -17,9 +17,16 @@ simple changement de distribution.
 
 Dépendances : absente -> création (``install``) ; identique -> aucune écriture
 (``already-new``) ; copie de la version précédente du manifeste -> mise à jour ; tout
-autre état (personnalisée, partielle, dossier existant sans fichier géré) -> ``conflict``
-sans écrasement. Les fichiers inconnus sont conservés ; le retour arrière ne retire que
-les fichiers créés par le plan et les dossiers qu'il a créés et consignés, s'ils sont vides.
+autre état (personnalisée, partielle, dossier qui ne contient que des fichiers inconnus)
+-> ``conflict`` sans écrasement ; un dossier vide vaut absence. Les fichiers inconnus sont
+conservés, sauf qu'un fichier inconnu à la place d'un chemin géré (même chemin à la casse
+près, ou dossier d'un chemin géré) fait refuser le profil. Le retour arrière ne retire que
+les fichiers créés par le plan et les dossiers qu'il a créés et consignés, s'ils sont vides ;
+il recrée les dossiers parents disparus des fichiers qu'il restaure.
+
+Emplacements : cibles, paquet, plan et dossier d'état sont séparés ; un dossier existant se
+compare par identité de fichier, quelle que soit l'écriture du chemin (préfixe \\?\, casse,
+partage réseau).
 
 Commandes :
   manifest   calcule le manifeste d'un paquet (chemin POSIX relatif, sha256, octets).
@@ -28,10 +35,14 @@ Commandes :
   apply      exécute exactement un plan dont l'empreinte correspond encore à l'état.
   resume     termine le même plan après une issue partielle.
   rollback   restaure l'état antérieur depuis les sauvegardes et vérifie les octets.
+             resume et rollback prennent le verrou ``lock`` du dossier d'état ; après un
+             arrêt brutal, ``--break-lock`` le retire : l'appelant affirme ainsi qu'aucune
+             mise à jour ne tourne sur ce dossier d'état.
   verify     relecture seule des octets publiés (aucune écriture).
 
-Codes de sortie : 0 succès, 1 refus ou erreur, 2 plan bloqué (conflit ou profil
-refusé), 3 plan périmé (l'état observé ne correspond plus à l'empreinte).
+Codes de sortie : 0 succès, 1 refus ou erreur (erreur d'usage comprise), 2 plan bloqué
+(conflit ou profil refusé), 3 plan périmé (l'état observé ne correspond plus à l'empreinte).
+Messages JSON en UTF-8.
 
 Seuls les dossiers des skills de la distribution du plan sont lus et modifiés dans chaque cible.
 
@@ -132,11 +143,16 @@ def real(path):
 
 
 def inside(child, parent):
+    """child est parent ou en dessous ; parent existant : par identité de fichier, quelle que soit l'écriture."""
     try:
-        Path(child).relative_to(Path(parent))
-        return True
-    except ValueError:
-        return False
+        target = os.stat(parent)
+    except FileNotFoundError:
+        try:
+            Path(child).relative_to(Path(parent))
+            return True
+        except ValueError:
+            return False
+    return any(n.exists() and os.path.samestat(os.stat(n), target) for n in (Path(child), *Path(child).parents))
 
 
 def check_rel(rel, skills=ALL_SKILLS):
@@ -261,9 +277,10 @@ def manifest_doc(files):
 def files_from_doc(doc):
     """Fichiers d'un manifeste ; ses skills doivent former exactement une distribution reconnue.
 
-    Format absent ou 1 : manifeste historique, exactement les trois skills RC. Format 2 :
-    distribution, liste ordonnée des skills et rôles identiques au registre de cet outil,
-    empreinte interne vérifiée. Tout autre format est refusé.
+    Format absent ou 1 : manifeste historique, exactement les trois skills RC, empreinte
+    interne vérifiée si elle est présente. Format 2 : distribution, liste ordonnée des skills
+    et rôles identiques au registre de cet outil, empreinte interne exigée et vérifiée. Tout
+    autre format est refusé.
     """
     fmt = doc.get('format')
     if fmt in (None, MANIFEST_FORMAT):
@@ -289,7 +306,8 @@ def files_from_doc(doc):
         if name == 'rc-core':
             raise UpdateError('Le manifeste doit couvrir exactement les trois skills')
         raise UpdateError(f'Le manifeste doit couvrir exactement les skills de la distribution {name}')
-    if fmt == MANIFEST_FORMAT_V2 and doc.get('digest') != sha256(canonical(_v2_body(name, files))):
+    body = _v2_body(name, files) if fmt == MANIFEST_FORMAT_V2 else _items(files)
+    if (fmt == MANIFEST_FORMAT_V2 or 'digest' in doc) and doc.get('digest') != sha256(canonical(body)):
         raise UpdateError('Empreinte interne du manifeste incohérente')
     return files
 
@@ -325,6 +343,12 @@ def check_package(package, new_files):
 
 # --------------------------------------------------------------------------- plan
 
+def clashes(unknown, managed):
+    """Fichiers inconnus à la place d'un chemin géré : même chemin à la casse près, ou dossier d'un chemin géré."""
+    taken = {'/'.join(r.split('/')[:i]).casefold() for r in managed for i in range(2, r.count('/') + 2)}
+    return sorted(r for r in unknown if r.casefold() in taken)
+
+
 def classify_dependency(skill, observed, prev, new):
     """Dépendance : jamais d'écrasement d'une copie qui n'est ni la précédente ni la nouvelle."""
     p_paths = {r for r in prev if r.split('/')[0] == skill}
@@ -332,14 +356,13 @@ def classify_dependency(skill, observed, prev, new):
     managed = p_paths | n_paths
     local = {r: v for r, v in observed.items() if r.split('/')[0] == skill}
     unknown = sorted(r for r in local if r not in managed)
-    folded = {r.casefold(): r for r in managed}
-    collisions = sorted(r for r in unknown if r.casefold() in folded)
+    collisions = clashes(unknown, managed)
     sha = {r: (local[r]['sha256'] if r in local else None) for r in managed}
     out = {'name': skill, 'role': 'dependency', 'status': None, 'reasons': [], 'conflicts': [],
            'unknown': unknown, 'files': [], 'actions': []}
     if collisions:
         out['status'] = 'unexpected'
-        out['reasons'].append(f'casse différente du manifeste : {collisions}')
+        out['reasons'].append(f'fichier inconnu à la place d\'un chemin géré : {collisions}')
         return out
     if not local:
         out['status'] = 'install'
@@ -390,13 +413,12 @@ def classify_skill(skill, observed, prev, new, role='rc'):
     managed = p_paths | n_paths
     local = {r: v for r, v in observed.items() if r.split('/')[0] == skill}
     unknown = sorted(r for r in local if r not in managed)
-    folded = {r.casefold(): r for r in managed}
-    collisions = sorted(r for r in unknown if r.casefold() in folded)
+    collisions = clashes(unknown, managed)
     sha = {r: (local[r]['sha256'] if r in local else None) for r in managed}
     out = {'name': skill, 'status': None, 'reasons': [], 'conflicts': [], 'unknown': unknown, 'files': [], 'actions': []}
     if collisions:
         out['status'] = 'unexpected'
-        out['reasons'].append(f'casse différente du manifeste : {collisions}')
+        out['reasons'].append(f'fichier inconnu à la place d\'un chemin géré : {collisions}')
         return out
     if not local and not any(sha.values()):
         out['status'] = 'unexpected'
@@ -566,8 +588,13 @@ class Journal:
         self.path = Path(path)
         self.seq = 0
         self.events = []
+        self.torn = None
         if self.path.exists():
-            for line in self.path.read_text(encoding='utf-8').splitlines():
+            data = self.path.read_bytes()
+            whole = data[:data.rfind(b'\n') + 1]
+            if len(whole) < len(data):
+                self.torn = len(whole)  # dernière ligne coupée par un arrêt : ignorée, retirée au prochain ajout
+            for line in whole.decode('utf-8').splitlines():
                 if line.strip():
                     self.events.append(json.loads(line))
             self.seq = len(self.events)
@@ -583,6 +610,9 @@ class Journal:
             if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 \
                     or (before is not None and (st.st_dev, st.st_ino) != (before.st_dev, before.st_ino)):
                 raise UpdateError(f'Journal remplacé ou lié ailleurs, aucune écriture : {self.path}')
+            if self.torn is not None:
+                os.ftruncate(fd, self.torn)
+                self.torn = None
             os.write(fd, line)
             os.fsync(fd)
         finally:
@@ -610,14 +640,18 @@ class Journal:
 
 
 class Lock:
-    def __init__(self, state):
+    def __init__(self, state, break_lock=False):
         self.path = Path(state) / 'lock'
+        self.break_lock = break_lock
 
     def __enter__(self):
+        if self.break_lock:
+            self.path.unlink(missing_ok=True)
         try:
             fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except FileExistsError:
-            raise UpdateError(f'Verrou présent (autre exécution ou arrêt brutal) : {self.path}')
+            raise UpdateError(f'Verrou présent : {self.path} ; si aucune mise à jour ne tourne sur ce dossier '
+                              'd\'état (arrêt brutal), relancer avec --break-lock')
         os.write(fd, str(os.getpid()).encode())
         os.close(fd)
         return self
@@ -1068,7 +1102,8 @@ def _open_state(args):
     prev, new, package, targets = plan_inputs(plan)
     state = state_dir(args.state_dir, plan, targets, package)
     if not (state / 'journal.jsonl').exists():
-        raise UpdateError(f'Aucun état d\'application pour ce plan : {state}')
+        raise UpdateError(f'Aucun journal d\'application pour ce plan : {state} ; un apply interrompu avant son '
+                          'journal n\'a rien écrit dans les cibles : relancer apply avec un nouveau --state-dir')
     saved = load_plan(state / 'plan.json')
     if saved['fingerprint'] != plan['fingerprint']:
         raise UpdateError('Le plan fourni diffère du plan enregistré dans l\'état')
@@ -1081,7 +1116,7 @@ def cmd_resume(args):
     if status == 'rolled-back':
         raise UpdateError('Plan déjà annulé par rollback ; refaire un préflight')
     journal = Journal(state / 'journal.jsonl')
-    with Lock(state):
+    with Lock(state, args.break_lock):
         # Contrôles complets d'abord ; aucun retrait avant qu'ils aient réussi (R2-06).
         check_state_outputs(state)
         leftovers, ignore = own_leftover_temps(plan, state, journal)
@@ -1106,7 +1141,7 @@ def cmd_resume(args):
 def cmd_rollback(args):
     plan, _new, _package, state = _open_state(args)
     journal = Journal(state / 'journal.jsonl')
-    with Lock(state):
+    with Lock(state, args.break_lock):
         check_state_outputs(state)
         leftovers, ignore = own_leftover_temps(plan, state, journal)
         check_progress(plan, ignore=ignore)
@@ -1135,6 +1170,7 @@ def cmd_rollback(args):
                     raise UpdateError(f'Changement concurrent détecté : {dest}')
                 os.remove(dest)
             else:
+                ensure_parents(plan['targets'][a['target']]['root'], a['path'], journal, a['id'])
                 publish(dest, data, cur, plan['plan_id'], a['op'] == 'remove', journal, a['id'], a['target'])
             got = file_sha_or_none(dest)
             if got != a['before']:
@@ -1161,8 +1197,13 @@ def cmd_verify(args):
     return report, (0 if report['ok'] else 1)
 
 
+class Parser(argparse.ArgumentParser):
+    def error(self, message):
+        raise UpdateError(f'{self.prog} : {message}')
+
+
 def parser():
-    p = argparse.ArgumentParser(prog='rc_update', description=__doc__.split('\n')[0])
+    p = Parser(prog='rc_update', description=__doc__.split('\n')[0])
     sub = p.add_subparsers(dest='command', required=True)
     m = sub.add_parser('manifest')
     m.add_argument('--package', required=True)
@@ -1181,6 +1222,8 @@ def parser():
         r = sub.add_parser(name)
         r.add_argument('--plan', required=True)
         r.add_argument('--state-dir', required=True)
+        r.add_argument('--break-lock', action='store_true',
+                       help='retire le verrou laissé par un arrêt brutal ; affirme qu\'aucune mise à jour ne tourne')
     v = sub.add_parser('verify')
     v.add_argument('--plan', required=True)
     v.add_argument('--expect', choices=('new', 'previous'), default='new')
@@ -1192,13 +1235,13 @@ COMMANDS = {'manifest': cmd_manifest, 'preflight': cmd_preflight, 'apply': cmd_a
 
 
 def main(argv=None):
-    args = parser().parse_args(argv)
     try:
+        args = parser().parse_args(argv)
         result, code = COMMANDS[args.command](args)
     except UpdateError as exc:
         print(json.dumps({'error': str(exc), 'code': exc.code}, ensure_ascii=False), file=sys.stderr)
         return exc.code
-    except (OSError, ValueError, KeyError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         print(json.dumps({'error': f'{type(exc).__name__}: {exc}', 'code': 1}, ensure_ascii=False), file=sys.stderr)
         return 1
     print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -1206,4 +1249,6 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
     sys.exit(main())
