@@ -5,9 +5,11 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from test_rc_state import OWNER, SCRIPT, Base, rc, wave2
@@ -885,20 +887,30 @@ class Successor(Campaign):
         carried = [e for e in self.journal(self.program_path) if e['id'] == 'shared-id']
         self.assertEqual([e['wave'] for e in carried], ['waves/a/wave.json'])
 
-    def test_R02_05_moved_state_folder_keeps_accepting_writes(self):
-        wave = self.solo()
-        self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'a'}])
-        journal = wave.parent / 'journal.jsonl'
-        entries = self.journal(wave)
-        self.assertEqual([e['journals'] for e in entries if e['kind'] == 'prepare'][-1], ['journal.jsonl'])
-        for e in entries:  # as the previous version wrote them: absolute paths of the old folder
-            if e.get('journals'):
-                e['journals'] = [str(journal.resolve())]
-        journal.write_text(''.join(json.dumps(e) + '\n' for e in entries), encoding='utf-8')
-        moved = wave.parent.with_name('moved')
-        wave.parent.rename(moved)
-        self.assertEqual(self.ops(moved / 'wave.json', 1, [{'op': 'set', 'path': 'state.next_action',
-                                                             'value': 'b'}])[0], 0)
+    def test_R02_05_moved_or_copied_state_folder_keeps_accepting_writes_and_touches_nothing_outside(self):
+        """R02-05 (moved folder) and v10.2 review, point 4 (copy of a state whose prepares list absolute paths)."""
+        for how in ('moved', 'copied'):
+            with self.subTest(how):
+                path, code, result = self.init(f'origin-{how}', 'wave', WAVE_SPEC)
+                self.ops(path, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'a'}])
+                journal = path.parent / 'journal.jsonl'
+                entries = self.journal(path)
+                self.assertEqual([e['journals'] for e in entries if e['kind'] == 'prepare'][-1], ['journal.jsonl'])
+                for e in entries:  # as the previous version wrote them: absolute paths of the old folder
+                    if e.get('journals'):
+                        e['journals'] = [str(journal.resolve())]
+                journal.write_text(''.join(json.dumps(e) + '\n' for e in entries), encoding='utf-8')
+                target = path.parent.with_name(f'state-{how}')
+                if how == 'moved':
+                    path.parent.rename(target)
+                else:
+                    shutil.copytree(path.parent, target)
+                    Path(str(journal) + '.lock').write_text('another writer', encoding='utf-8')
+                self.assertEqual(self.ops(target / 'wave.json', 1, [{'op': 'set', 'path': 'state.next_action',
+                                                                      'value': 'b'}])[0], 0)
+                if how == 'copied':
+                    self.assertEqual((path.parent / 'journal.jsonl.lock').read_text(encoding='utf-8'), 'another writer')
+                    self.assertEqual(self.rev(path), 1)
 
 
 class Phases(Campaign):

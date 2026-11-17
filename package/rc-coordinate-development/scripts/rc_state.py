@@ -1131,14 +1131,16 @@ def local_journal(path):
 
 def participating_journals(path, doc):
     """Journals that may hold an operation on this state file: its current journal, its local journal, and every
-    journal listed by a prepare of this file found there (open or closed)."""
+    journal listed by a prepare of this file found there that exists in the file's folder or one of its ancestors.
+    A path listed by an older version is absolute: a copied or moved state never follows it out of its own tree."""
     path = Path(path).resolve()
     found = {journal_path(path, doc), local_journal(path)}
+    own_tree = {folder / 'journal.jsonl' for folder in path.parents}
     for j in list(found):
         for e in read_journal(j):
             if e.get('kind') == 'prepare' and e.get('wave') == wave_identity(path, j):
-                listed = ((path.parent / x).resolve() for x in e.get('journals') or [])
-                found.update(x for x in listed if x.is_file())
+                listed = {(path.parent / x).resolve() for x in e.get('journals') or []}
+                found.update(x for x in listed & own_tree if x.is_file())
     return sorted(found, key=str)
 
 
