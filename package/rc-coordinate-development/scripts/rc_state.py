@@ -1928,6 +1928,11 @@ def resolve_intent(doc, correlation, args):
         doc['actors'].append({'role': args.role or 'unspecified', 'model': args.model, 'ref': args.result_ref,
                               'correlation': correlation, 'status': 'running',
                               'target': intent.get('target'), 'candidate_seq': None, **observed})
+    if args.status == 'confirmed' and intent.get('op') == 'send':  # the actor it reaches is alive again
+        reached = [a for a in _items(doc.get('actors')) if a.get('target') == intent.get('target')]
+        if reached and sval(reached[-1], 'status') not in LIVE_ACTOR:
+            reached[-1].update(status='running', evidence=f'send {correlation} confirmed: '
+                               f'{args.result_ref or args.evidence}')
     return doc
 
 

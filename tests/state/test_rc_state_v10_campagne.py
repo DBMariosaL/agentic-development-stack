@@ -192,6 +192,27 @@ class PrepareMode(Campaign):
                      OWNER, '--expect-revision', 1, '--ops', json.dumps(confirm))
         self.assertEqual(self.doc(wave)['intents'][0]['status'], 'pending')
 
+    def test_P05_confirmed_send_makes_the_actor_it_reaches_alive_again(self):
+        champion = {'role': 'champion', 'model': None, 'ref': 'agent-1', 'correlation': 'champ/1',
+                    'status': 'completed', 'target': 'copies/import', 'evidence': 'round 1 handed back'}
+        for phase, fragment in (('launched', None), ('preparing', "live actor with role 'champion'")):
+            with self.subTest(phase=phase):
+                w = wave2(phase)
+                w['actors'] = [champion]
+                w['intents'] = [{'correlation': 'champ/2', 'op': 'send', 'target': 'copies/import',
+                                 'status': 'pending', 'result_ref': None}]
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                argv = ('intent', self.wave_path, 'resolve', '--actor', OWNER, '--expect-revision', 0,
+                        '--correlation', 'champ/2', '--status', 'confirmed', '--result-ref', 'message-896093')
+                if fragment:
+                    self.refused(fragment, *argv)
+                else:
+                    self.ok(*argv)
+                    actor = self.doc(self.wave_path)['actors'][0]
+                    self.assertEqual((actor['status'], actor['evidence']),
+                                     ('running', 'send champ/2 confirmed: message-896093'))
+
     def test_R01_03_live_champion_invalid_once_authorization_is_withdrawn(self):
         w = wave2()
         w['actors'] = [{'role': 'champion', 'model': None, 'ref': 'task-1', 'correlation': 'l1',
