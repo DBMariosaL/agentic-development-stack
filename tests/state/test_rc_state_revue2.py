@@ -30,7 +30,7 @@ class Review2(Base):
                 '--op', 'launch', '--target', 'champion-A')
         ops = json.dumps([{'op': 'update', 'path': 'actors', 'match': {'correlation': 'a/1'},
                            'value': {'target': 'champion-B'}}])
-        self.refused('target must be its launch intent target', 'write', self.wave_path, '--actor', OWNER,
+        self.refused('actor a/1: known target is immutable', 'write', self.wave_path, '--actor', OWNER,
                      '--expect-revision', 1, '--resolve-intent', 'a/1', '--status', 'confirmed', '--result-ref', 't',
                      '--ops', ops)
 
