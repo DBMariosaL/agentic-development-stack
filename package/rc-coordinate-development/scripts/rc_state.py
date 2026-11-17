@@ -664,16 +664,20 @@ update merges value into the single item whose fields equal match; it refuses ze
 
 actor return in one command (signal receipt, intent resolution and application in a single revision):
   write FILE --actor A --expect-revision N --resolve-intent CORR --status confirmed --result-ref R
-        --record-event ID --kind K [--candidate-seq S] [--ops ...]
-  ops apply after the resolution and are judged from it: the actor it creates or revives stays, and a status
-  change needs an evidence not recorded before, or the signal this command applies. A launch proven without receipt: --status confirmed --evidence "what was observed", no --result-ref;
-  the actor is born with ref null and takes the status the ops give it, with their own evidence. The signal is recorded first, as
-  event does; the write runs only when it is new or received but unapplied on a wave not closed, otherwise its
-  class is reported, nothing is written and the exit code is 1. After the write, event.effect reads "applied by
-  this write". A refused write, invalid --ops included, leaves the event recorded
-  and unapplied: rerun the same command once the cause is fixed. A failure after the prepare line leaves the
-  event uncertain: run reconcile, never rerun. Ops are checked against the resolved intent: they cannot
-  reopen it. An actor status change needs a new "evidence" on the actor, or the applied signal.'''
+        --record-event ID --kind K [--candidate-seq S]
+        --ops '[{"op":"update","path":"actors","match":{"correlation":"CORR"},
+                "value":{"status":"completed","evidence":"report path or signal id"}}]'
+  The signal is recorded first, as event does; the write runs only when it is new or received but unapplied on
+  a wave not closed, otherwise its class is reported, nothing is written and the exit code is 1. After the write,
+  event.effect reads "applied by this write". A refused write, invalid --ops included, leaves the event recorded
+  and unapplied: rerun the same command once the cause is fixed. A failure after the prepare line leaves the event
+  uncertain: run reconcile, never rerun.
+  ops apply after the resolution and are judged from it: they never change an intent, the actor it creates or
+  revives stays, and any actor status change needs that actor's own new "evidence", recorded nowhere in the state
+  before the command nor by the resolution; an applied signal is no substitute. The tool checks that the evidence
+  is declared and new, not that it is true, nor which actor a signal concerns.
+  A launch proven without receipt: --status confirmed --evidence "what was observed", no --result-ref; the actor
+  is born with ref null and that evidence, then takes the status the ops give it, with their own evidence.'''
 
 
 COMMAND_EXAMPLES = {
@@ -804,10 +808,20 @@ def launch_context_changes(old, new):
     return changed
 
 
-def check_evolution(old, new, owner_change=False, applies_event=None, before=None):
+def evidences(value):
+    """Every text recorded under an "evidence" key, at any depth."""
+    if isinstance(value, dict):
+        own = {value['evidence']} if isinstance(value.get('evidence'), str) else set()
+        return own.union(*(evidences(v) for v in value.values()))
+    if isinstance(value, list):
+        return set().union(*(evidences(v) for v in value))
+    return set()
+
+
+def check_evolution(old, new, owner_change=False, before=None):
     """Invariants between two versions of the same document. With before, new is what ops made of old (before is the
-    state preceding the resolution that produced old): existing intents stay unchanged, and an actor's status change
-    needs an evidence recorded neither in old nor in before, or the applied signal."""
+    state preceding the resolution that produced old) and existing intents stay unchanged. An actor's status change
+    needs its own evidence, recorded nowhere in old nor in before: declared and new, never certified true."""
     errors = []
     k = kind_of(old)
     if kind_of(new) != k:
@@ -856,7 +870,7 @@ def check_evolution(old, new, owner_change=False, applies_event=None, before=Non
         if changed:
             errors.append(f'intent {changed[0]} changes only through intent resolve or write --resolve-intent, which '
                           'record or revive its actor; ops leave existing intents unchanged')
-        prior = by_correlation(before.get('actors')) if before is not None else {}
+        known = evidences(old) | evidences(before)
         for corr, actor in oa.items():
             if corr not in na:
                 errors.append(f'actor {corr} removed (keep actors; mark their status)')
@@ -865,12 +879,12 @@ def check_evolution(old, new, owner_change=False, applies_event=None, before=Non
                 if actor.get(field) and na[corr].get(field) != actor.get(field):
                     errors.append(f'actor {corr}: known {field} is immutable')
             evidence = na[corr].get('evidence')
-            if (sval(na[corr], 'status') != sval(actor, 'status') and applies_event is None
-                    and not (text(evidence) and evidence not in (actor.get('evidence'),
-                                                                 prior.get(corr, {}).get('evidence')))):
-                errors.append(f'actor {corr}: {actor.get("status")} -> {na[corr].get("status")} needs its evidence: '
-                              'give the actor a new "evidence" (task status read, delivered signal, file) or apply '
-                              'the signal that proves it with --applies-event')
+            if sval(na[corr], 'status') != sval(actor, 'status'):
+                if not text(evidence) or evidence in known:
+                    errors.append(f'actor {corr}: {actor.get("status")} -> {na[corr].get("status")} needs its own new '
+                                  'evidence: an "evidence" recorded nowhere in the state before (report path, task '
+                                  'status read, signal id); the tool checks it is declared and new, not that it is true')
+                known.add(evidence)
         where = documentary_only(new)
         for corr, actor in sorted(na.items()):
             role = actor.get('role')
@@ -1203,7 +1217,7 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
             inherited = [e for e in errors if e in before]
             errors = [e for e in errors if e not in before]
         if not errors:
-            errors = check_evolution(old, new, owner_change=owner_change, applies_event=applies_event)
+            errors = check_evolution(old, new, owner_change=owner_change)
         if errors:
             raise StateError('refused: ' + '; '.join(errors))
         old_j, new_j = journal_path(path, old), journal_path(path, new)
@@ -1822,7 +1836,7 @@ def cmd_write(args):
             raise StateError(f'refused: unknown key {", ".join(created)}: the {kind_of(doc)} format does not define it. '
                              'A path joins object keys with ".", never "/" (state.next_action, not state/next_action); '
                              'see write --help and init --template')
-        errors = check_evolution(mid, new, applies_event=applies, before=doc) if ops else []
+        errors = check_evolution(mid, new, before=doc) if ops else []
         if errors:
             raise StateError('refused: ' + '; '.join(errors))
         return new
