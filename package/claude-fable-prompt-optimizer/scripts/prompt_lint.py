@@ -202,18 +202,19 @@ SCOPE_LIMIT = re.compile(
 # --- Generic contract patterns ----------------------------------------------
 
 SECTION_PATTERNS = {
-    "task": re.compile(r"\b(task|objective|goal|mission|your job|tache|objectif)\b", re.I),
+    "task": re.compile(r"\b(task|objective|goal|mission|your job|tache|objectif|t[aâ]che|r[eé]sultat attendu)\b", re.I),
     "output": re.compile(r"\b(output|format|schema|structure|deliverable|return|sortie|livrable)\b", re.I),
     "reason": re.compile(r"\b(because|so that|why this matters|this enables|in order to|the reason)\b", re.I),
     "verification": re.compile(r"\b(verify|verification|validate|validation|check|audit|controle)\b", re.I),
-    "done": re.compile(r"\b(done when|done criteria|definition of done|complete only when|termin[eé]e?)\b", re.I),
+    "done": re.compile(r"\b(done when|done criteria|definition of done|complete only when|termin[eé]e?|crit[eè]res? de fin)\b", re.I),
     "tools": re.compile(
         r"\b(tools?|outils?|function calls?|mcp|connectors?|web search|bash|shell|"
         r"computer use|browser|subagents?)\b",
         re.I,
     ),
     "permissions": re.compile(
-        r"\b(confirm|confirmation|permission|approval|ask (?:the )?user|autorisation)\b", re.I
+        r"\b(confirm|confirmation|permission|approval|ask (?:the )?user|autorisation|effets? permis|interdits?|"
+        r"autoris[eé]e?s?)\b", re.I
     ),
     "recovery": re.compile(
         r"\b(retry|fallback|empty|incomplete|partial|conflict|stale|malformed|failure|erreur)\b", re.I
@@ -255,7 +256,8 @@ EVIDENCE_MARKER = re.compile(
 DELEGATION_INTENT = re.compile(r"\b(subagents?|sub-agents?|delegate|delegation)\b", re.I)
 DELEGATION_CONTRACT = re.compile(
     r"\b(when (?:to )?delegat|keep working|non[- ]?overlapping|read[- ]only|ownership|"
-    r"merge|deduplicate|concurren|depth|wait for|costs?|brief)\b",
+    r"merge|deduplicate|concurren|depth|wait for|costs?|brief|"
+    r"ne lances? aucun|aucun (?:acteur ni )?sous-agent|pas de sous-agents?|fusionner|attendre)\b",
     re.I,
 )
 

@@ -16,12 +16,12 @@ from pathlib import Path
 from typing import Any
 
 SECTION_PATTERNS = {
-    "task": re.compile(r"\b(task|tache|mission|objectif|goal)\b", re.I),
+    "task": re.compile(r"\b(task|tache|mission|objectif|goal|t[aâ]che|r[eé]sultat attendu)\b", re.I),
     "output": re.compile(r"\b(output|sortie|format|schema|structure|livrable)\b", re.I),
     "verification": re.compile(r"\b(verify|verification|validate|validation|check|controle)\b", re.I),
-    "done": re.compile(r"\b(done criteria|definition of done|critere[s]? de fin|termine[e]?)\b", re.I),
+    "done": re.compile(r"\b(done criteria|definition of done|critere[s]? de fin|termine[e]?|crit[eè]res? de fin|termin[eé]e? quand)\b", re.I),
     "tools": re.compile(r"\b(tools?|outils?|function calls?|mcp|connectors?|web search|file search|computer use|ssh|shell|terminal)\b", re.I),
-    "permissions": re.compile(r"\b(confirm|confirmation|permission|approval|consent|autorisation|validation explicite)\b", re.I),
+    "permissions": re.compile(r"\b(confirm|confirmation|permission|approval|consent|autorisation|validation explicite|effets? permis|interdits?|autoris[eé]e?s?)\b", re.I),
     "recovery": re.compile(r"\b(retry|reessayer|fallback|empty|incomplete|partial|conflict|erreur|failure)\b", re.I),
 }
 
@@ -54,7 +54,8 @@ LOOP_BOUND = re.compile(
 DELEGATION_INTENT = re.compile(r"\b(subagents?|sub-agents?|delegate|delegation|sous-agents?)\b", re.I)
 DELEGATION_MERGE = re.compile(
     r"\b(wait for|collect|merge|deduplicate|synthesize|consolidate|"
-    r"attendre|collecter|fusionner|dedoublonner|synthetiser|consolider)\b",
+    r"attendre|collecter|fusionner|dedoublonner|synthetiser|consolider|"
+    r"d[eé]doublonner|synth[eé]tiser|ne lances? aucun|aucun (?:acteur ni )?sous-agent|pas de sous-agents?)\b",
     re.I,
 )
 

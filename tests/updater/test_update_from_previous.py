@@ -34,6 +34,9 @@ _spec.loader.exec_module(shared)
 rc_update, sha, read_manifest = shared.rc_update, shared.sha, shared.read_manifest
 RC, DEPS, ALL = shared.RC, shared.DEPS, shared.ALL
 NEW_PKG = shared.NEW_PKG
+# Dépendances dont le paquet courant change des octets livrés par les versions antérieures
+# (détecteurs de prompt_lint.py rendus bilingues) : une copie précédente intacte est mise à jour.
+UPDATED = {'gpt-prompt-optimizer', 'claude-opus-prompt-optimizer'}
 
 FROZEN = shared.ROOT / 'tests' / 'fixtures'
 PREVIOUS = (
@@ -89,7 +92,8 @@ class UpdateFromPreviousCases:
         return super().preflight(**kw)
 
     def deps(self):
-        return {(i, d): self.sub(t, d) for i, t in enumerate(self.targets) for d in DEPS if d not in self.added}
+        return {(i, d): self.sub(t, d) for i, t in enumerate(self.targets) for d in DEPS
+                if d not in self.added and d not in UPDATED}
 
     def test_reference_rebuilt_exactly(self):
         doc = json.loads(self.prev_manifest.read_text(encoding='utf-8'))
@@ -104,8 +108,8 @@ class UpdateFromPreviousCases:
         self.assertEqual(out['distributions'], {'previous': 'rc-core-with-dependencies',
                                                 'new': 'rc-core-with-dependencies-2'})
         self.assertEqual(self.added, ('claude-fable-prompt-optimizer',))
-        self.assertEqual({r.split('/')[0] for r in self.changes} - set(RC), set(self.added),
-                         'une dépendance a changé : le paquet courant doit la livrer octet pour octet')
+        self.assertEqual({r.split('/')[0] for r in self.changes} - set(RC), set(self.added) | UPDATED,
+                         'dépendances changées : exactement celles que le paquet courant installe ou met à jour')
         self.assertEqual({op for r, op in self.changes.items() if r.split('/')[0] in self.added}, {'create'})
         expected = {r: self.changes.get(r, 'unchanged') for r in set(self.old) | set(self.new)}
         expected.update({rel: 'preserve-unknown' for rel in shared.UNKNOWN})
@@ -121,7 +125,7 @@ class UpdateFromPreviousCases:
                          sorted((i, r, op) for i in (0, 1) for r, op in self.changes.items()))
         self.assertFalse(plan['blocked'])
 
-    def test_apply_leaves_dependencies_untouched(self):
+    def test_apply_leaves_unchanged_dependencies_untouched(self):
         deps = self.deps()
         self.assertEqual(self.preflight()[0], 0)
         code, out = self.apply()
@@ -137,7 +141,7 @@ class UpdateFromPreviousCases:
         self.assertEqual(self.run_cli('verify', '--plan', self.plan)[0], 0)
 
     def test_local_edit_conflict_refused(self):
-        rel = next(r for r, op in sorted(self.changes.items()) if op == 'replace')
+        rel = next(r for r, op in sorted(self.changes.items()) if op == 'replace' and r.split('/')[0] in RC)
         skill = rel.split('/')[0]
         edited = self.targets[1] / rel
         edited.write_bytes(edited.read_bytes() + b'\n<!-- retouche locale -->\n')
@@ -155,6 +159,24 @@ class UpdateFromPreviousCases:
         self.assert_new(self.targets[0])
         self.assert_new(self.targets[1], tuple(s for s in ALL if s != skill))
         self.assertEqual(self.run_main('verify', '--plan', self.plan)[0], 0)
+
+    def test_previous_dependency_copy_updated_customized_kept(self):
+        """Une copie de dépendance identique à la version précédente est mise à jour ; une copie
+        personnalisée reste en conflit et n'est pas touchée."""
+        skill = 'gpt-prompt-optimizer'
+        rel = skill + '/scripts/prompt_lint.py'
+        self.assertEqual(self.changes.get(rel), 'replace')
+        edited = self.targets[1] / rel
+        edited.write_bytes(edited.read_bytes() + b'\n# retouche locale\n')
+        code, out = self.preflight()
+        self.assertEqual(code, 2, out)
+        self.assertEqual(out['targets'][0]['skills'][skill], 'update')
+        self.assertEqual(out['targets'][1]['skills'][skill], 'conflict')
+        self.assertEqual(out['targets'][1]['conflicts'], [rel])
+        kept = self.sub(self.targets[1], skill)
+        self.assertEqual(self.apply('--allow-blocked')[0], 0)
+        self.assertEqual(self.sub(self.targets[1], skill), kept)
+        self.assert_new(self.targets[0])
 
     def test_existing_new_dependency_copy_conflict(self):
         old_copy = self.targets[1] / self.added[0]
