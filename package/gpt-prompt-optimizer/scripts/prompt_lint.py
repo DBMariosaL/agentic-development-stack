@@ -16,12 +16,16 @@ from pathlib import Path
 from typing import Any
 
 SECTION_PATTERNS = {
-    "task": re.compile(r"\b(task|tache|mission|objectif|goal|t[aâ]che|r[eé]sultat attendu)\b", re.I),
+    "task": re.compile(r"\b(task|tache|mission|objectif|goal|t[aâ]che|r[eé]sultat (?:attendu|demand[eé])|"
+                       r"ce qui est demand[eé])\b|(?m:^#{1,6}[ \t]+(?:r[eé]sultats?|objet|besoin|livrables?|"
+                       r"exigences?|d[eé]faut|constat|friction|revue|contre-revue|port[eé]e de ce tour|ce que le pilote attend|passe cibl[eé]e|ce que tu v[eé]rifies)\b)", re.I),
     "output": re.compile(r"\b(output|sortie|format|schema|structure|livrable)\b", re.I),
     "verification": re.compile(r"\b(verify|verification|validate|validation|check|controle)\b", re.I),
-    "done": re.compile(r"\b(done criteria|definition of done|critere[s]? de fin|termine[e]?|crit[eè]res? de fin|termin[eé]e? quand)\b", re.I),
+    "done": re.compile(r"\b(done criteria|definition of done|critere[s]? de fin|termine[e]?|crit[eè]res? de fin|termin[eé]e? quand|"
+                       r"fini quand|crit[eè]res? d.acceptation)\b|(?m:^#{1,6}[ \t]+fin\b)", re.I),
     "tools": re.compile(r"\b(tools?|outils?|function calls?|mcp|connectors?|web search|file search|computer use|ssh|shell|terminal)\b", re.I),
-    "permissions": re.compile(r"\b(confirm|confirmation|permission|approval|consent|autorisation|validation explicite|effets? permis|interdits?|autoris[eé]e?s?)\b", re.I),
+    "permissions": re.compile(r"\b(confirm|confirmation|permission|approval|consent|autorisation|validation explicite|effets? permis|interdits?|autoris[eé]e?s?|"
+                              r"lecture seule|tu n.[eé]cris que|(?:ni|aucun|pas de) (?:acc[eè]s )?(?:r[eé]seau|push))\b", re.I),
     "recovery": re.compile(r"\b(retry|reessayer|fallback|empty|incomplete|partial|conflict|erreur|failure)\b", re.I),
 }
 

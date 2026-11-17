@@ -202,11 +202,14 @@ SCOPE_LIMIT = re.compile(
 # --- Generic contract patterns ----------------------------------------------
 
 SECTION_PATTERNS = {
-    "task": re.compile(r"\b(task|objective|goal|mission|your job|tache|objectif|t[aâ]che|r[eé]sultat attendu)\b", re.I),
+    "task": re.compile(r"\b(task|objective|goal|mission|your job|tache|objectif|t[aâ]che|r[eé]sultat (?:attendu|demand[eé])|"
+                       r"ce qui est demand[eé])\b|(?m:^#{1,6}[ \t]+(?:r[eé]sultats?|objet|besoin|livrables?|"
+                       r"exigences?|d[eé]faut|constat|friction|revue|contre-revue|port[eé]e de ce tour|ce que le pilote attend|passe cibl[eé]e|ce que tu v[eé]rifies)\b)", re.I),
     "output": re.compile(r"\b(output|format|schema|structure|deliverable|return|sortie|livrable)\b", re.I),
     "reason": re.compile(r"\b(because|so that|why this matters|this enables|in order to|the reason)\b", re.I),
     "verification": re.compile(r"\b(verify|verification|validate|validation|check|audit|controle)\b", re.I),
-    "done": re.compile(r"\b(done when|done criteria|definition of done|complete only when|termin[eé]e?|crit[eè]res? de fin)\b", re.I),
+    "done": re.compile(r"\b(done when|done criteria|definition of done|complete only when|termin[eé]e?|crit[eè]res? de fin|"
+                       r"fini quand|crit[eè]res? d.acceptation)\b|(?m:^#{1,6}[ \t]+fin\b)", re.I),
     "tools": re.compile(
         r"\b(tools?|outils?|function calls?|mcp|connectors?|web search|bash|shell|"
         r"computer use|browser|subagents?)\b",
@@ -214,12 +217,13 @@ SECTION_PATTERNS = {
     ),
     "permissions": re.compile(
         r"\b(confirm|confirmation|permission|approval|ask (?:the )?user|autorisation|effets? permis|interdits?|"
-        r"autoris[eé]e?s?)\b", re.I
+        r"autoris[eé]e?s?|lecture seule|tu n.[eé]cris que|(?:ni|aucun|pas de) (?:acc[eè]s )?(?:r[eé]seau|push))\b", re.I
     ),
     "recovery": re.compile(
         r"\b(retry|fallback|empty|incomplete|partial|conflict|stale|malformed|failure|erreur)\b", re.I
     ),
-    "scope": re.compile(r"\b(in scope|out of scope|scope|do not (?:add|refactor|extend)|follow-up|domaine|p[eé]rim[eè]tre)\b", re.I),
+    "scope": re.compile(r"\b(in scope|out of scope|scope|do not (?:add|refactor|extend)|follow-up|domaine|p[eé]rim[eè]tre|"
+                        r"ce qui ne change pas|port[eé]e de ce tour|en lecture seule|tu n.[eé]cris que?|seule? o[uù] tu|hors de ton lot|tu ne touches? ni|aucun changement hors)\b|(?m:^#{1,6}[ \t]+(?:limites?|port[eé]e)\b)", re.I),
 }
 
 SIDE_EFFECT_VERBS = re.compile(
@@ -231,7 +235,8 @@ SIDE_EFFECT_VERBS = re.compile(
 AUTONOMY_MARKER = re.compile(
     r"\b(operating autonomously|user is not watching|without asking|end your turn only when|"
     r"proceed without asking|finishing work|avoid stopping while you still owe|do not stop unless needed|"
-    r"sans (?:t|vous )?.?arr[eê]ter|sans demander|va au bout)\b",
+    r"sans (?:t|vous )?.?arr[eê]ter|sans demander|va au bout|ce qui remonte|"
+    r"ce que tu d[eé]cides seul|remonte (?:dans ta remise|au lieu de?)|dis-le dans ta remise)\b|(?m:^#{1,6}[ \t]+autonomie\b)",
     re.I,
 )
 

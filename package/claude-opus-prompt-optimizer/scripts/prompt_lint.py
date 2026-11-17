@@ -240,12 +240,15 @@ OPUS_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
 # --- Generic contract patterns ----------------------------------------------
 
 SECTION_PATTERNS = {
-    "task": re.compile(r"\b(task|objective|goal|mission|your job|t[aâ]che|objectif|r[eé]sultat attendu)\b", re.I),
+    "task": re.compile(r"\b(task|objective|goal|mission|your job|t[aâ]che|objectif|r[eé]sultat (?:attendu|demand[eé])|"
+                       r"ce qui est demand[eé])\b|(?m:^#{1,6}[ \t]+(?:r[eé]sultats?|objet|besoin|livrables?|"
+                       r"exigences?|d[eé]faut|constat|friction|revue|contre-revue|port[eé]e de ce tour|ce que le pilote attend|passe cibl[eé]e|ce que tu v[eé]rifies)\b)", re.I),
     "output": re.compile(r"\b(output|format|schema|structure|deliverable|return|report at the end)\b", re.I),
     "reason": re.compile(r"\b(because|so that|why this matters|this enables|in order to|the reason)\b", re.I),
     "scope": re.compile(
         r"\b(in scope|out of scope|scope|deliver what was asked|stop short of|"
-        r"do not (?:add|refactor|extend)|domaine|p[eé]rim[eè]tre)\b",
+        r"do not (?:add|refactor|extend)|domaine|p[eé]rim[eè]tre|ce qui ne change pas|port[eé]e de ce tour|en lecture seule|tu n.[eé]cris que?|seule? o[uù] tu|hors de ton lot|tu ne touches? ni|aucun changement hors)\b"
+        r"|(?m:^#{1,6}[ \t]+(?:limites?|port[eé]e)\b)",
         re.I,
     ),
     "tools": re.compile(
@@ -255,7 +258,7 @@ SECTION_PATTERNS = {
     ),
     "permissions": re.compile(
         r"\b(confirm|confirmation|permission|approval|ask (?:the )?user|effets? permis|interdits?|"
-        r"autoris[eé]e?s?|autorisation)\b", re.I),
+        r"autoris[eé]e?s?|autorisation|lecture seule|tu n.[eé]cris que|(?:ni|aucun|pas de) (?:acc[eè]s )?(?:r[eé]seau|push))\b", re.I),
     "recovery": re.compile(
         r"\b(retry|fallback|empty|incomplete|partial|conflict|stale|malformed|failure)\b", re.I
     ),
@@ -290,14 +293,16 @@ AGENTIC_MARKER = re.compile(
 DONE_CRITERION = re.compile(
     r"\b(done (?:means|when|looks like)|definition of done|finish line|you(?:'re| are) done when|"
     r"acceptance criteria|success criteria|complete when|until (?:the |all )?tests pass|"
-    r"the task is (?:complete|done|finished) when|termin[eé]e? quand|crit[eè]res? (?:de fin|d.acceptation))\b",
+    r"the task is (?:complete|done|finished) when|termin[eé]e? quand|crit[eè]res? (?:de fin|d.acceptation)|"
+    r"fini quand)\b|(?m:^#{1,6}[ \t]+fin\b)",
     re.I,
 )
 STOP_RULE = re.compile(
     r"\b(stop and ask|ask (?:me|the user) (?:only|before|first|when)|check in (?:only|when|before)|"
     r"keep going|carry on|continue without|don'?t stop|without stopping|blocked on me|"
     r"requires? (?:explicit )?confirmation|before anything destructive|"
-    r"sans (?:t|vous )?.?arr[eê]ter|sans demander|va au bout|arr[eê]te-toi)\b",
+    r"sans (?:t|vous )?.?arr[eê]ter|sans demander|va au bout|arr[eê]te-toi|ce qui remonte|"
+    r"ce que tu d[eé]cides seul|remonte (?:dans ta remise|au lieu de?)|dis-le dans ta remise)\b|(?m:^#{1,6}[ \t]+autonomie\b)",
     re.I,
 )
 RESEARCH_MARKER = re.compile(
