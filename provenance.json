@@ -983,7 +983,8 @@
         "source_sha256": "813dfb2d7418474c8519bcd732c74be11de42908867d2334fcd8d25a1f258076",
         "sha256": "813dfb2d7418474c8519bcd732c74be11de42908867d2334fcd8d25a1f258076",
         "adaptation": "byte-identical"
-      }
+      },
+      "bytes": 10032
     },
     {
       "path": "package/gpt-prompt-optimizer/SKILL.md",
@@ -1156,7 +1157,8 @@
         "source_sha256": "4ddc3e6e25ec274215711885c63b00298a95534f6cdd635e42fe72dacc121158",
         "sha256": "4ddc3e6e25ec274215711885c63b00298a95534f6cdd635e42fe72dacc121158",
         "adaptation": "byte-identical"
-      }
+      },
+      "bytes": 24124
     },
     {
       "path": "package/claude-opus-prompt-optimizer/SKILL.md",
