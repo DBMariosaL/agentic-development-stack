@@ -44,7 +44,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/SKILL.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "4a0f29578d45965f812896c59aedc7604f747d9002a1f49327fe5443bbe3da7b",
-      "sha256": "a285c7c929d7b34f070fe8edf78dc83292ecea47841c72e5ded7033302bf5928",
+      "sha256": "c6b0f02c7863ed84450d50dee4c15a3eca1a905690d0d10a82839c93776efbd1",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/SKILL.md",
@@ -76,7 +76,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/operating-loop.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "9ff7d5691371dfb52fcd1f2049fb4fb96f854bc98155f939a8d97b2c35b25d07",
-      "sha256": "5fa29dcbb6e7b20cd8d300462a3adf923948549c7b598d9404028570dbea2a7a",
+      "sha256": "918449021fe7a6294766841ebafc47660a26d52b51e41f80fd2606e74ab0172b",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/operating-loop.md",
@@ -92,7 +92,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/program-contract.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "3299f4d4ae36b430651cf8cd812375222989fe80625174aa1c3d518c9d1126c3",
-      "sha256": "111ea326cce8cac348bd6add30be94d85792722efd0b13aad4e221fc49a1f5d4",
+      "sha256": "1356f1e9df4ac670ae7c48bd9543003cfa3786742e466a73da37805fe53a330d",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/program-contract.md",
@@ -105,11 +105,19 @@
     },
     {
       "path": "package/rc-coordinate-development/references/separate-relay.md",
-      "source_group": "developpement-stack-autonome-20261104",
-      "source": "candidats/v7/package/rc-coordinate-development/references/separate-relay.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/rc-coordinate-development/references/separate-relay.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "a693ba904bad40e3c9ab762e22bbf0e34cc93ec312fce1ebf3ae79118e3c0c92",
-      "sha256": "a693ba904bad40e3c9ab762e22bbf0e34cc93ec312fce1ebf3ae79118e3c0c92",
-      "adaptation": "byte-identical"
+      "sha256": "953dd7fa48c219d4945af3951f0247335eabd35a478ba1c4769c958fd5b103af",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "package/rc-coordinate-development/references/separate-relay.md",
+        "source_group": "developpement-stack-autonome-20261104",
+        "source": "candidats/v7/package/rc-coordinate-development/references/separate-relay.md",
+        "source_sha256": "a693ba904bad40e3c9ab762e22bbf0e34cc93ec312fce1ebf3ae79118e3c0c92",
+        "sha256": "a693ba904bad40e3c9ab762e22bbf0e34cc93ec312fce1ebf3ae79118e3c0c92",
+        "adaptation": "byte-identical"
+      }
     },
     {
       "path": "package/rc-coordinate-development/scripts/check_wave.py",
@@ -140,7 +148,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-prepare-socle-prompts/SKILL.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "90f3fa8a0cf74caa7169f9cd15a69cfc2c4b5ce46546770291c2ea6bd2a6849e",
-      "sha256": "123e091859b249d84602d03b9bf5ba63f342ef276c76c7cfbdf6d5ad11fdde65",
+      "sha256": "16fa87decd7ab9fc206b67bbf1fadec6ebf24e097ab6fd6bca7f9635c210917a",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-prepare-socle-prompts/SKILL.md",
@@ -212,7 +220,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "0b707aa207960a7005cd00b6422262dec35b00a4b446fbe3ce8cca8a293f105f",
+      "sha256": "e6471843b99a132c59e31b9872ff7cbb0c559dcdbfbbd0ebfde9da90897cafd8",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -1626,7 +1634,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "README.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "61d499802761a72e9273a2a894efe0ba6b08c80100d3561771a6bdc4c7acc355",
-      "sha256": "5d95b2aeee71c799ab2a762b5013ccd060a21331917492852b31d234b425da82",
+      "sha256": "6a528bf60b66fbce55272bac6a8ec5ae674928905f2d6d4a634d4b245348c861",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "README.md",
@@ -1642,7 +1650,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/installation.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "023bceaa61651e05d34471840fe1b7b4e934bd25524b24997e401a3f5df8810c",
-      "sha256": "646ce6f3fb54004f9cf7b148e14827c248620b574941c65e3e5918043ea5f752",
+      "sha256": "6b04737f51df61ed9ead5b00ffd645da73de8b7ee62216a415fb9ee84a4e8458",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "docs/installation.md",
@@ -1674,7 +1682,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "188a79c5932bed01d983556a49eb67bf35d33700781be01c738babb896fc9bda",
+      "sha256": "757904a87ddc4bb9d301b70d2c670fb3ee4960d27e7cb5b05a8798160e3621b6",
       "adaptation": "v10 creation"
     },
     {
@@ -1682,7 +1690,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "501dca0740c15101cf22be8328494d8d8cfd8bc2737da2c0a633697f292f4d7a",
+      "sha256": "08eb86b6944ddd1edc5d54ee5006039fb1572fc42ee89f915646993e2018bd17",
       "adaptation": "v10 creation"
     },
     {
@@ -1690,7 +1698,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "9398f95735e76edb6173af399007951cb02243b21eb925a26f0339d22799330e",
+      "sha256": "710b7285d7c7cd36ce4f2525c2a9d8a6815de4241d5bdb775fe10947260258ab",
       "adaptation": "v10 creation"
     },
     {

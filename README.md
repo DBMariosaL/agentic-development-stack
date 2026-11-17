@@ -22,7 +22,7 @@ Ce dépôt contient la **v10 « pertinence »**, candidate du 16 novembre 2026. 
 - Chaque ajout répond à une exigence du mandat ou à un comportement nommé, sinon il sort du candidat. Le réviseur reçoit un [brief](package/rc-coordinate-development/references/review-brief.md) qui lui demande de chercher ces ajouts, de prouver ses constats bloquants et de proposer le correctif qui retire. Les tours de revue sont plafonnés, et un tour qui a fait grossir le diff commence par couper.
 - Un écrit hérité (document, commentaire, remise) est un contexte, pas une preuve. Le jardin dit quels écrits supprimer, et une règle d'`AGENTS.md` sans commande qui l'applique devient un signal de jardinage.
 
-La lecture obligatoire du pilote ne dépasse pas 3 953 mots, hors annexes lues à leur déclencheur (l'annexe T3 Code en ajoute environ 650), et `tools/check.py` échoue si elle dépasse ce budget. Les formats d'état ne changent pas ; `rc_state.py` refuse les clés que le format ne connaît pas et ramène le retour d'un acteur à une commande ; `claude-fable-prompt-optimizer` devient la quatrième dépendance. Deux configurations de pilotes ont conduit la v10 sur deux petits programmes, puis une campagne de trente agents l'a éprouvée et fait corriger ; la configuration retenue est un pilote Fable qui décide et encadre, des champions Opus et des réviseurs GPT : choix et sources dans [sources v10](docs/sources-v10.md), statut dans [qualification](docs/qualification.md).
+La lecture obligatoire du pilote ne dépasse pas 3 953 mots, hors annexes lues à leur déclencheur (l'annexe T3 Code en ajoute environ 700), et `tools/check.py` échoue si elle dépasse ce budget. Les formats d'état ne changent pas ; `rc_state.py` refuse les clés que le format ne connaît pas et ramène le retour d'un acteur à une commande ; `claude-fable-prompt-optimizer` devient la quatrième dépendance. Deux configurations de pilotes ont conduit la v10 sur deux petits programmes, puis une campagne de trente agents l'a éprouvée et fait corriger ; la configuration retenue est un pilote Fable qui décide et encadre, des champions Opus et des réviseurs GPT : choix et sources dans [sources v10](docs/sources-v10.md), statut dans [qualification](docs/qualification.md).
 
 La **v9.1.2**, version précédente, généralise la v9.1.1 sans changement de moteur, de format ou de conduite. Les noms `rc-*` restent un préfixe historique pour préserver les installations. La référence v9.1.1 est figée par le tag du même nom dans l’archive privée, sa fixture incluse et `provenance.json`.
 
@@ -56,16 +56,16 @@ Le dossier `package/` utilise des descriptions génériques. Pour chaque projet,
 package/              Sept skills : trois RC et quatre dépendances de filtre
 manifest.json         Manifeste v10 (format rc-update-manifest/2, distribution et rôles)
 tools/                Vérification, validation structurelle et mise à jour
-tests/state/          Tests de l'état et de la reprise (ceux de la v9 inchangés, plus la v9.1)
+tests/state/          Tests de l'état et de la reprise (ceux de la v9 inchangés, plus la v9.1 et la v10)
 tests/updater/        Tests sur profils factices : historique v7, distribution v8, mises à jour depuis v8 à v9.1.2
 tests/footprint/      Tests de rc_footprint.py sur des dépôts git temporaires
 tests/package/        Paquet déplacé, ressources, métadonnées, scripts vendored, scénarios
 tests/qualification/  Scénarios figés de l'épreuve exploratoire ; résultats dans la qualification
-tests/fixtures/       Versions historiques nécessaires aux tests (v7 à v9.1.2)
+tests/fixtures/       Versions historiques nécessaires aux tests (31 octobre, v2, v6, v7 à v9.1.2)
 docs/                 Installation, dépendances, sources, campagne d'essais, qualification
 provenance.json       Origine et empreintes des fichiers (format 2)
 ```
 
 Les journaux T3, données métier, profils actifs, secrets, archives complètes de développement et textes complets des sources de recherche ne font pas partie de ce dépôt. Ce dépôt est distribué sous licence MIT : [LICENSE](LICENSE). Unslop est adapté de pstack de Lauren Tan (Poteto) ; sa notice MIT est conservée dans [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Les trois optimiseurs ont été créés par le propriétaire du dépôt, selon ses déclarations du 12 novembre 2026 (GPT, Opus) et du 16 novembre 2026 (Fable, mis à jour dans ce dépôt : [dépendances](docs/dependencies.md)).
 
-Le nom du projet d’origine est retiré de ce dépôt : dans les fixtures historiques (v7 à v9.1.1), il est remplacé par « RC » et leurs manifestes sont réalignés. Ces fixtures ne sont donc plus les octets de la lignée privée ; les empreintes de manifestes citées dans les archives de qualification et les anciens SHA de commits de la provenance identifient cette lignée, absente de l’historique du dépôt public. Les fixtures incluses et leurs empreintes permettent de refaire les contrôles sans accès à cet historique.
+Le nom du projet d’origine est retiré de ce dépôt : dans les fixtures historiques (31 octobre, v2, v6, v7 à v9.1.1), il est remplacé par « RC » et leurs manifestes sont réalignés. Ces fixtures ne sont donc plus les octets de la lignée privée ; les empreintes de manifestes citées dans les archives de qualification et les anciens SHA de commits de la provenance identifient cette lignée, absente de l’historique du dépôt public. Les fixtures incluses et leurs empreintes permettent de refaire les contrôles sans accès à cet historique.

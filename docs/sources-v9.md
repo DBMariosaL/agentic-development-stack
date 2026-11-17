@@ -12,7 +12,7 @@ La v9 s'appuie sur une source externe et sur le retour d'expérience de deux pro
 - L'autonomie se perd surtout sur des attentes sans mécanisme de réveil, des règles bloquantes que l'agent s'est données lui-même, des lancements dans le mauvais projet, des accords Git non préparés et des décisions humaines non groupées avant une absence.
 - 253 scripts d'état à usage unique dans le dossier local, des tests nommés par vague, un minimum de tests « jamais abaissé » qui interdit l'élagage.
 - Les cycles d'optimisation C01–C05 mobilisent quinze analystes pour un seul gain accepté, sans règle d'arrêt.
-- La stack ne disait rien sur la simplicité du code, la valeur des tests, l'harmonisation entre champions ni l'environnement des agents dans le projet. Le pilote lisait 5 322 mots avant d'agir, dont environ 1 050 décrivaient en prose ce que `rc_state.py` applique déjà.
+- La stack ne disait rien sur la simplicité du code, la valeur des tests, l'harmonisation entre champions ni l'environnement des agents dans le projet. Le pilote lisait 5 321 mots avant d'agir, dont environ 1 050 décrivaient en prose ce que `rc_state.py` applique déjà.
 
 ## Retenu, adapté
 

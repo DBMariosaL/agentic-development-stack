@@ -254,8 +254,8 @@
     },
     {
       "path": "rc-coordinate-development/SKILL.md",
-      "sha256": "a285c7c929d7b34f070fe8edf78dc83292ecea47841c72e5ded7033302bf5928",
-      "bytes": 3467
+      "sha256": "c6b0f02c7863ed84450d50dee4c15a3eca1a905690d0d10a82839c93776efbd1",
+      "bytes": 3475
     },
     {
       "path": "rc-coordinate-development/agents/openai.yaml",
@@ -274,33 +274,33 @@
     },
     {
       "path": "rc-coordinate-development/references/host-t3.md",
-      "sha256": "501dca0740c15101cf22be8328494d8d8cfd8bc2737da2c0a633697f292f4d7a",
-      "bytes": 4252
+      "sha256": "08eb86b6944ddd1edc5d54ee5006039fb1572fc42ee89f915646993e2018bd17",
+      "bytes": 4878
     },
     {
       "path": "rc-coordinate-development/references/operating-loop.md",
-      "sha256": "5fa29dcbb6e7b20cd8d300462a3adf923948549c7b598d9404028570dbea2a7a",
-      "bytes": 14728
+      "sha256": "918449021fe7a6294766841ebafc47660a26d52b51e41f80fd2606e74ab0172b",
+      "bytes": 14669
     },
     {
       "path": "rc-coordinate-development/references/program-contract.md",
-      "sha256": "111ea326cce8cac348bd6add30be94d85792722efd0b13aad4e221fc49a1f5d4",
-      "bytes": 8912
+      "sha256": "1356f1e9df4ac670ae7c48bd9543003cfa3786742e466a73da37805fe53a330d",
+      "bytes": 8984
     },
     {
       "path": "rc-coordinate-development/references/review-brief.md",
-      "sha256": "188a79c5932bed01d983556a49eb67bf35d33700781be01c738babb896fc9bda",
-      "bytes": 2657
+      "sha256": "757904a87ddc4bb9d301b70d2c670fb3ee4960d27e7cb5b05a8798160e3621b6",
+      "bytes": 2981
     },
     {
       "path": "rc-coordinate-development/references/separate-relay.md",
-      "sha256": "a693ba904bad40e3c9ab762e22bbf0e34cc93ec312fce1ebf3ae79118e3c0c92",
-      "bytes": 2234
+      "sha256": "953dd7fa48c219d4945af3951f0247335eabd35a478ba1c4769c958fd5b103af",
+      "bytes": 2666
     },
     {
       "path": "rc-coordinate-development/references/test-review-brief.md",
-      "sha256": "9398f95735e76edb6173af399007951cb02243b21eb925a26f0339d22799330e",
-      "bytes": 2748
+      "sha256": "710b7285d7c7cd36ce4f2525c2a9d8a6815de4241d5bdb775fe10947260258ab",
+      "bytes": 2839
     },
     {
       "path": "rc-coordinate-development/scripts/check_wave.py",
@@ -319,8 +319,8 @@
     },
     {
       "path": "rc-prepare-socle-prompts/SKILL.md",
-      "sha256": "123e091859b249d84602d03b9bf5ba63f342ef276c76c7cfbdf6d5ad11fdde65",
-      "bytes": 7879
+      "sha256": "16fa87decd7ab9fc206b67bbf1fadec6ebf24e097ab6fd6bca7f9635c210917a",
+      "bytes": 8042
     },
     {
       "path": "rc-prepare-socle-prompts/agents/openai.yaml",
@@ -363,5 +363,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "633b1031ed2440f907e924d12158efce5e9b2dbc1fe0932b2f8e2b1868fa6165"
+  "digest": "c5a0ef6d0978a8fe2705d0ebd523204d72256571a0e795a03bf33d09fba7adb1"
 }

@@ -8,22 +8,21 @@ Recalcule le prêt (`rc_state.py ready`) et choisis selon l'objectif du mandat e
 
 Le parallélisme suit les ressources réelles : fichiers et auteurs actifs, appareils, instances, ports, budgets, capacité des modèles (le quota Opus se réserve) et coût des contrôles sur leur machine. Garde de la capacité pour revues et contrôles.
 
-Inscris aussi comme résultats ordinaires :
+Inscris aussi comme résultat ordinaire un cycle de jardinage quand un signal le justifie : friction remontée, fin de vague multi-champions, latence de boucle ou ratios tests/produit et preuve/diff qui dérivent. Toutes les trois vagues produit (réglable), réexamine ces signaux ; sans friction utile, aucun cycle n'est dû ([jardinage](garden.md#cycles)).
 
-- un cycle de jardinage quand un signal le justifie : friction remontée, fin de vague multi-champions, latence de boucle ou ratios tests/produit et preuve/diff qui dérivent. Toutes les trois vagues produit (réglable), réexamine ces signaux ; sans friction utile, aucun cycle n'est dû ([jardinage](garden.md#cycles)) ;
-- avant un jalon présentable, et au moins toutes les trois vagues produit, le scénario fil rouge sur la version courante et une revue globale fraîche (autre famille de modèles si le mandat le permet, lecture seule, examinateurs par domaine, checklist terrain), car les revues de delta ne voient pas ce qui manque. Pour un programme d'une seule vague à risque bas, la revue du candidat en tient lieu si elle porte sur tout le livré.
+Avant un jalon présentable, et au moins toutes les trois vagues produit, la revue du candidat de la vague en cours est globale : une revue indépendante (section 3), quel que soit le risque, joue le scénario fil rouge sur ce candidat et lit tout le livré depuis le jalon précédent, car les revues de delta ne voient pas ce qui manque. Elle n'ouvre ni résultat ni vague.
 
 Le méta-travail (méthode, stack, outillage d'état) répond à un problème observé, avec portée et critère de fin ; pendant un programme produit, il exige un mandat.
 
 ## 2. Lancer
 
-Vérifie `launch_ready`, base et outils live : un champion ne part que d'une vague rattachée à l'index, `launch_ready` vrai et passée `launched` ; seules les revues documentaires (acteur de rôle `reviewer`) partent avant. Un fil de premier niveau ne se crée que si le mandat le couvre, dans le projet du dépôt produit ; sinon remets une action humaine unique : projet, fil, texte exact. Fais couvrir par le mandat, avant la vague, les accords que l'exécution demandera : Git (`safe.directory` : [moteur](engine.md#git)), push, ports, instances, appareils. Écris dans la vague l'intention avant chaque appel d'acteur (`rc_state.py intent add`) ; consigne seulement les références réellement retournées. Relais à un pilote successeur : [moteur](engine.md#relais-de-pilote).
+Vérifie `launch_ready`, base et outils live : un champion ne part que d'une vague rattachée à l'index, `launch_ready` vrai et passée `launched` ; seules les revues documentaires (acteur de rôle `reviewer`) partent avant. Un fil de premier niveau ne se crée que si le mandat le couvre, dans le projet du dépôt produit ; sinon remets une action humaine unique : projet, fil, texte exact. Fais couvrir par le mandat, avant la vague, les accords que l'exécution demandera : Git (`safe.directory` : [moteur](engine.md#git)), push, ports, instances, appareils. Écris dans la vague l'intention avant chaque appel d'acteur (`rc_state.py intent FICHIER add`) ; consigne seulement les références réellement retournées. Relais à un pilote successeur : [moteur](engine.md#relais-de-pilote).
 
 L'`AGENTS.md` du dépôt produit (contenu : `rc-prepare-socle-prompts`) donne la boucle rapide de l'auteur et le contrôle d'acceptation ; note leurs durées à chaque vague.
 
 ## 3. Livrer juste
 
-Chaque brief se suffit : résultat, base, sources et chemins, domaine de code et de tests, fichiers partagés attribués, ressources, effets permis, interfaces consommées (SHA), délégation permise ou interdite et ses bornes, critères, preuve et point de remise, filiation et modèle du parent. Un contrat de code consommé par un autre worktree est commité (SHA, manifeste) avant ses consommateurs ; seul le chemin consommateur attend.
+Chaque brief se suffit : résultat, base, sources et chemins, domaine de code et de tests, fichiers partagés attribués, ressources, effets permis, interfaces consommées (SHA), délégation permise ou interdite et ses bornes, critères, preuve, fichier de remise écrit avant le message final, filiation et modèle du parent. Un contrat de code consommé par un autre worktree est commité (SHA, manifeste) avant ses consommateurs ; seul le chemin consommateur attend.
 
 **Preuve d'auteur.** L'auteur itère avec la boucle rapide, puis livre un candidat figé (`candidate.seq`, SHA ou manifeste) avec le contrôle d'acceptation exécuté sur ce candidat exact : commande et répertoire, attendu et observé, collecte et skips, sorties brutes, limites. Code de sortie nul, collecte vide, skip pertinent ou autre candidat ne valent pas réussite. Un contrôle rouge connu se corrige avant l'acceptation, sinon sa portée reste non acceptée. Plusieurs auteurs dans une même copie livrent chacun leur boucle rapide sur leurs fichiers ; le contrôle d'acceptation s'exécute alors une fois, sur le candidat assemblé figé. Quand boucle rapide et contrôle d'acceptation collectent exactement les mêmes tests, une exécution sur le candidat suffit. Un runtime manquant n'arrête pas les revues de source ou documentaires ; seule la portée qui en dépend reste non qualifiée. Des tests retirés, fusionnés ou renommés sont listés et justifiés ([valeur des tests](garden.md#valeur-des-tests)) ; une baisse de collecte non justifiée est un échec.
 
@@ -35,7 +34,7 @@ Chaque brief se suffit : résultat, base, sources et chemins, domaine de code et
 
 **Acceptation.**
 
-- Risque bas, entrée unique, preuve d'auteur complète : vérifie la preuve sur le candidat exact et accepte sans réviseur distinct ; inscris sur ce candidat une revue `done` dont `reference` est ta note de vérification.
+- Risque bas, entrée unique, preuve d'auteur complète, hors revue globale due (section 1) : vérifie la preuve sur le candidat exact et accepte sans réviseur distinct ; inscris sur ce candidat une revue `done` dont `reference` est ta note de vérification.
 - Risque moyen ou haut, ou entrées couplées : revue indépendante par un acteur distinct de l'auteur, d'une autre famille si le mandat le permet (GPT pour un auteur Claude), en lecture seule, mandatée par toi, sur le candidat figé, selon le [brief de revue](review-brief.md) transmis tel quel avec exigences, base..candidat, delta et preuves. Un delta sensible y reçoit une passe sécurité ciblée ; refusée, elle reste non exécutée et sa portée non acceptée, sans contournement. Une pré-revue de champion ne la remplace pas.
 - Entrées couplées, même sans fichier commun (interfaces, migrations, lockfiles, droits, cycle de vie, configuration) : plan d'assemblage contre-relu, intégrateur distinct, auteurs gelés sur les périmètres transférés, revue d'intégration des deltas transférés, sauf allègement permis par le mandat. La preuve porte sur l'assemblage exact. Lire un contrat déjà commité et inchangé n'est pas un couplage : des lots aux fichiers disjoints qui le consomment suivent la règle de leur risque, sans plan d'assemblage ni intégrateur. Des auteurs sérialisés sur un fichier partagé ne sont pas couplés : le second part du candidat accepté du premier.
 
@@ -57,7 +56,7 @@ Après acceptation, mets à jour la vague puis l'index, recalcule le prêt et r�
 
 Refus d'écriture, plan rejeté ou découpage erroné : corrige et continue dans le mandat et le budget. Avant de rendre la main, exécute le prêt autorisé ou engage son acteur. Sinon, consigne qui attend quoi, le signal et la reprise, avec un réveil réel : attente d'outil, retour d'enfant, ou tâche planifiée exposée et autorisée qui reprend le travail. À défaut, nomme une action humaine précise (message, fil, chemin d'état).
 
-Pilote racine, tu peux finir un tour pendant qu'un délégué travaille si son retour te réveille ; un hôte qui suit tes enfants et te réveille à leur retour vaut réveil réel, même pilote délégué. Attendu par ton parent, ne termine pas avec un descendant nécessaire actif : attends-le, ou remets une remise partielle qui le nomme. Pas de polling d'un délégué actif, mais une lecture ciblée pour reprendre ou réconcilier ; un message à un autre fil crée un tour, réservé à une vraie coordination.
+Tu peux finir un tour pendant qu'un délégué travaille si son retour te réveille (un hôte qui suit tes enfants vaut réveil réel) ; attendu par ton parent, finis alors ce tour sur une remise `partial` qui nomme le délégué. Sans réveil possible, attends-le. Pas de polling d'un délégué actif, mais une lecture ciblée pour reprendre ou réconcilier ; un message à un autre fil crée un tour, réservé à une vraie coordination.
 
 Une règle bloquante que tu t'imposes (plafond d'exécutions, outil écarté après un refus) s'inscrit dans `decisions`, locale et révocable, avec sa source, et se réexamine à chaque reprise. Sans fondement dans les instructions applicables (projet, outil, plateforme), le mandat ou une limite constatée, elle ne bloque pas le travail prêt.
 
@@ -66,9 +65,9 @@ Une règle bloquante que tu t'imposes (plafond d'exécutions, outil écarté apr
 | Situation | Conduite |
 |---|---|
 | Quota ou limite de débit | `waiting_quota` avec `waiting.resume` ; acteurs, IDs et réservations conservés ; indépendant poursuivi ; reprise par réveil réel, sinon action humaine unique. Ni reset ni sondage. |
-| Erreur terminale (authentification, fournisseur) | Lot `failed` avec cause et condition de reprise ; le programme et les autres chemins continuent. |
+| Erreur terminale (authentification, fournisseur) | Vague `failed` avec cause et condition de reprise ; le programme et les autres chemins continuent. |
 | Résultat d'outil incertain (timeout, erreur sans reçu, push compris) | L'intention reste `pending`. Relis l'état réel (fil, tâche, fichier, distant), résous `confirmed` ou `absent`, puis seulement réessaie avec une nouvelle corrélation. Un timeout n'est pas un échec certain. |
-| Signal reçu | `rc_state.py event` (ou `write --record-event`) dès la réception, sur ta vague, avant toute disposition ou clôture ; sans vague à toi (superviseur séparé, relais), dans `last_milestone` ; enregistré après la clôture, il devient `late`. Suis `classification` et `effect` ([moteur](engine.md#événements)) : aucun doublon, ancien ou tardif ne relance une équipe ni ne rouvre une vague. |
+| Signal reçu | `rc_state.py event` (ou `write --record-event`) dès la réception, sur ta vague, avant toute disposition ou clôture ; sans vague à toi (superviseur séparé titulaire, relais), dans `last_milestone` ; enregistré après la clôture, il devient `late`. Suis `classification` et `effect` ([moteur](engine.md#événements)) : aucun doublon, ancien ou tardif ne relance une équipe ni ne rouvre une vague. |
 | Reprise à froid, écriture interrompue, signal absent | Sans présumer la cause, `rc_state.py resume` au prochain tour réel ; traite ses `actions` avant de relancer ce qu'elles concernent ([moteur](engine.md#reprise-à-froid)) ; le travail prêt sans lien continue. |
 
 Attente, quota, erreur et fin réelle sont distincts : seule la fin réelle clôt.

@@ -13,7 +13,7 @@ Statut : **candidate**. Aucune installation dans un profil actif ; deux essais c
   - non bloquant : un commentaire de politique ajouté dans `tools/check.py`, contraire à la règle sur les écrits. Retiré.
 - La racine a vérifié ces corrections par le contrôle complet sur l'arbre commité, sans second tour : trois corrections à risque bas, chacune vérifiable par une commande.
 - Retour du réviseur sur le brief : il ne faisait chercher que les ajouts, et c'est l'exigence du mandat qui a fait trouver l'obligation retirée. Le brief demande maintenant aussi ce que le diff retire.
-- Nom du projet d'origine : retiré du dépôt après la revue. Dans les fixtures v7 à v9.1.1 et celle du 31 octobre, il est remplacé par « RC » (26 fichiers) et les six manifestes sont réalignés ; `tools/check.py` reste vert. Les empreintes de manifestes v7 et v8 citées dans les sections archivées ci-dessous sont celles de la lignée privée, plus celles des fixtures.
+- Nom du projet d'origine : retiré du dépôt après la revue. Dans les fixtures v2, v6, v7 à v9.1.1 et celle du 31 octobre, il est remplacé par « RC » (27 fichiers) et les six manifestes sont réalignés ; `tools/check.py` reste vert. Les empreintes de manifestes v7 et v8 citées dans les sections archivées ci-dessous sont celles de la lignée privée, plus celles des fixtures.
 - Optimiseur Fable : `claude-fable-prompt-optimizer`, repris du profil du propriétaire (version Fable 5.1 du 3 septembre 2026), est mis à jour pour Fable 5.2 d'après la documentation d'Anthropic lue le 16 novembre et devient la quatrième dépendance (distribution `rc-core-with-dependencies-2`). Le contrat d'état y route les prompts destinés à Fable et les remises à un parent Fable. Deux auteurs Opus 5.5, puis deux revues GPT-6.1 Sol (effort `high`) sur le candidat `90d7c41` :
   - outil de mise à jour, tests et retrait du nom : aucune exigence manquée, quatre contre-épreuves par mutation, 299 tests. Une phrase périmée de cette page est corrigée ;
   - faits du skill contre la documentation : 87 affirmations relevées, 79 confirmées, 8 à resserrer, dont deux bloquantes vérifiées par la racine sur les pages citées. Un échec du contrôle de préfixe ne donne pas d'erreur sur Message Batches ; le routage vers le modèle de repli n'est ni permanent ni garanti. Les huit sont corrigées ; la revue n'était pas exhaustive.
@@ -93,7 +93,7 @@ Le volume de tests du pilote Fable n'était donc pas du superflu : un test inuti
 
 ### Campagne avant fusion (16 novembre 2026)
 
-Trente agents GPT-6.1 Sol (effort `high`) sur le paquet gelé au commit `0a2e7fa` : dix-huit essais de conduite, un pilote par scénario sur un petit programme, et douze attaques ciblées en lecture seule. Le kit (dépôts de départ, consignes, tests cachés, vérificateur) vient d'un auteur Opus 5.5. La racine a rejoué chaque retour : le vérificateur pour les essais, le script de reproduction de chaque constat pour les attaques.
+Trente agents GPT-6.1 Sol (effort `high`) sur le paquet gelé au commit `0a2e7fa` : dix-sept essais de conduite sur un petit programme, un pilote par scénario et deux pour la reprise à froid, et douze attaques ciblées en lecture seule. Le kit (dépôts de départ, consignes, tests cachés, vérificateur) vient d'un auteur Opus 5.5. La racine a rejoué chaque retour : le vérificateur pour les essais, le script de reproduction de chaque constat pour les attaques.
 
 | Essai de conduite | Issue constatée |
 |---|---|
@@ -183,7 +183,7 @@ Chaque état a été créé par `rc_state.py init`. Les incidents restants des r
 - Les rejeux portent sur `205b50b` ; les corrections suivantes n'ont pas été rejouées.
 - Petits programmes synthétiques, un seul modèle pour tous les acteurs, un essai par scénario : aucun taux de réussite ni gain de coût n'est revendiqué.
 - T06 n'a toujours pas découpé le lot partiellement suspendu malgré la règle ; la formulation plus concrète du candidat final n'a pas été rejouée.
-- Le coût d'administration reste élevé (35 à 90 commandes d'état par essai). La lecture obligatoire du pilote passe de 3 527 à environ 3 950 mots.
+- Le coût d'administration reste élevé (35 à 90 commandes d'état par essai). La lecture obligatoire du pilote passe de 3 526 à environ 3 950 mots.
 - Installation, reprise runtime réelle et comportement hors de ces essais : non qualifiés.
 
 ## Version v9 « jardin » (10 novembre 2026)
