@@ -38,6 +38,9 @@ Markdown is scanned as raw text; the validator does not tell code from prose. Th
    Setext headings give none. The fence toggle is the only structure read; a fence line
    indented 4+ spaces or with a tab, or a backtick fence whose info string holds a
    backtick, puts the rest of the file in a fence, which refuses rather than accepts.
+   A heading inside HTML could count, so HTML that hides headings is refused by name:
+   '<!--' anywhere, and outside a fence a line that starts (indented 0-3 spaces) with '<'
+   then a letter, '/' or '!', unless it is an autolink with a scheme (<https://...>).
 
 The frontmatter and UI readers accept only the subsets present in these files; they are
 not YAML parsers. Structural success certifies neither the quality of a prompt, nor the
@@ -79,15 +82,17 @@ DESTINATIONS = re.compile(
 RESOURCE = re.compile(r'(?:(?<=\./)|(?<![\w./\-]))(?:references|scripts|assets)/[\w.\-/]*[\w\-]')
 HEADING = re.compile(r' {0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*')
 NOT_SIMPLE = re.compile(r'\]\(|\]\[|&#?\w+;|<|\\|(?<!\w)_|_(?!\w)')
+HTML_LINE = re.compile(r' {0,3}<(?![A-Za-z][A-Za-z0-9+.-]*:)[A-Za-z/!]')
 DEAD = 'not a package file at exact case; an example in code carries a scheme'
 ANCHORLESS = 'no simple ATX heading has this id'
 UNSAFE = "unsupported destination: use letters, digits and ._-/%# or a URL with a scheme"
 
 
-def anchors(text):
-    """Ids of the simple ATX headings outside fences, GitHub numbering of repeats."""
-    seen, fence = {}, None
-    for line in text.split('\n'):
+def outline(text):
+    """Ids of the simple ATX headings outside fences, GitHub numbering of repeats, and the
+    numbers of the lines outside fences that open an HTML block."""
+    seen, fence, html = {}, None, []
+    for number, line in enumerate(text.split('\n'), 1):
         stripped = line.lstrip(' \t')
         opening = re.match(r'(`{3,}|~{3,})(.*)', stripped)
         if opening:
@@ -99,6 +104,8 @@ def anchors(text):
             elif opening[1][0] == fence[0] and len(opening[1]) >= len(fence) and not opening[2].strip():
                 fence = None
             continue
+        if fence is None and HTML_LINE.match(line):
+            html.append(number)
         heading = HEADING.fullmatch(line) if fence is None else None
         if heading and not NOT_SIMPLE.search(heading[1]):
             base = anchor = re.sub(r'[^\w\- ]', '', heading[1].lower()).replace(' ', '-')
@@ -106,7 +113,7 @@ def anchors(text):
                 seen[base] += 1
                 anchor = f'{base}-{seen[base]}'
             seen[anchor] = 0
-    return set(seen)
+    return set(seen), html
 
 
 def scalar(value):
@@ -331,6 +338,10 @@ def validate(root, provenance=None):
         if path.suffix != '.md' or text is None:
             continue
         check(f'{rel}:no_machine_snapshot', not MACHINE.search(text))
+        if '<!--' in text:
+            check(f'{rel}:html_comment', False, 'HTML comment: remove it, a heading inside would count')
+        for number in outline(text)[1]:
+            check(f'{rel}:html_block:{number}', False, 'HTML block outside a fence: put it in a fenced block')
         skill, folder = rel.parts[0], posixpath.dirname(key)
         for index, match in enumerate(DESTINATIONS.finditer(text)):
             target = next(g for g in match.groups() if g is not None).strip()
@@ -340,11 +351,11 @@ def validate(root, provenance=None):
             if not re.fullmatch(r'[\w.\-/%]*(?:#[\w.\-%]*)?', target) or not target:
                 ok, reason = False, UNSAFE
             elif not file_part:
-                ok, reason = unquote(anchor) in anchors(text), ANCHORLESS
+                ok, reason = unquote(anchor) in outline(text)[0], ANCHORLESS
             else:
                 dest = resolve(folder, unquote(file_part))
                 ok = dest is not None and (not anchor or not dest.endswith('.md')
-                                           or (dest in texts and unquote(anchor) in anchors(texts[dest])))
+                                           or (dest in texts and unquote(anchor) in outline(texts[dest])[0]))
                 reason = ANCHORLESS if dest else DEAD
             check(f'{rel}:link:{index}', ok, target if ok else f'{target} ({reason})')
         for index, word in enumerate(RESOURCE.findall(text)):
