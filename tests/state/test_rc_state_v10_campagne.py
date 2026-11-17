@@ -849,6 +849,24 @@ class Successor(Campaign):
         self.ok('intent', self.wave_path, 'add', '--actor', self.OTHER, '--expect-revision', 2, '--correlation',
                 'champ/2', '--op', 'launch', '--target', 'A')
 
+    def test_detached_wave_attaches_although_an_event_id_belongs_to_another_wave(self):
+        """Lead left at the v10 hand-back: an id already owned by another wave of the program was an endless refusal."""
+        self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'shared-id', '--kind', 'review')  # waves/a
+        wave = self.solo()
+        p = rc_program()
+        p['outcomes'][1]['state_ref'] = 'solo/wave.json'
+        self.write(self.program_path, p)
+        self.ok('event', wave, '--actor', OWNER, '--id', 'shared-id', '--kind', 'review')  # local journal
+        attach = ('write', wave, '--actor', OWNER, '--ops', '[{"op":"set","path":"program_ref","value":"../program.json"}]')
+        self.refused('shared-id (its id already belongs to waves/a/wave.json in the program journal: apply it on this '
+                     'wave first', *attach[:4], '--expect-revision', 0, *attach[4:])
+        self.ok('ack', wave, '--actor', OWNER, '--expect-revision', 0, '--id', 'shared-id', '--reason', 'nothing to do')
+        result = self.ok(*attach[:4], '--expect-revision', 1, *attach[4:])
+        self.assertEqual(result['events_not_carried'], [{'id': 'shared-id', 'belongs_to': 'waves/a/wave.json'}])
+        self.assertEqual(self.doc(wave)['program_ref'], '../program.json')
+        carried = [e for e in self.journal(self.program_path) if e['id'] == 'shared-id']
+        self.assertEqual([e['wave'] for e in carried], ['waves/a/wave.json'])
+
     def test_R02_05_moved_state_folder_keeps_accepting_writes(self):
         wave = self.solo()
         self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'a'}])

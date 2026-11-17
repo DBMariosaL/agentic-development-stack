@@ -1109,7 +1109,8 @@ def _carry_events_on_attach(old_j, new_j, entries, idents, actor, file_name):
     """First attachment of a wave to its program. Only events explicitly belonging to this wave (received with its
     identity, or legacy receipts attached to it by event --attach-legacy) are carried, as applied, into the program
     journal. A legacy receipt without identity that may concern this file blocks until it is attached with evidence;
-    receipts known to belong to another file are left to that file."""
+    receipts known to belong to another file are left to that file. A settled local event whose id already belongs to
+    another wave of the program is not carried (the program keeps one owner per id); it is returned, to be named."""
     statuses = _event_status(entries[old_j])
     legacy = sorted(k for k, v in statuses.items()
                     if v['wave'] is None and v['received'].get('file') in (None, file_name))
@@ -1117,18 +1118,21 @@ def _carry_events_on_attach(old_j, new_j, entries, idents, actor, file_name):
         raise StateError('attach refused: legacy events without wave identity may concern this file; attach each one '
                          'to its wave with event --attach-legacy --evidence first: ' + ', '.join(legacy))
     own = {k: v for k, v in statuses.items() if v['wave'] == idents[old_j]}
+    shared = _event_status(entries[new_j])
+    elsewhere = {k: shared[k]['wave'] for k in own if k in shared and shared[k]['wave'] != idents[new_j]}
     unsettled = sorted(k for k, v in own.items() if not v['applied'] or v.get('uncertain'))
     if unsettled:
-        raise StateError('attach refused: local events not yet applied or disposed: ' + ', '.join(unsettled))
-    shared = _event_status(entries[new_j])
+        raise StateError('attach refused: local events not yet applied or disposed: ' + ', '.join(
+            f'{k} (its id already belongs to {elsewhere[k]} in the program journal: apply it on this wave first, '
+            'with ack or write --applies-event, then attach; it will not be carried)' if k in elsewhere else k
+            for k in unsettled))
     for event_id, status in sorted(own.items()):
         if event_id in shared:
-            if shared[event_id]['wave'] != idents[new_j]:
-                raise StateError(f'attach refused: event id {event_id} already belongs to {shared[event_id]["wave"]}')
             continue
         append_journal(new_j, {'id': event_id, 'at': now(), 'kind': 'event:carried', 'wave': idents[new_j],
                                'classification': 'carried', 'actor': actor, 'carried_from': str(old_j),
                                'original_wave': status['wave'], 'original_kind': status['received'].get('kind')})
+    return [{'id': k, 'belongs_to': w} for k, w in sorted(elsewhere.items())]
 
 
 def local_journal(path):
@@ -1204,6 +1208,7 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
             raise StateError('refused: ' + '; '.join(errors))
         old_j, new_j = journal_path(path, old), journal_path(path, new)
         attaching = old_j != new_j  # only when program_ref is first set
+        not_carried = []
         participants = sorted(set(participating_journals(path, old)) | {new_j}, key=str)
         jpaths = [old_j]  # the operation has a single copy, in the journal of the current state
         idents = {j: wave_identity(path, j) for j in participants}
@@ -1219,7 +1224,7 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
             if attaching:
                 if applies_event is not None:
                     raise StateError('apply events before or after attaching the wave to its program, not in the same write')
-                _carry_events_on_attach(old_j, new_j, entries, idents, actor, path.name)
+                not_carried = _carry_events_on_attach(old_j, new_j, entries, idents, actor, path.name)
             jpath, ident = old_j, idents[old_j]
             if applies_event is not None:
                 status = _event_status(entries[jpath]).get(applies_event)
@@ -1273,6 +1278,8 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
                                         f'{j}: {exc}; operation {op_id} stays unresolved: run reconcile before any other '
                                         'action')
         result = {'written': str(path), 'revision': new['revision']}
+        if not_carried:
+            result['events_not_carried'] = not_carried  # ids owned by another wave of the program
         if inherited:
             result['consistency_errors'] = inherited
         if reset:
