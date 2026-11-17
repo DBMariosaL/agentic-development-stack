@@ -217,7 +217,7 @@ class IntentsAndActors(Base):
         doc = json.loads(self.wave_path.read_text(encoding='utf-8'))
         self.assertEqual(doc['actors'][0]['ref'], 'task-123')
         ops = json.dumps([{'op': 'update', 'path': 'intents', 'match': {'correlation': 'c1'}, 'value': {'status': 'absent'}}])
-        self.refused('resolved and immutable', 'write', self.wave_path, '--actor', OWNER, '--expect-revision', 2, '--ops', ops)
+        self.refused('changes only through intent resolve or write --resolve-intent', 'write', self.wave_path, '--actor', OWNER, '--expect-revision', 2, '--ops', ops)
         ops = json.dumps([{'op': 'update', 'path': 'actors', 'match': {'correlation': 'c1'}, 'value': {'ref': 'task-999'}}])
         self.refused('known ref is immutable', 'write', self.wave_path, '--actor', OWNER, '--expect-revision', 2, '--ops', ops)
 

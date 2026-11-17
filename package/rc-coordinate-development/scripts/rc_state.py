@@ -176,6 +176,10 @@ def kind_of(doc):
     return 'unknown'
 
 
+def by_correlation(value):
+    return {i['correlation']: i for i in _items(value) if text(i.get('correlation'))}
+
+
 def _items(value):
     return [x for x in value if isinstance(x, dict)] if isinstance(value, list) else []
 
@@ -846,19 +850,6 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
         na = {a['correlation']: a for a in _items(new.get('actors')) if text(a.get('correlation'))}
         oi = {i['correlation']: i for i in _items(old.get('intents')) if text(i.get('correlation'))}
         ni = {i['correlation']: i for i in _items(new.get('intents')) if text(i.get('correlation'))}
-        for corr, intent in oi.items():
-            if corr not in ni:
-                errors.append(f'intent {corr} removed')
-                continue
-            if sval(intent, 'status') != 'pending' and ni[corr] != intent:
-                errors.append(f'intent {corr} is resolved and immutable')
-            elif (intent.get('op') == 'launch' and sval(ni[corr], 'status') == 'confirmed'
-                  and sval(intent, 'status') != 'confirmed' and corr not in set(na) - set(oa)):
-                errors.append(f'intent {corr}: a launch is confirmed only with the actor it creates; use intent '
-                              'resolve or write --resolve-intent, which record it')
-            for field in ('op', 'target'):
-                if ni[corr].get(field) != intent.get(field):
-                    errors.append(f'intent {corr}: {field} is immutable')
         for corr, intent in ni.items():
             if corr not in oi and sval(intent, 'status') != 'pending':
                 errors.append(f'intent {corr} must be created pending, before the runtime call')
@@ -1824,11 +1815,11 @@ def cmd_write(args):
             raise StateError(f'refused: unknown key {", ".join(created)}: the {kind_of(doc)} format does not define it. '
                              'A path joins object keys with ".", never "/" (state.next_action, not state/next_action); '
                              'see write --help and init --template')
-        if mid is not doc and ops:
-            resolved = [i for i in _items(mid.get('intents')) if i.get('correlation') == args.resolve_intent]
-            if resolved != [i for i in _items(new.get('intents')) if i.get('correlation') == args.resolve_intent]:
-                raise StateError(f'refused: ops after the intent resolution: intent {args.resolve_intent} is resolved '
-                                 'and immutable')
+        before, after = by_correlation(mid.get('intents')), by_correlation(new.get('intents'))
+        changed = sorted(c for c, intent in before.items() if after.get(c) != intent)
+        if changed:
+            raise StateError(f'refused: intent {changed[0]} changes only through intent resolve or write '
+                             '--resolve-intent, which record or revive its actor; ops leave existing intents unchanged')
         return new
 
     event, applies = None, args.applies_event

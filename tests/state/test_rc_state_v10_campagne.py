@@ -79,7 +79,7 @@ class ShortForm(Campaign):
                    'value': {'status': 'pending', 'result_ref': None}}]
         code, result = self.short(wave, 1, '--ops', json.dumps(reopen))
         self.assertEqual(code, 1, result)
-        self.assertIn('intent c1 is resolved and immutable', result['error'])
+        self.assertIn('intent c1 changes only through intent resolve or write --resolve-intent', result['error'])
         self.assertEqual(self.doc(wave)['revision'], 1)
         self.assertEqual(self.applied(wave), [])
         code, result = self.short(wave, 1)
@@ -182,16 +182,22 @@ class PrepareMode(Campaign):
         self.refused("actor l1: role 'champion' refused in a wave without launch authorization", 'write', wave,
                      '--actor', OWNER, '--expect-revision', 2, '--ops', json.dumps(requalified))
 
-    def test_R01_07_launch_confirmed_only_with_the_actor_it_creates(self):
-        """R01-07, R03-04: confirming a launch by ops would leave no actor, so no relaunch guard and no role rule."""
-        wave = self.solo()
-        self.ok('intent', wave, 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'k1',
-                '--op', 'launch', '--target', 'cible')
-        confirm = [{'op': 'update', 'path': 'intents', 'match': {'correlation': 'k1'},
-                    'value': {'status': 'confirmed', 'result_ref': 'thread-champion-1'}}]
-        self.refused('intent k1: a launch is confirmed only with the actor it creates', 'write', wave, '--actor',
-                     OWNER, '--expect-revision', 1, '--ops', json.dumps(confirm))
-        self.assertEqual(self.doc(wave)['intents'][0]['status'], 'pending')
+    def test_R01_07_intent_confirmed_only_by_the_path_that_records_or_revives_its_actor(self):
+        """R01-07, R03-04 (launch without actor), E01 (send leaving its actor completed): ops never resolve an intent."""
+        done = {'role': 'reviewer', 'model': None, 'ref': 'thread-1', 'correlation': 'r1', 'status': 'completed',
+                'target': 'cible', 'evidence': 'returned'}
+        for op, actors in (('launch', []), ('send', [done])):
+            with self.subTest(op=op):
+                w = wave2('planning')
+                w.update(actors=actors, intents=[{'correlation': 'k1', 'op': op, 'target': 'cible',
+                                                  'status': 'pending', 'result_ref': None}])
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                confirm = [{'op': 'update', 'path': 'intents', 'match': {'correlation': 'k1'},
+                            'value': {'status': 'confirmed', 'result_ref': 'thread-2'}}]
+                self.refused('intent k1 changes only through intent resolve or write --resolve-intent', 'write', self.wave_path, '--actor', OWNER,
+                             '--expect-revision', 0, '--ops', json.dumps(confirm))
+                self.assertEqual(self.doc(self.wave_path)['revision'], 0)
 
     def test_P05_confirmed_send_makes_the_actor_it_reaches_alive_again(self):
         champion = {'role': 'champion', 'model': None, 'ref': 'agent-1', 'correlation': 'champ/1',
