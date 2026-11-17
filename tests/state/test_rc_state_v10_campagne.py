@@ -10,6 +10,7 @@ import unittest
 from unittest import mock
 
 from test_rc_state import OWNER, SCRIPT, Base, rc, wave2
+from test_rc_state import program as rc_program
 
 EVENT = 'task-7:run1'
 WAVE_SPEC = {'authorization': {'exclusions': []}, 'state': {'next_action': 'prepare documents'}}
@@ -296,16 +297,20 @@ class ReviewHashes(Campaign):
         self.assertEqual(self.ok('check', wave, '--check-paths')['errors'], [])
 
     def test_closed_wave_keeps_passing_check_paths_when_a_reviewed_document_changed(self):
-        for phase, errors in (('launched', 1), ('stopped', 0)):
+        for phase, errors in (('launched', 3), ('stopped', 0)):  # R02-10: consumed mandate and its review too
             with self.subTest(phase=phase):
                 w = wave2(phase)
                 w['artifacts']['doc'] = 'doc.txt'
-                w['reviews'].append({'artifact': 'doc', 'sha256': 'a' * 64, 'status': 'done',
-                                     'disposition': 'reviewed', 'reference': 'report.md'})
+                for name in ('doc', 'prompt_a'):
+                    w['reviews'].append({'artifact': name, 'sha256': 'a' * 64, 'status': 'done',
+                                         'disposition': 'reviewed', 'reference': 'report.md'})
                 self.write(self.wave_path, w)
                 (self.wave_path.parent / 'doc.txt').write_bytes(b'changed after review')
+                (self.wave_path.parent / 'socles').mkdir(exist_ok=True)
+                (self.wave_path.parent / 'socles/a.txt').write_bytes(b'mandate changed after closure')
                 code, result = self.run_cli('check', self.wave_path, '--check-paths')
-                self.assertEqual(len([e for e in result['errors'] if 'documentary review' in e]), errors, result)
+                self.assertEqual(len([e for e in result['errors'] if 'documentary review' in e
+                                      or 'sha256 mismatch' in e]), errors, result)
 
     def test_init_and_append_default_review_disposition_and_reference_to_null(self):
         review = {'artifact': 'doc', 'sha256': 'a' * 64, 'status': 'pending'}
@@ -504,6 +509,149 @@ class StrictInputs(Campaign):
                 self.assertEqual(code, 1, result)
                 self.assertIn(fragment, result['error'])
                 self.assertFalse(path.exists())
+
+
+class Messages(Campaign):
+    """What a command says is what happened, and what it advises is a command that converges."""
+
+    def test_R13_05_a_resolved_intent_is_refused_even_within_the_same_second(self):
+        wave = self.solo()
+        self.send_intent(wave)
+        resolve = ('intent', wave, 'resolve', '--actor', OWNER, '--correlation', 'c1', '--status', 'confirmed',
+                   '--result-ref', 'task-7')
+        with mock.patch.object(rc, 'now', return_value='2026-11-17T00:00:00+00:00'):
+            self.ok(*resolve[:3], '--expect-revision', 1, *resolve[3:])
+            self.refused('intent c1 is resolved and immutable (confirmed)', *resolve[:3], '--expect-revision', 2,
+                         *resolve[3:])
+        self.assertEqual(self.rev(wave), 2)
+
+    def test_R13_06_candidate_seq_given_for_an_event_already_received(self):
+        w = wave2()
+        w['candidate'] = {'seq': 2, 'ref': 'm2', 'artifact': 'manifest', 'sha256': 'b' * 64}
+        for received, given, outcome in ((None, 1, 'stale'), (2, 1, 'was received for candidate_seq 2, not 1')):
+            with self.subTest(received=received):
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'ev1', '--kind', 'done',
+                        *(('--candidate-seq', received) if received else ()))
+                code, result = self.run_cli('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0,
+                                            '--ops', '[{"op":"set","path":"state.next_action","value":"x"}]',
+                                            '--record-event', 'ev1', '--kind', 'done', '--candidate-seq', given)
+                self.assertEqual(code, 1, result)
+                self.assertIn(outcome, json.dumps(result))
+                self.assertEqual(self.rev(self.wave_path), 0)
+
+    def test_R13_07_R13_08_short_form_reports_what_happened_to_its_event(self):
+        wave = self.solo()
+        self.send_intent(wave)
+        code, result = self.short(wave, 1)
+        self.assertEqual(code, 0, result)
+        self.assertEqual((result['event']['applied'], result['event']['effect']),
+                         (True, 'applied by this write (revision 2)'))
+        w = wave2('launched')  # an event received, then the wave closed before applying it
+        w['intents'] = [{'correlation': 'c1', 'op': 'send', 'target': 'T', 'status': 'absent', 'result_ref': None}]
+        self.write(self.wave_path, w)
+        self.ok('event', self.wave_path, '--actor', OWNER, '--id', EVENT, '--kind', 'return')
+        w['state']['phase'] = 'stopped'
+        self.write(self.wave_path, w)
+        before = self.wave_path.read_bytes()
+        code, result = self.run_cli('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0,
+                                    '--ops', '[{"op":"set","path":"state.next_action","value":"x"}]',
+                                    '--record-event', EVENT, '--kind', 'return')
+        self.assertEqual((code, result['written']), (1, None), result)
+        self.assertIn('record its disposition with dispose', result['event']['effect'])
+        self.assertEqual(self.wave_path.read_bytes(), before)
+
+    def test_R07_05_R03_07_type_refusals_name_the_received_type(self):
+        program_cases = (('last_milestone', 'jalon', 'last_milestone: expected object {at, summary, ref}, got str'),
+                         ('decisions_pending', 'x', 'decisions_pending: expected list of objects, got str'),
+                         ('decisions_pending', [{'id': 'D1', 'question': 'q', 'option': 'o', 'effects': 'e',
+                                                 'suspends': 'A'}],
+                          'decisions_pending[0].suspends: expected list of known outcome ids, empty when it suspends '
+                          'nothing, got str'),
+                         ('outcomes', 'A', 'outcomes: expected nonempty list of objects, got str'),
+                         ('outcomes.0.depends_on', 'B', 'A: depends_on: expected list of known outcome ids, got str'),
+                         ('outcomes.0.waiting_on', 'quota', 'outcomes.A.waiting_on: expected object {kind, detail, '
+                          'trigger}, got str'),
+                         ('outcomes.1.id', 5, 'outcomes[1].id: expected nonempty text, got int'))
+        wave_cases = (('envelope', 3, 'envelope: expected object {reason}, got int'),
+                      ('candidate', 'abc', 'candidate: expected object {seq, ref, artifact, sha256}, got str'),
+                      ('socles.0.readiness', 'bad', "A: invalid readiness: expected one of blocked, partial, ready, "
+                       "got 'bad'"),
+                      ('socles.0.resources', 'x', 'A: resources must be a list, got str'),
+                      ('artifacts', {'a': 5}, 'a: local relative artifact path required (no escape), got int'))
+        for path, make, cases in ((self.program_path, rc_program, program_cases), (self.wave_path, wave2, wave_cases)):
+            for field, value, fragment in cases:
+                with self.subTest(field=field):
+                    doc, (head, *rest) = make(), field.split('.')
+                    if rest:
+                        doc[head][int(rest[0])][rest[1]] = value
+                    else:
+                        doc[head] = value
+                    self.write(path, doc)
+                    code, result = self.run_cli('check', path)
+                    self.assertIn(fragment, result['errors'])
+
+    def test_R02_08_event_follows_an_attachment_made_while_it_waited(self):
+        wave = self.solo()
+        p = rc_program()
+        p['outcomes'][0]['state_ref'] = 'solo/wave.json'
+        self.write(self.program_path, p)
+        real, done = rc.journal_path, []
+
+        def attach_meanwhile(path, doc):
+            if not done:
+                done.append(None)
+                done[0] = (self.run_cli('write', wave, '--actor', OWNER, '--expect-revision', 0, '--ops',
+                                         '[{"op":"set","path":"program_ref","value":"../program.json"}]'))
+            return real(path, doc)
+        with mock.patch.object(rc, 'journal_path', side_effect=attach_meanwhile):
+            self.assertEqual(self.ok('event', wave, '--actor', OWNER, '--id', EVENT, '--kind', 'review')
+                             ['classification'], 'new')
+        self.assertEqual(done[0][0], 0, done)
+        self.assertIn(EVENT, [e['id'] for e in self.journal(self.program_path)])
+        self.assertNotIn(EVENT, [e['id'] for e in self.journal(wave)])
+
+    def test_R02_09_two_prepare_lines_of_one_operation_that_differ_are_refused(self):
+        wave = self.solo()
+        with mock.patch.object(rc.os, 'replace', side_effect=OSError('stopped')):
+            self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'next'}])
+        prepare = [e for e in self.journal(wave) if e['kind'] == 'prepare'][-1]
+        forged = dict(prepare, old_sha256='0' * 64, new_sha256=hashlib.sha256(wave.read_bytes()).hexdigest())
+        with (wave.parent / 'journal.jsonl').open('a', encoding='utf-8') as stream:
+            stream.write(json.dumps(forged) + '\n')
+        self.refused('has prepare lines that differ (between or within journals)', 'reconcile', wave, '--actor', OWNER,
+                     '--op', prepare['id'], '--evidence', 'bytes')
+
+    def test_resume_lists_local_events_and_advises_commands_that_converge(self):
+        """R02-07, R03-03 (local journal of a referenced detached wave), R03-10 (stale), R03-06 (closed v1)."""
+        w = wave2('preparing')
+        w['program_ref'] = None
+        w['candidate'] = {'seq': 1, 'ref': 'm1', 'artifact': 'manifest', 'sha256': 'b' * 64}
+        self.write(self.wave_path, w)
+        self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'old-review', '--kind', 'review',
+                '--candidate-seq', 1)
+        self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'task-1:run-1', '--kind', 'review')
+        w['candidate'] = dict(w['candidate'], seq=2)
+        self.write(self.wave_path, w)
+        v1 = self.root / 'old/wave.json'
+        v1.parent.mkdir()
+        legacy = wave2('completed')
+        for key in ('revision', 'program_ref', 'candidate', 'envelope', 'actors', 'intents'):
+            legacy.pop(key)
+        legacy.update(schema_version=1)
+        legacy['state']['runtime_refs'] = ['thread-1']
+        self.write(v1, legacy)
+        p = rc_program()
+        p['outcomes'][1].update(status='accepted', depends_on=[], state_ref='old/wave.json')
+        self.write(self.program_path, p)
+        result = self.run_cli('resume', self.program_path)[1]
+        self.assertEqual(sorted(e['id'] for e in result['unapplied_events']), ['old-review', 'task-1:run-1'])
+        actions = ' | '.join(result['actions'])
+        self.assertIn('event task-1:run-1 (event:review) for waves/a/wave.json was received but never applied', actions)
+        self.assertIn(f'record it as stale with event {self.wave_path.resolve()} --actor <owner> --id old-review '
+                      '--kind review', actions)
+        self.assertNotIn('migrate', actions)
 
 
 class Windows(Campaign):

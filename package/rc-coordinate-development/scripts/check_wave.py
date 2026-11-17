@@ -45,6 +45,27 @@ def local_path(value):
     return True
 
 
+def got(value, present=True, items=False):
+    """Short description of a received value; items=True names the first non-text item of a list."""
+    if not present:
+        return 'missing'
+    if value is None:
+        return 'null'
+    if isinstance(value, bool):
+        return 'bool'
+    if isinstance(value, str):
+        return 'str' if value.strip() else 'empty str'
+    if isinstance(value, list):
+        bad = next((i for i, item in enumerate(value) if not text(item)), None) if items else None
+        return 'list' if bad is None else f'list with {got(value[bad])} at [{bad}]'
+    return {dict: 'object', int: 'int', float: 'float'}.get(type(value), type(value).__name__)
+
+
+def shown(value):
+    """A received text value quoted, any other value by its type."""
+    return repr(value) if isinstance(value, str) and value.strip() else got(value)
+
+
 def cyclic_groups(graph):
     """Return cyclic strongly connected groups, without deciding a business order."""
     seen, order = set(), []
@@ -165,9 +186,11 @@ def validate(doc, directory=None, check_paths=None):
                 f'{identifier}: missing fields')
         require(text(socle.get('outcome')), f'{identifier}: outcome must be nonempty text')
         readiness = socle.get('readiness')
-        require(isinstance(readiness, str) and readiness in {'ready', 'partial', 'blocked'}, f'{identifier}: invalid readiness')
+        require(isinstance(readiness, str) and readiness in {'ready', 'partial', 'blocked'},
+                f'{identifier}: invalid readiness: expected one of blocked, partial, ready, got {shown(readiness)}')
         for field in ('resources', 'source_refs'):
-            require(isinstance(socle.get(field), list), f'{identifier}: {field} must be a list')
+            require(isinstance(socle.get(field), list),
+                    f'{identifier}: {field} must be a list, got {got(socle.get(field), field in socle)}')
         if readiness == 'partial':
             require(text(socle.get('ready_scope')) and text(socle.get('blocked_scope')),
                     f'{identifier}: partial requires ready_scope and blocked_scope')
@@ -246,7 +269,7 @@ def validate(doc, directory=None, check_paths=None):
         require(state.get('blockers') == [], 'launch_ready requires no blockers')
         admitted = [by_id[identifier] for identifier in seen if identifier in by_id]
         require(any(s.get('readiness') in ('ready', 'partial') for s in admitted),
-                'launch_ready requires an executable admitted scope (ready or scoped partial)')
+                'launch_ready requires an executable admitted scope: a socle listed in batches, ready or scoped partial')
         if 'supervisor' in artifacts:
             require('supervisor' in consumed, 'launch_ready requires consumed declared supervisor')
         for socle in admitted:
@@ -276,7 +299,7 @@ def validate(doc, directory=None, check_paths=None):
             require(False, 'invalid wave directory: ' + str(exc))
     for name, relative in artifacts.items():
         safe = local_path(relative)
-        require(safe, f'{name}: local relative artifact path required (no escape)')
+        require(safe, f'{name}: local relative artifact path required (no escape), got {shown(relative)}')
         if not safe or root is None:
             continue
         try:
