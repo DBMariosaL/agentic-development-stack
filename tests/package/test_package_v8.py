@@ -377,7 +377,9 @@ class VendoredScriptTests(Base):
 
     def test_french_rubrics_recognized(self):
         """Chaque détecteur de rubrique manquante des trois prompt_lint.py lit la rubrique dans un
-        mandat français : présente, aucun avertissement ; retirée, l'avertissement revient."""
+        mandat français, sous chacun des titres relevés dans les mandats de la campagne : présente, aucun
+        avertissement ; retirée, l'avertissement revient ; un mot courant réservé aux titres ne compte pas
+        dans une phrase."""
         sections = {
             'task': '## Résultat attendu\n\nAjoute une commande de lecture au journal.\n',
             'scope': '## Domaine\n\nÀ toi : journal/cli.py. Hors domaine : tout autre fichier.\n',
@@ -386,6 +388,29 @@ class VendoredScriptTests(Base):
             'stop': '## Remontées\n\nRemonte une décision que ce texte ne tranche pas, sans t\'arrêter sur le reste.\n',
             'done': '## Terminé quand\n\nLa suite est verte sur le dernier commit.\n',
         }
+        body = '\n\nLe texte de la rubrique.\n'
+        variants = {
+            'task': [t + body for t in ('## Résultat', '## Résultat demandé', '## Objet de la revue', '## Besoin',
+                                        '## Livrables', '## Exigences', '## Défaut à corriger', '# Revue globale',
+                                        '## Ce qui est demandé', '## Portée de ce tour')]
+            + ['Résultat demandé : un rapport court.\n'],
+            'done': [t + body for t in ('## Fini quand', "## Critères d'acceptation", '## Fin et remise')],
+            'scope': [t + body for t in ('## Domaine et effets permis', '## Limites', '## Portée de ce tour',
+                                         '## Ce qui ne change pas')]
+            + ['Tu es en lecture seule.\n', 'Hors de ton lot : tout le reste.\n',
+               "Tu n'écris que dans ta copie.\n", 'Ta copie, la seule où tu écris.\n'],
+            'stop': [t + body for t in ('## Ce que tu décides seul, ce qui remonte', '## Ce que tu décides seul',
+                                        '## Autonomie et simplicité')]
+            + ['Remonte dans ta remise tout besoin hors du lot.\n', 'Livre sans y toucher et dis-le dans ta remise.\n'],
+            'permissions': [t + body for t in ('## Effets permis',)]
+            + ['Tu es en lecture seule.\n', "Tu n'écris que sous ta copie.\n", 'Aucun accès réseau, aucun push.\n',
+               'Ni réseau ni push.\n'],
+            'delegation': ['Tu ne lances aucun sous-agent.\n', 'Tu ne lances aucun acteur ni sous-agent.\n'],
+        }
+        prose = {'task': "Le résultat et l'objet de ce besoin sont décrits ailleurs.\n",
+                 'done': 'La fin du lot approche.\n',
+                 'scope': 'Les limites et la portée du lot sont connues.\n',
+                 'stop': 'Ton autonomie est large.\n'}
         context = ('# Mandat\n\nTu es l\'agent champion du lot, travail long-running, dans le shell. Tu peux modifier '
                    'les fichiers ; chaque étape finit par un commit. Le pilote répartit le travail entre les '
                    'subagents de la vague.\n\n' + ' '.join(f'mot{i}' for i in range(400)) + '\n\n')
@@ -402,9 +427,9 @@ class VendoredScriptTests(Base):
             ('claude-fable', 'generic_missing_permission_boundary', 'permissions'),
             ('claude-fable', 'generic_missing_delegation_contract', 'delegation'))
 
-        def codes(script, without=None):
-            path = self.dir / f'mandat-{script}-{without}.md'
-            path.write_text(context + ''.join(v for k, v in sections.items() if k != without), encoding='utf-8')
+        def codes(script, rubric=None, text=''):
+            path = self.dir / f'mandat-{script}.md'
+            path.write_text(context + ''.join(text if k == rubric else v for k, v in sections.items()), encoding='utf-8')
             proc = subprocess.run([sys.executable, '-I', '-X', 'utf8', '-B',
                                    str(PACKAGE / f'{script}-prompt-optimizer/scripts/prompt_lint.py'),
                                    str(path), '--format', 'json'],
@@ -413,9 +438,14 @@ class VendoredScriptTests(Base):
             return {w['code'] for w in json.loads(proc.stdout)['warnings']}
 
         for script, code, rubric in rows:
-            with self.subTest(script=script, code=code):
-                self.assertNotIn(code, codes(script))
+            for text in [sections[rubric]] + variants[rubric]:
+                with self.subTest(script=script, code=code, text=text):
+                    self.assertNotIn(code, codes(script, rubric, text))
+            with self.subTest(script=script, code=code, text=None):
                 self.assertIn(code, codes(script, rubric))
+            if rubric in prose:
+                with self.subTest(script=script, code=code, text=prose[rubric]):
+                    self.assertIn(code, codes(script, rubric, prose[rubric]))
 
     def test_scripts_synthetic_inputs(self):
         (self.dir / 'p.txt').write_text('You are a helpful assistant. Think step by step.\n', encoding='utf-8')
