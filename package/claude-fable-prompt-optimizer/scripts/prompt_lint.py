@@ -206,7 +206,7 @@ SECTION_PATTERNS = {
     "output": re.compile(r"\b(output|format|schema|structure|deliverable|return|sortie|livrable)\b", re.I),
     "reason": re.compile(r"\b(because|so that|why this matters|this enables|in order to|the reason)\b", re.I),
     "verification": re.compile(r"\b(verify|verification|validate|validation|check|audit|controle)\b", re.I),
-    "done": re.compile(r"\b(done when|done criteria|definition of done|complete only when|termine)\b", re.I),
+    "done": re.compile(r"\b(done when|done criteria|definition of done|complete only when|termin[eé]e?)\b", re.I),
     "tools": re.compile(
         r"\b(tools?|outils?|function calls?|mcp|connectors?|web search|bash|shell|"
         r"computer use|browser|subagents?)\b",
@@ -218,7 +218,7 @@ SECTION_PATTERNS = {
     "recovery": re.compile(
         r"\b(retry|fallback|empty|incomplete|partial|conflict|stale|malformed|failure|erreur)\b", re.I
     ),
-    "scope": re.compile(r"\b(in scope|out of scope|scope|do not (?:add|refactor|extend)|follow-up)\b", re.I),
+    "scope": re.compile(r"\b(in scope|out of scope|scope|do not (?:add|refactor|extend)|follow-up|domaine|p[eé]rim[eè]tre)\b", re.I),
 }
 
 SIDE_EFFECT_VERBS = re.compile(
@@ -229,7 +229,8 @@ SIDE_EFFECT_VERBS = re.compile(
 
 AUTONOMY_MARKER = re.compile(
     r"\b(operating autonomously|user is not watching|without asking|end your turn only when|"
-    r"proceed without asking|finishing work|avoid stopping while you still owe|do not stop unless needed)\b",
+    r"proceed without asking|finishing work|avoid stopping while you still owe|do not stop unless needed|"
+    r"sans (?:t|vous )?.?arr[eê]ter|sans demander|va au bout)\b",
     re.I,
 )
 
