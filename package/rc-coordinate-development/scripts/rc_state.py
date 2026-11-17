@@ -101,10 +101,18 @@ def documentary_only(doc):
     if not launch_authorized(doc):
         return 'without launch authorization (mode prepare or authorization.launch=false)'
     state = doc.get('state') if isinstance(doc.get('state'), dict) else {}
-    phase = sval(state, 'phase')
-    if phase in PRE_LAUNCH_PHASES or (phase in WAITLIKE and wait_origin(state) == 'preparing'):
-        return f'not launched yet (phase {phase})'
+    if before_launch(state):
+        return f'not launched yet (phase {sval(state, "phase")})'
     return ''
+
+
+def before_launch(state):
+    """True while the wave has not entered launched: a pre-launch phase, or a wait whose origin is one or null
+    (entered from planning, or migrated). The origin is written only by the transition that opens the wait."""
+    phase = sval(state, 'phase')
+    if phase in WAITLIKE:
+        phase = wait_origin(state)
+    return phase is None or phase in PRE_LAUNCH_PHASES
 
 
 def migrated_legacy(doc, actor):
@@ -774,19 +782,22 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
             hint = ('; a wait entered from planning keeps waiting.from=null and resumes to preparing'
                     if po in WAITLIKE and pn == 'planning' else '')
             errors.append(f'transition {po} -> {pn} not allowed{hint}')
-        elif pn == 'launched' and nstate.get('launch_ready') is not True and (
-                po == 'ready' or (po in WAITLIKE and wait_origin(ostate) is None)):
+        elif pn == 'launched' and po == 'ready' and nstate.get('launch_ready') is not True:
             errors.append('entering launched requires state.launch_ready=true, set by the owner after checking the launch context')
+        # The origin of a wait is the active phase it leaves (null from planning), recorded when the wait opens and
+        # never changed while waiting; the only active exit is that origin, or preparing for a null origin.
         origin = wait_origin(ostate) if po in WAITLIKE else None
         if po not in WAITLIKE and pn in WAITLIKE:
             entered = wait_origin(nstate)
             expected = po if po in ACTIVE_FROM_WAIT else None
             if entered != expected:
                 errors.append(f'entering {pn} from {po} requires waiting.from={expected}, not {entered}')
-        if po in WAITLIKE and pn in WAITLIKE and origin is not None and wait_origin(nstate) != origin:
+        if po in WAITLIKE and pn in WAITLIKE and wait_origin(nstate) != origin:
             errors.append(f'waiting origin {origin} cannot be changed while waiting')
-        if po in WAITLIKE and pn in ACTIVE_FROM_WAIT and origin is not None and origin != pn:
-            errors.append(f'wait was entered from {origin}; resume to {origin}, not {pn}')
+        if po in WAITLIKE and pn in ACTIVE_FROM_WAIT and pn != (origin or 'preparing'):
+            errors.append(f'wait was entered from {origin}; resume to {origin}, not {pn}' if origin else
+                          f'wait was entered before launch (waiting.from=null); resume to preparing, not {pn}: the wave '
+                          'enters launched only from ready, with state.launch_ready=true')
         if old.get('program_ref') is not None and new.get('program_ref') != old.get('program_ref'):
             errors.append('program_ref is immutable once set')
         oi = {i['correlation']: i for i in _items(old.get('intents')) if text(i.get('correlation'))}

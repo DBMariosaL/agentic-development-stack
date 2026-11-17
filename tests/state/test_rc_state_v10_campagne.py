@@ -196,11 +196,12 @@ class PrepareMode(Campaign):
                     'target': 'B'}
         wait = {'kind': 'quota', 'detail': 'rate limit', 'trigger': 'capacity', 'resume': 'resume'}
         for phase, origin, valid in (('ready', None, False), ('waiting_quota', 'preparing', False),
+                                     ('waiting_quota', None, False),
                                      ('launched', None, True), ('waiting_quota', 'launched', True)):
             with self.subTest(phase=phase, origin=origin):
                 w = wave2(phase)
                 w['actors'] = [champion]
-                if origin:
+                if phase in rc.WAITLIKE:
                     w['state']['waiting'] = dict(wait, **{'from': origin})
                 self.write(self.wave_path, w)
                 code, result = self.run_cli('check', self.wave_path)
@@ -453,16 +454,31 @@ class Phases(Campaign):
                      '--to', 'planning')
         self.ok('transition', wave, '--actor', OWNER, '--expect-revision', 1, '--to', 'preparing')
 
-    def test_wait_without_origin_cannot_resume_to_launched_unarmed(self):
-        w = wave2('planning')
-        w['state']['launch_ready'] = False
-        self.write(self.wave_path, w)
-        self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--to', 'blocked',
-                '--waiting-kind', 'dependency', '--detail', 'input missing', '--trigger', 'input delivered',
-                '--resume', 'prepare')
-        self.refused('launch_ready', 'transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1,
-                     '--to', 'launched')
-        self.assertEqual(self.doc(self.wave_path)['state']['phase'], 'blocked')
+    def test_wave_never_launched_reaches_no_product_phase_nor_champion(self):
+        """R13-01, R13-02, R07-01 to R07-03, R01-01 to R01-03, R02-02, R02-03, R03-01, R03-02."""
+        wait = {'kind': 'quota', 'detail': 'rate limit', 'trigger': 'capacity', 'resume': 'resume'}
+        champion = ('intent', self.wave_path, 'resolve', '--actor', OWNER, '--expect-revision', 1,
+                    '--correlation', 'l1', '--status', 'confirmed', '--result-ref', 'task-1', '--role', 'champion')
+        cases = (('transition to integrating', 'resume to preparing, not integrating',
+                  ('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--to', 'integrating')),
+                 ('transition to launched', 'resume to preparing, not launched',
+                  ('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--to', 'launched')),
+                 ('origin rewritten', 'waiting origin None cannot be changed', ('write', self.wave_path, '--actor',
+                  OWNER, '--expect-revision', 1, '--ops', json.dumps([{'op': 'set', 'path': 'state.waiting',
+                                                                      'value': dict(wait, **{'from': 'launched'})}]))),
+                 ('champion confirmed', 'in a wave not launched yet (phase blocked)', champion))
+        for label, fragment, argv in cases:
+            with self.subTest(label):
+                w = wave2('blocked')
+                w['state']['waiting'] = dict(wait, **{'from': None})
+                w['intents'] = [{'correlation': 'l1', 'op': 'launch', 'target': 'A', 'status': 'pending',
+                                 'result_ref': None}]
+                w['revision'] = 1
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                self.refused(fragment, *argv)
+                self.assertEqual(self.doc(self.wave_path)['revision'], 1)
+        self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--to', 'preparing')
 
 
 class Help(Campaign):
