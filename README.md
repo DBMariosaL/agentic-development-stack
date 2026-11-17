@@ -40,7 +40,7 @@ Python 3.10 ou ultérieur, bibliothèque standard uniquement. La validation de r
 python -B tools/check.py
 ```
 
-La commande vérifie les empreintes du paquet et de la provenance et le budget de lecture du pilote, lance les suites d'état, de mise à jour (historique v7, distribution à sept skills, mises à jour réelles depuis la v8, la v9, la v9.1, la v9.1.1 et la v9.1.2), de paquet et d'empreinte, puis la validation structurelle. Elle écrit dans un nouveau dossier `.local/` un `summary.json` : identité du candidat, empreintes des entrées, commandes, collectes, skips et journaux. Une étape ne passe que si sa collecte correspond au nombre déclaré, sans échec ni skip non déclaré ; un code de sortie nul ne suffit pas. Elle utilise des fichiers synthétiques et des profils factices, sans réseau ; elle n'installe aucun skill dans les profils actifs.
+La commande vérifie les empreintes du paquet et de la provenance et le budget de lecture du pilote, lance les suites d'état, de mise à jour (historique v7, distribution à sept skills, mises à jour réelles depuis la v8, la v9, la v9.1, la v9.1.1 et la v9.1.2), de paquet et d'empreinte, puis la validation structurelle. Les étapes tournent en mode isolé sur une copie vérifiée des fichiers que liste la provenance. Elle écrit dans un nouveau dossier `.local/` un `summary.json` : identité du candidat, empreintes des entrées, commandes, collectes, skips et journaux. Une étape ne passe que si sa collecte correspond au nombre déclaré, sans échec ni skip non déclaré ; un code de sortie nul ne suffit pas. Elle utilise des fichiers synthétiques et des profils factices, sans réseau ; elle n'installe aucun skill dans les profils actifs.
 
 ## Installation et usage
 

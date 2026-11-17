@@ -580,7 +580,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/check.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
-      "sha256": "bec5dcc604f460ecdd1d1f385a190676314d3736a7b430b444e722d7e946a4c7",
+      "sha256": "29537a3ee23f0fb30f99db28738e2841d548ed7fb3950fa04f04fee175a2a5d2",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/check.py",
@@ -612,7 +612,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/package/test_package_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
-      "sha256": "0746de65367e2a851ff8070c78bd417ec889b8037d0c6855244ffd371bb34d0b",
+      "sha256": "a765ca495928ed2c1eb2b45241f1e4a446d45d4413044a96610a40ec589329a2",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/package/test_package_v8.py",
@@ -1666,7 +1666,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "README.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "61d499802761a72e9273a2a894efe0ba6b08c80100d3561771a6bdc4c7acc355",
-      "sha256": "068d457258dc3b7d0d22894b43bdb3199e46e70ce8e59f09262c73cba7be4fce",
+      "sha256": "33e9d5645c508da5d3b1539566e97f7a9a446d5f03ad212ce0ccb8f10ea4859d",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "README.md",
@@ -1778,7 +1778,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/qualification.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": null,
-      "sha256": "d79a43f4d86ba881c7e1fb8cf1ef61554813de835ff6d257e11592d8e2e03b86",
+      "sha256": "94c12a1207776253ef6e814805e0f131e5a11df0bebf178fb564ed22dd76834f",
       "adaptation": "v10 edit"
     },
     {
