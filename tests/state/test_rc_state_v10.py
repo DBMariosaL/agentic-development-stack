@@ -7,7 +7,8 @@ import unittest
 from test_rc_state import OWNER, Base, rc
 
 EVENT = 'task-9:run1'
-DONE = json.dumps([{'op': 'update', 'path': 'actors', 'match': {'correlation': 'r1'}, 'value': {'status': 'completed'}}])
+DONE = json.dumps([{'op': 'update', 'path': 'actors', 'match': {'correlation': 'r1'},
+                    'value': {'status': 'completed', 'evidence': 'review report reviews/r1.md, signal task-9:run1'}}])
 
 
 class ShortReturn(Base):

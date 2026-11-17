@@ -362,25 +362,39 @@ class Resources(Campaign):
 
 
 class ActorEvidence(Campaign):
-    def test_R03_05_actor_requalification_needs_new_evidence(self):
-        self.ok('intent', self.wave_path, 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'l1',
-                '--op', 'launch', '--target', 'champion-A')
-        self.ok('intent', self.wave_path, 'resolve', '--actor', OWNER, '--expect-revision', 1, '--correlation', 'l1',
-                '--status', 'confirmed', '--result-ref', 'task-1', '--role', 'champion')
-
-        def requalify(rev, value):
-            return self.ops(self.wave_path, rev, [{'op': 'update', 'path': 'actors', 'match': {'correlation': 'l1'},
-                                                   'value': value}])
-
-        code, result = requalify(2, {'status': 'completed'})
-        self.assertEqual(code, 1, result)
-        self.assertIn('actor l1: running -> completed needs its evidence', result['error'])
-        self.assertEqual(requalify(2, {'status': 'waiting', 'evidence': 'task_status=waiting'})[0], 0)
-        code, result = requalify(3, {'status': 'completed'})
-        self.assertEqual(code, 1, result)
-        self.assertIn('needs its evidence', result['error'])
-        self.assertEqual(requalify(3, {'status': 'completed', 'evidence': 'delivered report r.md'})[0], 0)
-        self.assertEqual(self.doc(self.wave_path)['actors'][0]['status'], 'completed')
+    def test_R03_05_actor_requalification_needs_its_own_new_evidence(self):
+        """R03-05; v10.2 review round 3, A3-01 (evidence found elsewhere) and A3-02 (an applied event exempted)."""
+        actor_b = {'role': 'reviewer', 'model': None, 'ref': 'thread-B', 'correlation': 'b1', 'status': 'completed',
+                   'target': 'B', 'evidence': 'B returned report b.md'}
+        update = 'actors', {'correlation': 'l1'}
+        cases = (('no evidence', {'status': 'completed'}, ()),
+                 ('copied from another actor', {'status': 'completed', 'evidence': 'B returned report b.md'}, ()),
+                 ('carried by an intent', {'status': 'completed', 'evidence': 'message m1 delivered'}, ()),
+                 ('own earlier evidence', {'status': 'completed', 'evidence': 'started on task-1'}, ()),
+                 ('applied event instead', {'status': 'completed'}, ('--applies-event', 'thread-B/run-2')),
+                 ('shared with another actor of the write', {'status': 'completed', 'evidence': 'one proof'}, ()),
+                 ('new', {'status': 'completed', 'evidence': 'delivered report r.md'}, None))
+        for label, value, extra in cases:
+            with self.subTest(label):
+                w = wave2()
+                w['actors'] = [actor_b, {'role': 'champion', 'model': None, 'ref': 'task-1', 'correlation': 'l1',
+                                         'status': 'running', 'target': 'A', 'evidence': 'started on task-1'}]
+                w['intents'] = [{'correlation': 'm1', 'op': 'send', 'target': 'B', 'status': 'confirmed',
+                                 'result_ref': None, 'evidence': 'message m1 delivered'}]
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'thread-B/run-2', '--kind', 'completed')
+                ops = [{'op': 'update', 'path': update[0], 'match': update[1], 'value': value}]
+                if label.startswith('shared'):
+                    ops.insert(0, {'op': 'update', 'path': 'actors', 'match': {'correlation': 'b1'},
+                                   'value': {'status': 'interrupted', 'evidence': 'one proof'}})
+                argv = ('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops', json.dumps(ops),
+                        *(extra or ()))
+                if extra is None:
+                    self.ok(*argv)
+                else:
+                    self.refused('actor l1: running -> completed needs its own new evidence', *argv)
+                    self.assertEqual(self.doc(self.wave_path)['revision'], 0)
 
 
 class Journal(Campaign):
@@ -880,7 +894,7 @@ class Successor(Campaign):
                  'value': {'status': 'completed', 'evidence': 'returned'}}]
         for op, actors, ops, fragment in (
                 ('launch', [], [{'op': 'set', 'path': 'actors', 'value': []}], 'actor k1 removed'),
-                ('send', [done], undo, 'actor l1: running -> completed needs its evidence')):
+                ('send', [done], undo, 'actor l1: running -> completed needs its own new evidence')):
             with self.subTest(op=op):
                 w = wave2()
                 w.update(actors=actors, intents=[{'correlation': 'k1', 'op': op, 'target': 'A',
