@@ -42,7 +42,7 @@ TRANSITIONS = {
 }
 TRANSITIONS['integrating'] = (TRANSITIONS['launched'] - {'integrating'}) | {'launched'}
 for _active in ('planning', 'preparing', 'ready', 'launched', 'integrating'):
-    TRANSITIONS[_active] |= WAITLIKE  # any active phase can wait; the wait records it as its origin
+    TRANSITIONS[_active] |= WAITLIKE
 for _wait in WAITLIKE:
     TRANSITIONS[_wait] = (ACTIVE_FROM_WAIT | WAITLIKE | {'failed', 'stopped'}) - {_wait}
 ACTOR_STATUSES = {'running', 'waiting', 'completed', 'failed', 'cancelled', 'interrupted', 'unknown'}
@@ -305,7 +305,6 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
     state = doc.get('state') if isinstance(doc.get('state'), dict) else {}
     phase = sval(state, 'phase')
     require(member(phase, WAVE_V2_PHASES), 'invalid phase')
-    # A closed wave is an archive: the documents it consumed and reviewed may evolve; its frozen candidate may not.
     live_files = check_paths and phase not in TERMINAL_PHASES
     actors = _items(doc.get('actors'))
     # Shared v1 field rules: project v2 onto the frozen v1 validator.
@@ -319,9 +318,9 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
         elif phase in {'failed', 'stopped'}:
             pstate['phase'] = 'blocked'
         if phase in WAITLIKE and not before_launch(state):
-            pstate['phase'] = 'launched'  # a wait after launch stays operational: mode, source, scope, owner
+            pstate['phase'] = 'launched'
         if pstate.get('launch_ready') is True and not before_launch(state):
-            pstate['launch_ready'] = False  # launched: the launch conditions were checked at the entry, not again
+            pstate['launch_ready'] = False
     details = _v1_details(projected)
     for message in v1.validate(projected, directory, check_paths=live_files):
         replacement = details.get(message)
@@ -410,7 +409,7 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
     for index, review in enumerate(doc.get('reviews') if isinstance(doc.get('reviews'), list) else []):
         if not isinstance(review, dict):
             continue
-        seq = review.get('candidate_seq')  # null (documentary review) is the same as absent
+        seq = review.get('candidate_seq')
         top = cand['seq'] if cand_ok and isinstance(cand, dict) else 0
         require(seq is None or (type(seq) is int and 1 <= seq <= top),
                 f'reviews[{index}].candidate_seq: expected null or the seq of a frozen candidate (1 to {top}), got '
@@ -467,7 +466,7 @@ def ready_view(doc):
         unmet = [dep for dep in deps if by_id.get(dep, {}).get('status') != 'accepted']
         if o.get('waiting_on'):
             waiting[o['id']] = o['waiting_on'].get('kind') if isinstance(o['waiting_on'], dict) else 'invalid'
-        elif status == 'pending' and unmet:  # every open outcome is listed with what it waits for
+        elif status == 'pending' and unmet:
             waiting[o['id']] = 'depends_on ' + ', '.join(unmet)
         if status == 'pending' and not o.get('waiting_on') and o['id'] not in suspended and not unmet:
             ready.append(o['id'])
@@ -819,7 +818,7 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
     if k == 'wave2':
         ostate, nstate = old.get('state') or {}, new.get('state') or {}
         po, pn = sval(ostate, 'phase'), sval(nstate, 'phase')
-        if po in TERMINAL_PHASES and not owner_change:  # claim, which only changes the owner, stays open
+        if po in TERMINAL_PHASES and not owner_change:
             errors.append(f'wave is terminal ({po}); record late signals with event, start a new wave to resume')
         elif pn != po and pn not in TRANSITIONS.get(po, set()):
             hint = ('; a wait entered from planning keeps waiting.from=null and resumes to preparing'
@@ -830,8 +829,6 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
         if not before_launch(ostate) and nstate.get('launch_ready') != ostate.get('launch_ready'):
             errors.append('state.launch_ready only guards the entry into launched: it no longer changes once the wave '
                           'is launched')
-        # The origin of a wait is the active phase it leaves (null from planning), recorded when the wait opens and
-        # never changed while waiting; the only active exit is that origin, or preparing for a null origin.
         origin = wait_origin(ostate) if po in WAITLIKE else None
         if po not in WAITLIKE and pn in WAITLIKE:
             entered = wait_origin(nstate)
@@ -867,7 +864,7 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
                               'give the actor a new "evidence" (task status read, delivered signal, file) or apply '
                               'the signal that proves it with --applies-event')
         where = documentary_only(new)
-        for corr, actor in sorted(na.items()):  # the role rule is judged on the resulting state, requalification included
+        for corr, actor in sorted(na.items()):
             role = actor.get('role')
             if where and not documentary_role(role) and (corr not in oa or oa[corr].get('role') != role):
                 errors.append(f'actor {corr}: role {role!r} refused in a wave {where}: only a documentary '
@@ -1016,7 +1013,7 @@ def append_journal(jpath, entry):
     """Append one line to a journal that is a regular, singly-linked file (created exclusively if absent)."""
     jpath = Path(jpath)
     problem = entry_problem(entry)
-    if problem:  # never write a line that read_journal would declare damaged
+    if problem:
         raise StateError(f'journal entry refused before writing: it {problem}')
     check_ancestors(jpath)
     line = (json.dumps(entry, ensure_ascii=False, sort_keys=True, allow_nan=False) + '\n').encode('utf-8')
@@ -1141,7 +1138,7 @@ def participating_journals(path, doc):
         for e in read_journal(j):
             if e.get('kind') == 'prepare' and e.get('wave') == wave_identity(path, j):
                 listed = ((path.parent / x).resolve() for x in e.get('journals') or [])
-                found.update(x for x in listed if x.is_file())  # a moved or removed folder holds nothing open
+                found.update(x for x in listed if x.is_file())
     return sorted(found, key=str)
 
 
@@ -1191,7 +1188,7 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
             new['state']['launch_ready'] = False
         errors = validate_any(new, path.parent, check_paths=False, self_path=path)
         inherited = []
-        if owner_change:  # a takeover is refused only for what it changes: inconsistencies already there stay reported
+        if owner_change:
             before = validate_any(old, path.parent, check_paths=False, self_path=path)
             inherited = [e for e in errors if e in before]
             errors = [e for e in errors if e not in before]
@@ -1272,7 +1269,7 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
                                         'action')
         result = {'written': str(path), 'revision': new['revision']}
         if not_carried:
-            result['events_not_carried'] = not_carried  # ids owned by another wave of the program
+            result['events_not_carried'] = not_carried
         if inherited:
             result['consistency_errors'] = inherited
         if reset:
@@ -1329,8 +1326,8 @@ def cmd_resume(args):
     errors = validate_program(doc, program_path.parent, self_path=program_path)
     jpath = program_path.parent / 'journal.jsonl'
     successor = 'a successor first takes the file with claim --takeover --evidence'
-    actions, waves, ops, known = [], [], [], {}  # known: (journal, identity) -> wave group
-    shared = {}  # resolved wave file -> its group: one entry and one set of actions per wave
+    actions, waves, ops, known = [], [], [], {}
+    shared = {}
     for o in _items(doc.get('outcomes')):
         ref = o.get('state_ref')
         if text(ref) and local_path(ref) and (program_path.parent / ref).resolve().is_file():
@@ -1930,7 +1927,7 @@ def resolve_intent(doc, correlation, args):
         doc['actors'].append({'role': args.role or 'unspecified', 'model': args.model, 'ref': args.result_ref,
                               'correlation': correlation, 'status': 'running',
                               'target': intent.get('target'), 'candidate_seq': None, **observed})
-    if args.status == 'confirmed' and intent.get('op') == 'send':  # the actor it reaches is alive again
+    if args.status == 'confirmed' and intent.get('op') == 'send':
         reached = [a for a in _items(doc.get('actors')) if a.get('target') == intent.get('target')]
         if reached and sval(reached[-1], 'status') not in LIVE_ACTOR:
             reached[-1].update(status='running', evidence=f'send {correlation} confirmed: '
@@ -2132,7 +2129,6 @@ def cmd_reconcile(args):
             if expected and args.declare and args.declare != expected:
                 raise StateError(f'{args.op} is {expected} by its bytes or closures; a contrary declaration is refused')
             if expected is None:
-                # Bytes decide for anyone (a successor included); a declaration is the owner's (an init's: its author).
                 try:
                     owner = op.get('actor') if op.get('op_kind') == 'init' else owner_ref(doc)
                 except MalformedOwner:
