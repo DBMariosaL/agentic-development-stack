@@ -140,7 +140,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/scripts/rc_state.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b9057d7c0d1968d7588d08a9ec178532a0a87ede7df54d4c897d1ab8a0cfa4e5",
-      "sha256": "789871fbd486a2e670bc42bab3c5ece4089cd27f4615f8bb8cf3c5e6500c0efe",
+      "sha256": "5a8bc0034468c14af698952539a0734f7b6fd756ba4904ecb14222ca6668d58b",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/scripts/rc_state.py",
@@ -228,7 +228,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "7cb43a480f537d471eee796d3af1b15a24c1a88b4ad3cd5e3634227582b1325b",
+      "sha256": "a2e38d3af8d25a282f8af3a664d156010bf18687ee1283829e53f608a2960ac0",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -268,7 +268,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/validate_package.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "1ca84e30385bd92bdbf93def03a98ec39e37131776c352617e8bc042a816d473",
-      "sha256": "304c6310e1eac50c097afee286f631b066a5d75e9ae21b09fecea915d4bc6bbc",
+      "sha256": "d0f092d6383561693790c5c69b508e9394eff36c13bda569cd06c4ea0a86009c",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/validate_package.py",
@@ -372,7 +372,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/state/test_rc_state_revue2.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "0bded146b0e4715e2ff00d55453e05044e23a43d104e3e469ea4d9c62d0ab9b6",
-      "sha256": "8f07fbb52b20be656175fb516a7f468a4e775f8cfd2612ffb65278ea7c81c1f0",
+      "sha256": "c2aa13852457181bfd0a22f7b8b1851c330f4c54001021b7e52ebc432e5305e4",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/state/test_rc_state_revue2.py",
@@ -580,7 +580,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/check.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
-      "sha256": "1d2f43b9974ec01cb2e8bd101d01757ee8353b5dcd1c2288c05a9ec4e2504cb8",
+      "sha256": "646b4e659ccd353d798895f7e1cc62cb6bdc5f60de18a19a36cd68403ee18705",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/check.py",
@@ -612,7 +612,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/package/test_package_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
-      "sha256": "4c3a4cb608acfe9f2f6476518cbcd1569df64fceea9be85dfb4bd07b06aa1aaa",
+      "sha256": "e4d72b22f72d296ff0434abb9ccee4d1f8ea2e3f53c535f749f65cf522ff9489",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/package/test_package_v8.py",
@@ -1306,7 +1306,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/engine.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "897f82d2b8b0f6b25fc25c3fb46ef4de77f275c9a9f0cd1a7cca05ba1ee1390c",
-      "sha256": "6f603c63251dbcf70ad023f246d91747c0421d9adb26d9a5e1739d91b9d14ee9",
+      "sha256": "2c86ae5c60db1504b81c5cec7d3e0a93d974fd7fed172041d8af2dfae25f0c9f",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/engine.md",
@@ -1698,7 +1698,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/dependencies.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "d48c1c4bc2c60b9615085bbd9ccb0c5d3cc67954ae9693e94228ce1fbced4c3b",
-      "sha256": "66bf79608ef5deedaf9804ed8551474830478d08f1d9bb152b9f388887f83d34",
+      "sha256": "bb668723a0eeff0073b9601b121dbe77752fd4179753cbd756b64f3fa2033379",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "docs/dependencies.md",
@@ -1746,7 +1746,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "bd10120d60508a4e9c0fbcb054386b32c939cc23049649903fab95e17872aa71",
+      "sha256": "ebdb5a035fd5a180b11c9585312cf1fb4ac2e4190ff356baa4d75e73d177c7b6",
       "adaptation": "v10 creation"
     },
     {
@@ -1849,9 +1849,9 @@
       "path": "package/claude-fable-prompt-optimizer/references/orchestration-and-handoffs.md",
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
-      "bytes": 11597,
+      "bytes": 11603,
       "source_sha256": null,
-      "sha256": "3d2cc175515308f31b62589f16fc7763bee91a84a6253096542e46a315c2d298",
+      "sha256": "f8b3baffc20fe8aa40d9f37d587d348a9393f76ace86db4e51dc1ee266848378",
       "adaptation": "v10 creation"
     },
     {

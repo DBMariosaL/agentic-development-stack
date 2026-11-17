@@ -79,8 +79,8 @@
     },
     {
       "path": "claude-fable-prompt-optimizer/references/orchestration-and-handoffs.md",
-      "sha256": "3d2cc175515308f31b62589f16fc7763bee91a84a6253096542e46a315c2d298",
-      "bytes": 11597
+      "sha256": "f8b3baffc20fe8aa40d9f37d587d348a9393f76ace86db4e51dc1ee266848378",
+      "bytes": 11603
     },
     {
       "path": "claude-fable-prompt-optimizer/references/prompt-patterns.md",
@@ -264,8 +264,8 @@
     },
     {
       "path": "rc-coordinate-development/references/engine.md",
-      "sha256": "6f603c63251dbcf70ad023f246d91747c0421d9adb26d9a5e1739d91b9d14ee9",
-      "bytes": 21663
+      "sha256": "2c86ae5c60db1504b81c5cec7d3e0a93d974fd7fed172041d8af2dfae25f0c9f",
+      "bytes": 21883
     },
     {
       "path": "rc-coordinate-development/references/garden.md",
@@ -314,8 +314,8 @@
     },
     {
       "path": "rc-coordinate-development/scripts/rc_state.py",
-      "sha256": "789871fbd486a2e670bc42bab3c5ece4089cd27f4615f8bb8cf3c5e6500c0efe",
-      "bytes": 137010
+      "sha256": "5a8bc0034468c14af698952539a0734f7b6fd756ba4904ecb14222ca6668d58b",
+      "bytes": 137654
     },
     {
       "path": "rc-prepare-socle-prompts/SKILL.md",
@@ -363,5 +363,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "667d13db5e0fab79ff528b746542b9c0d2b07cce46bc450b7eefd9d508a4c7eb"
+  "digest": "fe1f6049df4abd02aa0226c6bd5666faf4062e6c3a1422acb8fe21958665693b"
 }

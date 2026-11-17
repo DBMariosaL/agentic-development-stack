@@ -30,7 +30,8 @@ folder; give an absolute folder outside the clone), so a deep clone path cannot 
 in summary.json and runs no step. Only empty fixture
 roots are removed.
 Every step runs under python -I -B -X pycache_prefix=<fresh folder>; the collector refuses
-to run outside isolated mode.
+to run outside isolated mode. Steps get no inherited PYTHON* variable, so the processes a
+test starts are isolated from PYTHONPATH too.
 Nothing is installed in an active profile and no network access is used.
 """
 import datetime
@@ -46,7 +47,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 227, 'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 34, 'footprint': 16}
+EXPECTED = {'state': 228, 'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 34, 'footprint': 16}
 READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
 READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.
@@ -67,7 +68,7 @@ NON_NT_SKIPS = {
 # Deepest synthetic profile path observed below a fixture root, plus margin (characters).
 FIXTURE_DEPTH_MARGIN = 175
 ENV_KEYS = ('RC_STATE_PACKAGE', 'RC_UPDATE_LOT', 'RC_UPDATE_PREVIOUS', 'RC_UPDATE_CANDIDATE',
-            'RC_UPDATE_MODULE', 'RC_UPDATE_FIXTURES', 'RC_UPDATE_FROM', 'RC_PACKAGE_FIXTURES')
+            'RC_UPDATE_MODULE', 'RC_UPDATE_FIXTURES', 'RC_UPDATE_FROM', 'RC_PACKAGE_FIXTURES', 'PYTHONPATH')
 
 
 def sha(data):
@@ -255,7 +256,9 @@ def main():
             r.mkdir()
         # Steps run isolated (no PYTHON* variable, no script folder on sys.path) with a fresh cache prefix.
         py = [sys.executable, '-I', '-B', '-X', 'pycache_prefix=' + str(out / 'pycache')]
-        env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8',
+        env = {**{k: v for k, v in os.environ.items() if not k.upper().startswith('PYTHON')},
+               'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8',
+               'PYTHONPYCACHEPREFIX': str(out / 'pycache'),
                'TMP': str(out / 'tmp'), 'TEMP': str(out / 'tmp'),
                'RC_STATE_PACKAGE': str(ROOT / 'package'),
                'RC_UPDATE_LOT': str(ROOT),
