@@ -314,6 +314,8 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
             pstate['phase'] = 'waiting_children'
         elif phase in {'failed', 'stopped'}:
             pstate['phase'] = 'blocked'
+        if phase in WAITLIKE and not before_launch(state):
+            pstate['phase'] = 'launched'  # a wait after launch stays operational: mode, source, scope, owner
         if pstate.get('launch_ready') is True and not before_launch(state):
             pstate['launch_ready'] = False  # launched: the launch conditions were checked at the entry, not again
     details = _v1_details(projected)

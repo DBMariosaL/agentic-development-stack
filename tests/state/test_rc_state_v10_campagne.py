@@ -1,5 +1,6 @@
 """Defects reproduced by the v10 campaign, each checked at command level."""
 import contextlib
+import copy
 import hashlib
 import io
 import json
@@ -510,10 +511,17 @@ class StrictInputs(Campaign):
             ('ops NaN', 'NaN is not JSON', ('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops',
                                              '[{"op":"set","path":"envelope","value":{"reason":"r","max":NaN}}]')),
             ('completed_partial without decision', 'completed_partial requires the unqualified scope named in decisions',
-             ('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--to', 'completed_partial')))
-        for label, fragment, argv in cases:
+             ('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--to', 'completed_partial')),
+            ('scope removed in a wait after launch (R01-10 b)', 'operational state requires a declared authorization.scope',
+             ('write', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--ops',
+              '[{"op":"set","path":"authorization.scope","value":null}]'), 'launched'))
+        for label, fragment, argv, *origin in cases:
             with self.subTest(label):
-                self.write(self.wave_path, w)
+                fixture = copy.deepcopy(w)
+                if origin:  # the same wave, waiting after its launch
+                    fixture['state'].update(phase='waiting_children', waiting={
+                        'kind': 'children', 'detail': 'd', 'trigger': 't', 'resume': 'r', 'from': origin[0]})
+                self.write(self.wave_path, fixture)
                 (self.root / 'journal.jsonl').unlink(missing_ok=True)
                 self.refused(fragment, *argv)
                 self.assertEqual(self.doc(self.wave_path)['revision'], 0)
