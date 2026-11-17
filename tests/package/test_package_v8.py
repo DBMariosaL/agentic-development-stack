@@ -500,6 +500,7 @@ class CheckPreflightTests(Base):
         self.assertEqual(summary['results'][0]['step'], 'state')
         self.assertEqual(summary['results'][0]['tests_run'], 1)
         self.assertNotIn('PYTHONPATH', summary['results'][0]['environment'])
+        self.assertIn('-S', summary['results'][0]['command'])
         log = (out / 'state.txt').read_text(encoding='utf-8')
         self.assertNotIn('PYC FORGE CHARGE', log)
         self.assertNotIn('SITECUSTOMIZE CHARGE', log)

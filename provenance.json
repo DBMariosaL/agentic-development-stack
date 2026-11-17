@@ -580,7 +580,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/check.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
-      "sha256": "646b4e659ccd353d798895f7e1cc62cb6bdc5f60de18a19a36cd68403ee18705",
+      "sha256": "da002d4eaccd0139c11c6819b80418260db11628c78a9224d14a4b2dc9125a74",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/check.py",
@@ -612,7 +612,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/package/test_package_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
-      "sha256": "e4d72b22f72d296ff0434abb9ccee4d1f8ea2e3f53c535f749f65cf522ff9489",
+      "sha256": "b8d07d3a1e069f0ba663272e0d102da735b1abe5849feb8458ad1edde94dc68d",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/package/test_package_v8.py",

@@ -29,9 +29,11 @@ folder; give an absolute folder outside the clone), so a deep clone path cannot 
 260-character limit; a preflight measures the resolved base and refuses one still too long, records the refusal
 in summary.json and runs no step. Only empty fixture
 roots are removed.
-Every step runs under python -I -B -X pycache_prefix=<fresh folder>; the collector refuses
-to run outside isolated mode. Steps get no inherited PYTHON* variable, so the processes a
-test starts are isolated from PYTHONPATH too.
+Every step runs under python -I -S -B -X pycache_prefix=<fresh folder>, so neither the
+environment, nor the script folder, nor site-packages (.pth files, sitecustomize) reach it;
+the collector refuses to run outside isolated mode. Steps get no inherited PYTHON* variable,
+so the processes a test starts are isolated from PYTHONPATH too. The interpreter and its
+standard library are trusted: summary.json records which executable ran.
 Nothing is installed in an active profile and no network access is used.
 """
 import datetime
@@ -254,8 +256,8 @@ def main():
         roots.update({n: base / f'h{i}' for i, n in enumerate(from_steps)})
         for r in roots.values():
             r.mkdir()
-        # Steps run isolated (no PYTHON* variable, no script folder on sys.path) with a fresh cache prefix.
-        py = [sys.executable, '-I', '-B', '-X', 'pycache_prefix=' + str(out / 'pycache')]
+        # Steps run isolated (no PYTHON* variable, no script folder on sys.path, no site-packages) with a fresh cache prefix.
+        py = [sys.executable, '-I', '-S', '-B', '-X', 'pycache_prefix=' + str(out / 'pycache')]
         env = {**{k: v for k, v in os.environ.items() if not k.upper().startswith('PYTHON')},
                'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8',
                'PYTHONPYCACHEPREFIX': str(out / 'pycache'),
