@@ -2,7 +2,7 @@
 
 ## Version v10 « pertinence » (16 novembre 2026)
 
-Statut : **candidate**. Aucune installation dans un profil actif ; deux essais comparatifs de pilotes et deux campagnes sur de petits programmes, trente agents GPT-6.1 Sol puis vingt-cinq agents Fable 5.2 dans la configuration retenue.
+Statut : **candidate**. Installée le 17 novembre 2026 dans les deux profils du propriétaire par `rc_update.py` ; deux essais comparatifs de pilotes et deux campagnes sur de petits programmes, trente agents GPT-6.1 Sol puis vingt-cinq agents Fable 5.2 dans la configuration retenue à cette date.
 
 - Origine et choix : [sources v10](sources-v10.md).
 - Contrôles déterministes : `python -B tools/check.py` vert sur le commit de tête de la branche `v10-pertinence`. Il gagne l'étape `footprint`, une étape `updater-from-v9.1.2`, et l'inventaire refuse une lecture obligatoire du pilote au-delà de 3 953 mots, son niveau en v9.1.2. Collectes déclarées dans `EXPECTED`.
@@ -89,6 +89,8 @@ Le volume de tests du pilote Fable n'était donc pas du superflu : un test inuti
 
 **Configuration retenue.** Le propriétaire retient le pilote Fable 5.2, avec des champions Opus 5.5 et des réviseurs GPT-6.1 Sol. Le rôle de senior consulté par un pilote Opus est retiré du paquet : sur les deux essais il a donné le produit le plus sobre mais le moins juste, pour un coût par consultation voisin de celui d'un champion. Le paquet reste écrit par rôle ; c'est le mandat qui nomme les modèles.
 
+**Réviseur remplacé (17 novembre 2026).** Le propriétaire remplace GPT-6.1 Sol par GPT-6.2 Astra dans tous les rôles confiés à Sol, revues indépendantes comprises ; le pilote Fable et les auteurs Opus ne changent pas. Aucun essai comparatif n'a précédé ce remplacement, la comparaison est remise à plus tard. Le paquet ne change pas : son manifeste reste celui de la v10.2. Le catalogue de T3 Code, lu le même jour, expose `gpt-6.2-astra` chez le fournisseur `codex` avec les efforts `low`, `medium`, `high`, `xhigh`, `max` et `ultra` ; son effort par défaut est `low`, celui de `gpt-6.1-sol` était `medium`, donc un mandat qui veut l'effort des revues précédentes le nomme. Ce changement a reçu la première revue Astra (effort `high`, candidat `9097649`) : trois constats bloquants, tous sur des phrases qu'il ajoutait, corrigés par retrait et vérifiés par la racine seule.
+
 **Annexe T3 Code.** `references/host-t3.md` dit quel outil de l'hôte sert chaque geste de la boucle. Elle vient de la lecture des descriptions d'outils et des incidents des deux essais ; aucun pilote ne l'a encore lue en conduite.
 
 ### Campagne avant fusion (16 novembre 2026)
@@ -173,7 +175,7 @@ Limites :
 
 - Deux pilotes ont conduit la v10 sur deux petits programmes. La convergence de revue n'a jamais approché son enveloppe.
 - La détection des commentaires est une heuristique par extension : docstrings et commentaires de fin de ligne lui échappent.
-- La configuration retenue (pilote Fable qui décide et encadre, champions Opus, réviseurs GPT-6.1 Sol) n'est éprouvée que sur les petits programmes de la campagne Fable, pas sur un projet réel.
+- La configuration éprouvée (pilote Fable qui décide et encadre, champions Opus, réviseurs GPT-6.1 Sol) ne l'est que sur les petits programmes de la campagne Fable, pas sur un projet réel. Celle qui est retenue depuis le 17 novembre, avec des réviseurs GPT-6.2 Astra, n'a conduit aucun essai.
 - Le skill Fable porte des faits fournisseurs lus le 16 novembre 2026 ; aucun prompt écrit avec lui n'a été mesuré sur un modèle.
 - Le coût d'administration du moteur ne change pas.
 
