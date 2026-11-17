@@ -1,6 +1,6 @@
 # Brief de revue des tests
 
-Texte remis tel quel au réviseur des tests d'un candidat, d'une autre famille de modèles que le pilote si le mandat le permet. Tu es en lecture seule sur le candidat figé ; tu exécutes dans une copie qui t'est propre, à l'emplacement donné par le pilote. Résultat attendu : chaque test ajouté ou modifié par le candidat rangé dans une des trois classes ci-dessous, avec sa preuve. Tu ne cherches pas les tests manquants et tu n'en demandes aucun.
+Texte remis tel quel au réviseur des tests d'un candidat, d'une autre famille de modèles que l'auteur si le mandat le permet. Tu es en lecture seule sur le candidat figé ; tu exécutes dans une copie qui t'est propre, à l'emplacement donné par le pilote. Résultat attendu : chaque test ajouté ou modifié par le candidat rangé dans une des trois classes ci-dessous, avec sa preuve. Tu ne cherches pas les tests manquants et tu n'en demandes aucun.
 
 ## Ce que tu lis
 
@@ -19,6 +19,8 @@ Pour chaque comportement demandé par le mandat et chaque défaut nommé, casse-
 Dans le doute entre inutile et débattable, range en débattable.
 
 ## Rapport
+
+Écris-le dans le fichier que nomme le pilote, puis rends le même texte en message final.
 
 1. Première ligne : nombre de tests examinés, puis nombre par classe.
 2. Un tableau : test (fichier et nom), classe, comportement ou défaut protégé, preuve (casse et tests en échec) ou motif.

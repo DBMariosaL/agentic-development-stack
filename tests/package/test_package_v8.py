@@ -12,9 +12,13 @@ import sys
 
 sys.dont_write_bytecode = True
 
+import codecs  # noqa: E402
+import contextlib  # noqa: E402
+import ctypes  # noqa: E402
 import hashlib  # noqa: E402
 import importlib.util  # noqa: E402
 import json  # noqa: E402
+import marshal  # noqa: E402
 import os  # noqa: E402
 import shutil  # noqa: E402
 import subprocess  # noqa: E402
@@ -105,7 +109,7 @@ class PackageTests(Base):
         bad = failing(validator.validate(copy))
         self.assertTrue(bad)
         for name, detail in bad.items():
-            self.assertTrue(str(detail).endswith('current-model.md'), (name, detail))
+            self.assertIn('current-model.md', str(detail), name)
             self.assertTrue(name.startswith('gpt-prompt-optimizer'), name)
 
     def test_missing_script_resource_red(self):
@@ -113,7 +117,7 @@ class PackageTests(Base):
         (copy / 'claude-opus-prompt-optimizer' / 'scripts' / 'opus_api_check.py').unlink()
         bad = failing(validator.validate(copy))
         self.assertTrue(bad)
-        self.assertEqual(set(bad.values()), {'scripts/opus_api_check.py'})
+        self.assertEqual({detail.split(' (')[0] for detail in bad.values()}, {'scripts/opus_api_check.py'})
 
     def test_missing_icon_red(self):
         copy = self.copy()
@@ -126,12 +130,14 @@ class PackageTests(Base):
         path = copy / 'claude-opus-prompt-optimizer' / 'references' / 'behavior-fixes.md'
         path.write_bytes(path.read_bytes() + b'\nSee [missing](#no-such-section).\n')
         bad = failing(validator.validate(copy))
-        self.assertEqual(list(bad.values()), ['#no-such-section'])
+        self.assertEqual(list(bad.values()), ['#no-such-section (no simple ATX heading has this id)'])
 
-    def validate_with_payload(self, payload):
+    def validate_with_payload(self, payload, extra=None):
+        """Payload ajouté à unslop/references/patterns.md ; extra : {chemin du paquet: octets ajoutés}."""
         copy = self.copy()
-        path = copy / 'unslop' / 'references' / 'patterns.md'
-        path.write_bytes(path.read_bytes() + payload.encode('utf-8'))
+        for rel, data in {'unslop/references/patterns.md': payload.encode('utf-8'), **(extra or {})}.items():
+            path = copy / rel
+            path.write_bytes((path.read_bytes() if path.exists() else b'') + data)
         out = self.dir / 'structure.json'
         proc = subprocess.run([sys.executable, '-B', str(ROOT / 'tools' / 'validate_package.py'), str(copy),
                                '--output', str(out)], capture_output=True, text=True, encoding='utf-8', timeout=90)
@@ -142,7 +148,7 @@ class PackageTests(Base):
     def test_reference_link_to_missing_file_red(self):
         code, bad = self.validate_with_payload('\n[missing][dead]\n\n[dead]: does-not-exist.md\n')
         self.assertEqual(code, 1)
-        self.assertEqual(list(bad.values()), ['does-not-exist.md'])
+        self.assertEqual(list(bad.values()), [f'does-not-exist.md ({validator.DEAD})'])
 
     def test_windows_machine_path_red(self):
         code, bad = self.validate_with_payload('\nmachine path: C:\\private\\example.txt\n')
@@ -150,14 +156,126 @@ class PackageTests(Base):
         self.assertEqual(list(bad), [os.path.join('unslop', 'references', 'patterns.md') + ':no_machine_snapshot'])
 
     def test_valid_link_forms_accepted(self):
-        for payload in ('\n[self](<patterns.md>)\n',
-                        '\n## Repeated heading\n\n## Repeated heading\n\n[second](#repeated-heading-1)\n',
-                        '\n```markdown\n[example](example-only.md)\n```\n',
-                        '\nsyntax: `[example](example-only.md)`\n',
-                        '\ntext\n\n    [example](example-only.md)\n'):
+        for payload in ('\n[t][lbl]\n\n[lbl]:\n  patterns.md\n',
+                        '\n[x](patterns%2Emd)\n',
+                        '\n[x](<patterns.md>) [y][l]\n\n[l]: <patterns.md>\n',
+                        '\n## Zed\n\n## Zed\n\n## Zed 1\n\n  ## Indented Head\n\n'
+                        '[a](#zed-1) [b](#zed-1-1) [c](#indented-head)\n',
+                        '\n```markdown\n[example](https://example.com/example-only.md)\n```\n',
+                        '\n[x](patterns.md#content) [y](../references/patterns.md#language)\n',
+                        '\n## A [W]\n\n[x](#a-w)\n',
+                        '\nsee references/patterns.md.\n',
+                        '\nsee <a href="patterns.md">x</a> <img src="../assets/icon.svg">\n',
+                        '\n<https://example.com>\n',
+                        '\n```html\n<div>x</div>\n```\n'):
             with self.subTest(payload):
                 self.assertEqual(self.validate_with_payload(payload), (0, {}))
-        self.assertNotEqual(self.validate_with_payload('\n- item\n\n    [dead](absent-list-link.md)\n')[0], 0)
+
+    def test_broken_forms_refused(self):
+        """Lien mort, ancre morte, ressource absente ou chemin machine : refusés sous toute forme,
+        exemples de code compris ; une forme que la règle ne lit pas est refusée par la règle."""
+        for payload, extra, expected in (
+                ('\n[a [b] c](absent.md)\n', {}, 'absent.md'),
+                ('\n```\n[example](example-only.md)\n```\n', {}, 'carries a scheme'),
+                ('\n[t][lbl]\n\n[lbl]:\n  absent.md\n', {}, 'absent.md'),
+                ('\n- item\n  - inner\n    - [lbl]: absent.md\n\n[t][lbl]\n', {}, 'absent.md'),
+                ('\n> [lbl]: absent.md\n', {}, 'absent.md'),
+                ('\n[lbl]: <absent file.md>\n', {}, 'unsupported destination'),
+                ('\n[lbl]: absent.md (title)\n', {}, 'absent.md'),
+                ('\n[l]: absent.md extra\n', {}, 'absent.md'),
+                ('\n- [role]: [model], effort [level]\n', {}, 'unsupported destination'),
+                ('\n[x](../assets/icon.svg#absent)\n', {}, 'no simple ATX heading'),
+                ('\n[x](patterns.md#no-such-heading)\n', {}, 'no simple ATX heading'),
+                ('\nsee <a href="absent.md">x</a>\n', {}, 'absent.md'),
+                ('\nsee <img src="absent.svg">\n', {}, 'absent.svg'),
+                ('\n[t](a(1).md)\n', {}, 'unsupported destination'),
+                ('\n[x](PATTERNS.MD)\n', {}, 'PATTERNS.MD'),
+                ('\n[x](patterns.md.)\n', {}, 'patterns.md.'),
+                ('\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n    ```\n\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n```x``` inline\n\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n\t```\n\n```\n# Hidden\n```\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n- ```\n  # Hidden\n  ```\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n- ```\nx\n```\n# Hidden\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\n> ```\n# Hidden\n\n[x](#hidden)\n', {}, 'no simple ATX heading'),
+                ('\nSetext Title\n===\n\n[x](#setext-title)\n', {}, 'no simple ATX heading'),
+                ('\n## A [b]\n\n[b]: patterns.md\n\n[x](#a-b)\n', {}, 'no simple ATX heading'),
+                ('\n## See [a](patterns.md)\n\n[x](#see-apatternsmd)\n', {}, 'no simple ATX heading'),
+                ('\n## A [b][c]\n\n[c]: patterns.md\n\n[x](#a-bc)\n', {}, 'no simple ATX heading'),
+                ('\n## A &amp; B\n\n[x](#a-amp-b)\n', {}, 'no simple ATX heading'),
+                ('\n## A <b>B</b>\n\n[x](#a-bbb)\n', {}, 'no simple ATX heading'),
+                ('\n## A\\*B\n\n[x](#ab)\n', {}, 'no simple ATX heading'),
+                ('\n## _Foo_ bar\n\n[x](#_foo_-bar)\n', {}, 'no simple ATX heading'),
+                ('\nsee `<!--` here\n', {}, 'HTML comment'),
+                ('\n  <details>\n\n# Hidden\n', {}, 'HTML block'),
+                ('\nsee scripts/absent.py.\n', {}, 'scripts/absent.py'),
+                ('\nrun `python --file=scripts/absent.py`\n', {}, 'scripts/absent.py'),
+                ('\nrun ./scripts/absent.py\n', {}, 'scripts/absent.py'),
+                ('\nreferences/patterns.md+absent\n', {}, 'unsupported resource word'),
+                ('\nRead `references/my file.md`\n', {'unslop/references/my file.md': b'x\n'}, 'blank'),
+                ('\nsee c:\\users\\me\\secret.txt\n', {}, 'no_machine_snapshot'),
+                ('\nsee \\\\srv\\share\\x\n', {}, 'no_machine_snapshot'),
+                ('\nsee /home/me/secret.txt\n', {}, 'no_machine_snapshot'),
+                ('\nsnap ' + 'A1B2C3D4E5' * 4 + '\n', {}, 'no_machine_snapshot'),
+                ('', {'unslop/references/patterns.md': b'\xff'}, 'utf8'),
+                ('', {'gpt-prompt-optimizer/scripts/prompt_lint.py': b'\x00'}, 'compiles')):
+            with self.subTest(payload or extra):
+                code, bad = self.validate_with_payload(payload, extra)
+                self.assertEqual(code, 1)
+                self.assertTrue(bad)
+                for name, detail in bad.items():
+                    self.assertIn(expected, f'{name} {detail}')
+
+    def test_rules_refused(self):
+        """Chaque règle promise par la docstring du validateur refuse sa violation (R3B-V01 à V03)."""
+        fable = 'claude-fable-prompt-optimizer/references/behavior-fixes.md'
+        rc, gpt = 'rc-coordinate-development', 'gpt-prompt-optimizer'
+        for label, rel, old, new, expected in (
+                ('fichier non régulier', None, None, None, ':regular'),
+                ('cache', 'unslop/scripts/__pycache__/x.pyc', None, 'x', 'no_cache_or_temp'),
+                ('compilation', f'{gpt}/scripts/prompt_lint.py', None, '\nreturn 1\n', ':compiles'),
+                ('import hors bibliothèque standard', f'{gpt}/scripts/prompt_lint.py', None, '\nimport requests\n',
+                 ':stdlib_imports'),
+                ('dépendance maintenue ici réécrite', fable, None, ' ', 'provenance:' + fable),
+                ('fichier hors provenance', 'unslop/references/extra.md', None, 'x\n', 'provenance:inventory'),
+                ('fichier à la racine', 'README.md', None, 'x\n', 'no_file_at_package_root'),
+                ('nom RC', f'{rc}/SKILL.md', f'name: {rc}', 'name: autre', f'{rc}:name'),
+                ('description RC', f'{rc}/SKILL.md', 'description: ', 'description: <', f'{rc}:description'),
+                ('clé de métadonnées RC', f'{rc}/SKILL.md', '---\n', '---\nextra: x\n', f'{rc}:metadata_keys'),
+                ('clé de frontmatter', f'{rc}/SKILL.md', 'name:', 'Name:', f'{rc}:frontmatter_subset'),
+                ('scalaire ambigu', f'{rc}/SKILL.md', 'description: ', 'description: a: b ', f'{rc}:frontmatter_subset'),
+                ('gabarit inachevé', f'{rc}/SKILL.md', None, '\n[TODO: finir]\n', 'no_unfinished_scaffold'),
+                ('import automatique', f'{rc}/SKILL.md', None, '\n@SKILL.md\n', 'no_automatic_reference_import'),
+                ('clé UI répétée', f'{rc}/agents/openai.yaml', None, '  display_name: "X"\n', f'{rc}:ui_line'),
+                ('invocation RC', f'{rc}/agents/openai.yaml', f'${rc}', rc, f'{rc}:ui_invocation'),
+                ('découverte normale', f'{rc}/agents/openai.yaml', None, 'policy:\n  allow_implicit_invocation: false\n',
+                 f'{rc}:ui_normal_discovery'),
+                ('produits', f'{gpt}/agents/openai.yaml', '    - "chatgpt"', '    - true', f'{gpt}:ui_products'),
+                ('description courte de dépendance', f'{gpt}/agents/openai.yaml',
+                 'short_description: "Optimise les prompts GPT et les instructions d\'agents"', 'short_description: ""',
+                 f'{gpt}:ui_short_description'),
+                ('ligne UI hors sous-ensemble', f'{gpt}/agents/openai.yaml', None, '\nnotakey\n', f'{gpt}:ui_subset'),
+                ('titre indenté de quatre espaces', 'unslop/references/patterns.md', None,
+                 '\n    ## Four\n\n[x](#four)\n', ':link:'),
+                ('extension .MD', 'unslop/references/README.MD', None, '[dead](absent.md)\n', ':link:'),
+                ('Markdown avec BOM', 'unslop/references/bom.md', None, '\ufeff[dead]: absent.md\n', ':utf8')):
+            with self.subTest(label):
+                copy = self.copy()
+                patch = mock.patch.object(type(copy), 'is_symlink', lambda path: path.name == 'patterns.md') \
+                    if rel is None else contextlib.nullcontext()
+                if rel is not None:
+                    path = copy / rel
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    text = path.read_text(encoding='utf-8') if path.exists() else ''
+                    if old is not None:
+                        self.assertIn(old, text)
+                    path.write_bytes((text.replace(old, new, 1) if old is not None else text + new).encode('utf-8'))
+                try:
+                    with patch:
+                        bad = failing(validator.validate(copy, PROVENANCE))
+                finally:
+                    shutil.rmtree(copy)
+                self.assertTrue(any(expected in name for name in bad), bad)
 
     def test_unslop_policy_enforced(self):
         for label, old, new, check in (
@@ -190,6 +308,11 @@ class PackageTests(Base):
         self.assertEqual(set(failing(validator.validate(copy))), {'rc-coordinate-development:ui_short_description'})
         ui.write_bytes(data.replace(old, b'Choisir sans guillemets'))
         self.assertIn('rc-coordinate-development:ui_string:short_description', failing(validator.validate(copy)))
+        ui.write_bytes(data.replace(old, b'12345'))
+        self.assertEqual(set(failing(validator.validate(copy))), {'rc-coordinate-development:ui_short_description'})
+        for policy in (b'allow_implicit_invocation:  false', b'"allow_implicit_invocation": false'):
+            ui.write_bytes(data + b'policy:\n  ' + policy + b'\n')
+            self.assertEqual([k.split(':')[1] for k in failing(validator.validate(copy))], ['ui_line'])
 
     def test_dependency_metadata_as_delivered(self):
         result = validator.validate(PACKAGE)
@@ -293,17 +416,6 @@ class RunnerR1Tests(Base):
         self.assertEqual(len(report['expected_failures']), 1)
         self.assertTrue(report['expected_failures'][0].endswith('Synthetic.test_24'))
 
-    def test_expected_failure_judge(self):
-        """Même un code zéro ne permet pas au juge d'effacer un expectedFailure."""
-        runner = _load('check_r1_judge', ROOT / 'tools' / 'check.py')
-        count = runner.EXPECTED['updater-v8']
-        report = {'tests_run': count, 'collected': [f'test_{i}' for i in range(count)],
-                  'failures': [], 'errors': [], 'skipped': [], 'unexpected_successes': [],
-                  'expected_failures': ['test_24']}
-        passed, reasons = runner.judge('updater-v8', 0, report)
-        self.assertFalse(passed)
-        self.assertTrue(any('expected failure' in reason for reason in reasons), reasons)
-
     def test_clean_collection_passes(self):
         """Témoin propre : les 25 vrais succès restent acceptés."""
         proc, report = self.collect_synthetic()
@@ -316,6 +428,52 @@ class RunnerR1Tests(Base):
             passed, reasons = runner.judge('updater-v8', 0, report)
         self.assertTrue(passed, reasons)
 
+    def test_judge_rules(self):
+        """Chaque règle du juge refuse un résultat synthétique qui la viole ; le témoin passe (R3B-C04)."""
+        runner = _load('check_judge_rules', ROOT / 'tools' / 'check.py')
+        v7 = {'module_sha256': hashlib.sha256((ROOT / 'tools' / 'rc_update.py').read_bytes()).hexdigest(),
+              'new_manifest_sha256': hashlib.sha256((ROOT / 'tests' / 'fixtures' / 'v7' / 'manifest.json')
+                                                    .read_bytes()).hexdigest()}
+        junction = 'test_rc_update_v8.PlanV8Tests.test_dependency_junction_refused'
+        for label, step, change, code, system, expected in (
+                ('témoin', 'updater-v8', {}, 0, 'nt', None),
+                ('code de sortie', 'updater-v8', {}, 1, 'nt', 'exit code'),
+                ('résultats absents ou illisibles', 'updater-v8', None, 0, 'nt', 'no readable results file'),
+                ('compte attendu', 'updater-v8', {'tests_run': 1, 'collected': ['a']}, 0, 'nt', 'collection'),
+                ('identifiants collectés', 'updater-v8', {'collected': ['a']}, 0, 'nt', 'collected ids differ'),
+                ('échec', 'updater-v8', {'failures': ['a']}, 0, 'nt', 'failures or errors'),
+                ('erreur', 'updater-v8', {'errors': ['a']}, 0, 'nt', 'failures or errors'),
+                ('succès inattendu', 'updater-v8', {'unexpected_successes': ['a']}, 0, 'nt', 'failures or errors'),
+                ('échec attendu', 'updater-v8', {'expected_failures': ['a']}, 0, 'nt', 'expected failure'),
+                ('skip sous Windows', 'updater-v8', {'skipped': [{'id': junction}]}, 0, 'nt', 'undeclared skips'),
+                ('skip déclaré hors Windows', 'updater-v8', {'skipped': [{'id': junction}]}, 0, 'posix', None),
+                ('skip homonyme hors Windows', 'updater-v8',
+                 {'skipped': [{'id': junction.replace('PlanV8Tests', 'OtherTests')}]}, 0, 'posix', 'undeclared skips'),
+                ('entrées v7', 'updater-v7', {'inputs': v7}, 0, 'nt', None),
+                ('autres entrées v7', 'updater-v7', {'inputs': {**v7, 'module_sha256': '0' * 64}}, 0, 'nt',
+                 'other inputs')):
+            count = runner.EXPECTED[step]
+            report = None if change is None else {
+                'tests_run': count, 'collected': [f'test_{i}' for i in range(count)], 'failures': [], 'errors': [],
+                'skipped': [], 'unexpected_successes': [], 'expected_failures': [], **change}
+            with self.subTest(label), mock.patch.object(runner, 'os', mock.NonCallableMock(name=system)):
+                runner.os.name = system
+                passed, reasons = runner.judge(step, code, report)
+                if expected is None:
+                    self.assertTrue(passed, reasons)
+                else:
+                    self.assertFalse(passed)
+                    self.assertTrue(any(expected in reason for reason in reasons), reasons)
+
+    def test_collect_refuses_non_isolated(self):
+        """T2-08, T2-10 : le collecteur lancé hors de python -I ne produit pas de résultats."""
+        (self.dir / 'test_synthetic.py').write_text('import unittest\n', encoding='utf-8')
+        report = self.dir / 'results.json'
+        proc = subprocess.run([sys.executable, '-B', str(ROOT / 'tools' / 'check.py'), '--collect', str(self.dir),
+                               str(self.dir), str(report)], cwd=self.dir, capture_output=True, timeout=30)
+        self.assertEqual(proc.returncode, 2)
+        self.assertEqual(json.loads(report.read_text(encoding='utf-8'))['tests_run'], 0)
+
     def test_unexpected_success_rejected(self):
         """Garde existante : une attente d'échec devenue fausse reste signalée."""
         proc, report = self.collect_synthetic(unexpected_success=True)
@@ -324,37 +482,175 @@ class RunnerR1Tests(Base):
 
 
 class CheckPreflightTests(Base):
-    @unittest.skipUnless(os.name == 'nt', 'the fixture root length preflight applies to Windows only')
-    def test_preflight_refusal_writes_summary(self):
-        """R08-02 : un refus de préflight laisse le summary.json annoncé, sans lancer d'étape."""
-        repo = self.dir / 'repo'
+    def mini_repo(self, name='repo', sources=None, reading=b'mot\n'):
+        """check.py, un paquet de trois fichiers de lecture et les sources données, toutes inventoriées."""
+        repo = self.dir / name
         (repo / 'tools').mkdir(parents=True)
         (repo / 'tests').mkdir()
         shutil.copyfile(ROOT / 'tools' / 'check.py', repo / 'tools' / 'check.py')
+        for rel, text in (sources or {}).items():
+            (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (repo / rel).write_text(text, encoding='utf-8')
         entries = []
         for name in ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md'):
             path = repo / 'package' / 'rc-coordinate-development' / name
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(b'mot\n')
+            path.write_bytes(reading)
             entries.append({'path': 'rc-coordinate-development/' + name,
-                            'sha256': hashlib.sha256(b'mot\n').hexdigest(), 'bytes': 4})
+                            'sha256': hashlib.sha256(reading).hexdigest(), 'bytes': len(reading)})
         (repo / 'manifest.json').write_text(json.dumps({'files': entries}), encoding='utf-8')
-        (repo / 'provenance.json').write_text(json.dumps({'files': [
-            {'path': 'package/' + e['path'], 'sha256': e['sha256']} for e in entries]}), encoding='utf-8')
-        long_root = self.dir / ('x' * 100)
+        listed = [{'path': 'package/' + e['path'], 'sha256': e['sha256']} for e in entries]
+        listed += [{'path': rel, 'sha256': hashlib.sha256((repo / rel).read_bytes()).hexdigest()}
+                   for rel in ['tools/check.py', *(sources or {})]]
+        (repo / 'provenance.json').write_text(json.dumps({'files': listed}), encoding='utf-8')
+        return repo
+
+    def run_check(self, repo, fixtures_root, **env):
         proc = subprocess.run([sys.executable, '-B', str(repo / 'tools' / 'check.py')], cwd=repo,
-                              env={**os.environ, 'RC_CHECK_FIXTURES_ROOT': str(long_root)},
-                              capture_output=True, text=True, encoding='utf-8', timeout=60)
+                              env={**os.environ, 'RC_CHECK_FIXTURES_ROOT': str(fixtures_root), **env},
+                              capture_output=True, text=True, encoding='utf-8', timeout=120)
         self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        self.assertNotIn('Traceback', proc.stderr)
         summaries = list((repo / '.local').glob('*/summary.json'))
-        self.assertEqual(len(summaries), 1, proc.stdout)
-        summary = json.loads(summaries[0].read_text(encoding='utf-8'))
+        self.assertEqual(len(summaries), 1, proc.stdout + proc.stderr)
+        return proc, summaries[0].parent, json.loads(summaries[0].read_text(encoding='utf-8'))
+
+    @unittest.skipUnless(os.name == 'nt', 'the fixture root length preflight applies to Windows only')
+    def test_preflight_refusal_writes_summary(self):
+        """R08-02, R06-12 : une base trop longue, même écrite courte en relatif, est refusée par le
+        préflight avec son summary.json, sans lancer d'étape."""
+        for label, root in (('absolu', self.dir / ('x' * 100)), ('relatif', 'y' * 70)):
+            with self.subTest(label):
+                repo = self.mini_repo('repo-' + label)
+                long_root = (repo / root).resolve()
+                proc, _, summary = self.run_check(repo, root)
+                self.assertEqual(summary['inventory_problems'], [])
+                self.assertEqual(summary['candidate']['package_files'], 3)
+                self.assertTrue(str(summary['preflight_problem']['root']).startswith(str(long_root)))
+                self.assertEqual(summary['results'], [])
+                self.assertFalse(summary['all_passed'])
+                self.assertFalse(long_root.exists())
+
+    def test_inventory_refusal_writes_summary(self):
+        """Chaque règle de l'inventaire, et des étapes sur la copie : refus nommé, summary.json, copie
+        retirée, aucune trace (R06-13, R06-17, R3B-C04, R4-C02 à C05, R4-C07)."""
+        reading = 'package/rc-coordinate-development/SKILL.md'
+
+        def provenance(repo, change):
+            doc = json.loads((repo / 'provenance.json').read_text(encoding='utf-8'))
+            change(doc['files'])
+            (repo / 'provenance.json').write_text(json.dumps(doc), encoding='utf-8')
+
+        def append(repo, rel, data=b'x\n'):
+            (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (repo / rel).write_bytes(((repo / rel).read_bytes() if (repo / rel).exists() else b'') + data)
+
+        def extra_listed(repo):
+            append(repo, 'package/rc-coordinate-development/extra.md')
+            provenance(repo, lambda files: files.append(
+                {'path': 'package/rc-coordinate-development/extra.md', 'sha256': hashlib.sha256(b'x\n').hexdigest()}))
+
+        def lock(repo):
+            path = repo / 'docs/x.md'
+            if os.name != 'nt':
+                path.chmod(0)
+                return lambda: path.chmod(0o644)
+            kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+            kernel.CreateFileW.restype = ctypes.c_void_p
+            kernel.CreateFileW.argtypes = [ctypes.c_wchar_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p,
+                                           ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p]
+            kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+            handle = kernel.CreateFileW(str(path), 0x80000000, 0, None, 3, 0, None)  # lecture, sans partage
+            return lambda: kernel.CloseHandle(handle)
+
+        bad_results = ("import atexit, pathlib, sys\n"
+                       "atexit.register(lambda: pathlib.Path(sys.argv[4]).write_text('{'))\n")
+        rewrite = ("import pathlib\np = pathlib.Path(__file__).resolve().parents[2] / 'tools' / 'check.py'\n"
+                   "p.write_bytes(p.read_bytes() + b'\\n')\n")
+
+        def extra_in_manifest(repo):
+            append(repo, 'package/rc-coordinate-development/extra.md')
+            doc = json.loads((repo / 'manifest.json').read_text(encoding='utf-8'))
+            doc['files'].append({'path': 'rc-coordinate-development/extra.md',
+                                 'sha256': hashlib.sha256(b'x\n').hexdigest(), 'bytes': 2})
+            (repo / 'manifest.json').write_text(json.dumps(doc), encoding='utf-8')
+
+        for label, sources, words, change, check in (
+                ('chemin qui remonte', None, 1, lambda repo: provenance(repo, lambda files: files.append(
+                    {'path': '../outside.py', 'sha256': '0' * 64})), 'provenance_path'),
+                ('chemin absolu', None, 1, lambda repo: provenance(repo, lambda files: files.append(
+                    {'path': str(repo / 'tools' / 'check.py'), 'sha256': '0' * 64})), 'provenance_path'),
+                ('destination en double', None, 1, lambda repo: provenance(repo, lambda files: files.append(
+                    {**files[-1], 'path': files[-1]['path'].upper()})), 'provenance_duplicate'),
+                ('entrée illisible', {'docs/x.md': 'x\n'}, 1, lock, 'unreadable'),
+                ('résultat d\'étape illisible', {'tests/state/test_bad.py': bad_results}, 1, lambda repo: None,
+                 'no readable results file'),
+                ('copie modifiée par une étape', {'tests/state/test_rewrite.py': rewrite}, 1, lambda repo: None,
+                 'copy_changed'),
+                ('lecture obligatoire retirée', None, 1, lambda repo: (repo / reading).unlink(), 'pilot_reading_missing'),
+                ('budget de lecture', None, 4000, lambda repo: None, 'pilot_reading'),
+                ('provenance à BOM', None, 1, lambda repo: (repo / 'provenance.json').write_bytes(
+                    codecs.BOM_UTF8 + (repo / 'provenance.json').read_bytes()), 'unreadable'),
+                ('manifeste à BOM', None, 1, lambda repo: (repo / 'manifest.json').write_bytes(
+                    codecs.BOM_UTF8 + (repo / 'manifest.json').read_bytes()), 'unreadable'),
+                ('octets du paquet', None, 1, lambda repo: append(repo, reading), 'package_bytes'),
+                ('octets hors paquet', {'docs/x.md': 'x\n'}, 1, lambda repo: append(repo, 'docs/x.md'),
+                 'provenance_sha256'),
+                ('fichier listé absent', {'docs/x.md': 'x\n'}, 1, lambda repo: (repo / 'docs/x.md').unlink(),
+                 'provenance_missing'),
+                ('copie identique à sa source', None, 1, lambda repo: provenance(repo, lambda files: files[0].update(
+                    adaptation='byte-identical', source_sha256='0' * 64)), 'provenance_source'),
+                ('fichier hors manifeste', None, 1, extra_listed, 'package_inventory'),
+                ('fichier du paquet hors provenance', None, 1, extra_in_manifest, 'provenance_inventory')):
+            with self.subTest(label):
+                repo = self.mini_repo('repo-' + str(abs(hash(label)) % 10 ** 6), sources, b'mot ' * words + b'\n')
+                release = change(repo)
+                try:
+                    proc, _, summary = self.run_check(repo, FIXTURES)
+                finally:
+                    if callable(release):
+                        release()
+                found = [p['check'] for p in summary['inventory_problems']] + \
+                    [reason for result in summary['results'] for reason in result['reasons']]
+                self.assertTrue(any(check in item for item in found), found)
+                self.assertEqual(summary['results'] == [], check not in ('copy_changed', 'no readable results file'))
+                self.assertFalse(summary['copy'] and Path(summary['copy']).exists())
+
+    def test_unlisted_step_folder_writes_summary(self):
+        """R06-17 : une étape dont le dossier manque dans la copie échoue, et summary.json est écrit."""
+        _, _, summary = self.run_check(self.mini_repo(), FIXTURES)
         self.assertEqual(summary['inventory_problems'], [])
-        self.assertEqual(summary['candidate']['package_files'], 3)
-        self.assertTrue(str(summary['preflight_problem']['root']).startswith(str(long_root)))
-        self.assertEqual(summary['results'], [])
-        self.assertFalse(summary['all_passed'])
-        self.assertFalse(long_root.exists())
+        self.assertEqual([r['step'] for r in summary['results']][0], 'state')
+        self.assertFalse(summary['results'][0]['passed'])
+
+    def test_tree_bytecode_not_loaded(self):
+        """R06-16, T2-10, R3B-C01 : les étapes tournent sur la copie des fichiers listés, sous -I -S -B ;
+        ni un .pyc forgé, ni un module hors provenance, ni un sitecustomize.py atteint par PYTHONPATH n'y
+        entrent, et la copie est retirée à la fin."""
+        repo = self.mini_repo(sources={'tests/state/test_mini.py': (
+            'import sys\nimport unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n'
+            '        self.assertTrue(sys.flags.isolated and sys.flags.no_site and sys.dont_write_bytecode)\n')})
+        (repo / 'tests' / 'state' / 'test_unlisted.py').write_text("print('MODULE HORS PROVENANCE')\n",
+                                                                   encoding='utf-8')
+        source = repo / 'tests' / 'state' / 'test_mini.py'
+        code = compile(source.read_text(encoding='utf-8') + "\nprint('PYC FORGE CHARGE')\n", str(source), 'exec')
+        stat = source.stat()
+        cache = source.parent / '__pycache__' / f'{source.stem}.{sys.implementation.cache_tag}.pyc'  # hors préfixe
+        cache.parent.mkdir()
+        cache.write_bytes(importlib.util.MAGIC_NUMBER + bytes(4) + (int(stat.st_mtime) & 0xFFFFFFFF).to_bytes(4, 'little')
+                          + (stat.st_size & 0xFFFFFFFF).to_bytes(4, 'little') + marshal.dumps(code))
+        (repo / 'sitecustomize.py').write_text("print('SITECUSTOMIZE CHARGE')\n", encoding='utf-8')
+        _, out, summary = self.run_check(repo, FIXTURES, PYTHONPATH=str(repo))
+        self.assertEqual(summary['results'][0]['step'], 'state')
+        self.assertEqual(summary['results'][0]['tests_run'], 1)
+        self.assertNotIn('PYTHONPATH', summary['results'][0]['environment'])
+        state = json.loads((out / 'state.json').read_text(encoding='utf-8'))
+        self.assertEqual((state['failures'], state['errors']), ([], []))
+        self.assertTrue(summary['results'][0]['cwd'].startswith(summary['copy']))
+        self.assertFalse(Path(summary['copy']).exists())
+        log = (out / 'state.txt').read_text(encoding='utf-8')
+        for marker in ('PYC FORGE CHARGE', 'MODULE HORS PROVENANCE', 'SITECUSTOMIZE CHARGE'):
+            self.assertNotIn(marker, log)
 
 
 class QualificationScenarioTests(unittest.TestCase):

@@ -4,12 +4,17 @@ Classifies each touched file as tests, docs or product, counts added and removed
 lists new files and added comment lines, and emits signals that point where to look.
 Signals are neither acceptance nor refusal and never change the exit code: 0 when the
 measure succeeded, 2 on usage error, unknown repository or reference, or unusable --previous.
-Read-only: no network, no write.
+The measure depends only on the two commits: plumbing diff with pinned options, every file
+read as text, no inherited GIT_* variable, no replace refs. Read-only: no write and no network
+from git 2.45 on, where GIT_NO_LAZY_FETCH stops the lazy fetch of a partial clone (a missing
+object is then an unknown reference); an older git ignores it and may fetch missing objects.
 """
 import argparse
 import codecs
 import fnmatch
 import json
+import math
+import os
 import re
 import subprocess
 import sys
@@ -39,8 +44,9 @@ HUNK = re.compile(r'^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@')
 LIMITS = ['Comment detection is a per-extension line-prefix heuristic: docstrings, trailing comments, '
           'block comment bodies and unlisted extensions are not counted.',
           'Classification uses path and file name patterns only, never file content.',
-          'Renames use git default similarity: a heavily edited move counts as removal plus addition.',
-          'Binary files are counted in files, without lines.',
+          'Renames use git default similarity, without file count limit: a heavily edited move counts as '
+          'removal plus addition.',
+          'Every file is read as text, attributes ignored: a binary file counts its newline-separated chunks.',
           'Measures size only; signals say where to look, not whether the candidate is acceptable.']
 
 
@@ -49,20 +55,23 @@ class UsageError(Exception):
 
 
 Repo = namedtuple('Repo', 'path config')
+ENV = {name: value for name, value in os.environ.items() if not name.upper().startswith('GIT_')}
+ENV['GIT_NO_LAZY_FETCH'] = '1'
 
 
 def git(repo, *args):
-    cmd = ['git', '--no-optional-locks', '-C', repo.path, *repo.config, '-c', 'core.quotepath=off', *args]
-    proc = subprocess.run(cmd, capture_output=True)
+    cmd = ['git', '--no-optional-locks', '--no-replace-objects', '-C', repo.path, *repo.config,
+           '-c', 'core.quotepath=off', *args]
+    proc = subprocess.run(cmd, capture_output=True, env=ENV)
     if proc.returncode:
         raise UsageError(proc.stderr.decode('utf-8', 'replace').strip() or f'git {args[0]} failed')
     return proc.stdout.decode('utf-8', 'replace')
 
 
 def diff(repo, base, candidate, *options):
-    # Pinned options: user config (algorithm, prefixes, external tools) must not change the measure.
-    return git(repo, 'diff', '--no-color', '--no-ext-diff', '--no-textconv', '--diff-algorithm=myers',
-               '-M', *options, base, candidate, '--')
+    # Plumbing reads no diff.* interface config; the rest is pinned here.
+    return git(repo, 'diff-tree', '-r', '--text', '-M', '-l0', '--diff-algorithm=myers',
+               '--ignore-submodules=none', *options, base, candidate, '--')
 
 
 def resolve(repo, ref, flag):
@@ -83,17 +92,21 @@ def classify(path):
     return 'product'
 
 
-def numstat(repo, base, candidate):
-    tokens = diff(repo, base, candidate, '--numstat', '-z').split('\0')
-    rows, index = [], 0
-    while index < len(tokens) and tokens[index]:
-        added, removed, path = tokens[index].split('\t', 2)
-        index += 1
-        if not path:
-            path = tokens[index + 1]
-            index += 2
-        rows.append((path, None if added == '-' else int(added), None if removed == '-' else int(removed)))
-    return rows
+def changes(repo, base, candidate):
+    tokens = diff(repo, base, candidate, '--name-status', '-z').split('\0')
+    counts, new_files, index = {}, set(), 0
+    while index < len(tokens) - 1:
+        width = 3 if tokens[index].startswith('R') else 2
+        counts[tokens[index + width - 1]] = [0, 0]
+        if tokens[index] == 'A':
+            new_files.add(tokens[index + 1])
+        index += width
+    added = []
+    for path, sign, line, text in patch_lines(diff(repo, base, candidate, '-p', '-U0')):
+        counts[path][sign == '-'] += 1
+        if sign == '+':
+            added.append((path, line, text))
+    return [(path, a, r) for path, (a, r) in counts.items()], new_files, added
 
 
 def measure_classes(rows, new_files):
@@ -101,8 +114,8 @@ def measure_classes(rows, new_files):
     for path, added, removed in rows:
         entry = classes[classify(path)]
         entry['files'] += 1
-        entry['added'] += added or 0
-        entry['removed'] += removed or 0
+        entry['added'] += added
+        entry['removed'] += removed
         if path in new_files:
             entry['new_files'].append(path)
     for entry in classes.values():
@@ -116,22 +129,28 @@ def unquote(path):
     return path
 
 
-def added_lines(patch):
-    path, line, old_left, new_left = None, 0, 0, 0
+def header_path(raw, prefix):
+    # git ends the header with a tab when the path contains a space
+    target = unquote(raw[4:].removesuffix('\t'))
+    return target[len(prefix):] if target.startswith(prefix) else None
+
+
+def patch_lines(patch):
+    old = path = None
+    line = old_left = new_left = 0
     for raw in patch.split('\n'):
         if old_left or new_left:
             if raw.startswith('+'):
-                yield path, line, raw[1:]
+                yield path, '+', line, raw[1:]
                 line, new_left = line + 1, new_left - 1
             elif raw.startswith('-'):
+                yield path, '-', line, raw[1:]
                 old_left -= 1
-            elif raw.startswith(' '):
-                line, old_left, new_left = line + 1, old_left - 1, new_left - 1
             continue
-        if raw.startswith('+++ '):
-            # git ends the header with a tab when the path contains a space
-            target = unquote(raw[4:].removesuffix('\t'))
-            path = target[2:] if target.startswith('b/') else None
+        if raw.startswith('--- '):
+            old = header_path(raw, 'a/')
+        elif raw.startswith('+++ '):
+            path = header_path(raw, 'b/') or old
         elif match := HUNK.match(raw):
             old_left = int(match.group(1) or 1)
             line, new_left = int(match.group(2)), int(match.group(3) or 1)
@@ -146,11 +165,9 @@ def is_comment(path, text):
     return False
 
 
-def comments(repo, base, candidate):
-    patch = diff(repo, base, candidate, '-U0', '--inter-hunk-context=0', '--src-prefix=a/', '--dst-prefix=b/')
+def comments(added):
     found = [{'path': path, 'line': line, 'text': text.strip()[:200]}
-             for path, line, text in added_lines(patch)
-             if path and classify(path) != 'docs' and is_comment(path, text)]
+             for path, line, text in added if classify(path) != 'docs' and is_comment(path, text)]
     return {'count': len(found), 'lines': found[:MAX_COMMENT_LINES]}
 
 
@@ -159,7 +176,7 @@ def load_previous(path, base):
         with open(path, encoding='utf-8') as stream:
             previous = json.load(stream)
         added = {name: previous['classes'][name]['added'] for name in CLASSES}
-    except (OSError, ValueError, KeyError, TypeError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, RecursionError) as exc:
         raise UsageError(f'--previous: unreadable footprint {path}: {exc}') from None
     if not all(type(count) is int and count >= 0 for count in added.values()):
         raise UsageError(f'--previous: added counts must be non-negative integers in {path}')
@@ -168,14 +185,14 @@ def load_previous(path, base):
     return added
 
 
-def signals(rows, classes, comment_info, args, previous):
-    found = []
+def signals(rows, classes, comment_info, args, previous, empty):
+    found = [{'id': 'empty_candidate', 'detail': 'candidate is the base commit: nothing measured'}] if empty else []
     tests, product, docs = (classes[name]['added'] for name in ('tests', 'product', 'docs'))
     if tests > args.test_ratio * product + args.test_slack:
         found.append({'id': 'tests_outweigh_product',
                       'detail': f'tests +{tests} > {args.test_ratio:g} x product +{product} + {args.test_slack}: '
                                 'have the added tests classified with references/test-review-brief.md'})
-    if docs:
+    if docs > classes['docs']['removed'] or classes['docs']['new_files']:
         grown = {path for path, added, _ in rows if added and classify(path) == 'docs'}
         new = [path for path in classes['docs']['new_files'] if path in grown]
         names = new + sorted(grown - set(new))
@@ -199,14 +216,24 @@ def footprint(args):
         raise UsageError(f'REPO: {repo.path}: {exc}') from None
     base = resolve(repo, args.base, '--base')
     candidate = resolve(repo, args.candidate, '--candidate')
-    previous = load_previous(args.previous, base) if args.previous else None
-    rows = numstat(repo, base, candidate)
-    new_files = set(diff(repo, base, candidate, '--diff-filter=A', '--name-only', '-z').split('\0')) - {''}
+    previous = load_previous(args.previous, base) if args.previous is not None else None
+    rows, new_files, added = changes(repo, base, candidate)
     classes = measure_classes(rows, new_files)
-    comment_info = comments(repo, base, candidate)
+    comment_info = comments(added)
     return {'ok': True, 'base': base, 'candidate': candidate, 'classes': classes,
-            'comments_added': comment_info, 'signals': signals(rows, classes, comment_info, args, previous),
+            'comments_added': comment_info, 'signals': signals(rows, classes, comment_info, args, previous,
+                                                                  base == candidate),
             'limits': LIMITS}
+
+
+def non_negative(kind):
+    def parse(text):
+        value = kind(text)
+        if not 0 <= value < math.inf:
+            raise ValueError(text)
+        return value
+    parse.__name__ = f'non-negative {kind.__name__}'
+    return parse
 
 
 def build_parser():
@@ -215,8 +242,10 @@ def build_parser():
     parser.add_argument('--base', required=True, help='reference the candidate is measured against')
     parser.add_argument('--candidate', default='HEAD', help='measured reference (default: HEAD)')
     parser.add_argument('--previous', metavar='FILE.json', help='earlier output of this tool on the same base')
-    parser.add_argument('--test-ratio', type=float, default=3.0, help='tests_outweigh_product ratio (default: 3)')
-    parser.add_argument('--test-slack', type=int, default=100, help='tests_outweigh_product slack (default: 100)')
+    parser.add_argument('--test-ratio', type=non_negative(float), default=3.0,
+                        help='tests_outweigh_product ratio, finite and non-negative (default: 3)')
+    parser.add_argument('--test-slack', type=non_negative(int), default=100,
+                        help='tests_outweigh_product slack, non-negative integer (default: 100)')
     parser.add_argument('--safe-directory', action='store_true',
                         help='pass -c safe.directory=REPO to every git call, for a repository owned by another '
                              'account; REPO must be its top-level folder; git configuration files are not changed')

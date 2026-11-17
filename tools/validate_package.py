@@ -8,17 +8,42 @@ tools/rc_update.py (single registry). Rules depend on the role of each skill:
 
 - RC skills keep the historical rules unchanged: frontmatter subset, name, description,
   metadata keys, UI strings quoted as JSON, short description length, explicit
-  ``$skill`` invocation and normal discovery.
+  ``$skill`` invocation and normal discovery. Their ``agents/openai.yaml`` is read in its
+  canonical form only (``section:`` lines, then ``  key: <JSON value>`` with one space
+  after the colon); any other line is refused.
 - Dependency copies are accepted as delivered and never rewritten to fit RC conventions.
   Checked: name and description, the limited ``agents/openai.yaml`` subset they use,
   icons resolved from the skill root, the invocation policy recorded at snapshot time
   (Unslop stays explicit-only), and closure of their local resources.
 
-For every skill: Markdown links and in-page anchors, inline resource paths
-(``references/``, ``scripts/``, ``assets/``, ``agents/``), compilation and standard-library
-imports of Python files, no cache or temporary file, regular files only, no machine path or
-40-hex snapshot in Markdown. With --provenance, the bytes of every package file are
-compared with the recorded provenance.
+For every skill: compilation and standard-library imports of Python files, UTF-8 text without BOM, no
+cache or temporary file, regular files only, no blank in a file name, no machine path
+(drive letter, UNC, /home/, /Users/) or 40-hex snapshot in Markdown. With --provenance,
+the bytes of every package file are compared with the recorded provenance.
+
+Markdown (extension .md in any case) is scanned as raw text: the validator does not tell code from prose, does not
+render Markdown and does not read HTML. What it guarantees, one sentence per rule:
+
+1. Destinations. Every text after '](' (up to ')' or the end of the line), the first word
+   after every '[label]:' that starts a line (after indentation and list or quote markers,
+   or on the next line), and every href= or src= value is accepted only if it has a
+   scheme (not checked further), or is '#anchor' with an anchor of rule 3, or is a
+   relative path of letters, digits and ._-/%# that, %xx decoded and without chevrons,
+   names a package file at exact case and carries an anchor only into a Markdown file
+   whose rule-3 ids hold it; anything else is refused with the rule that failed.
+2. Resources. Every word starting with references/, scripts/ or assets/ in a Markdown
+   file, taken whole up to a blank, a code delimiter, a sentence mark or '#', is accepted only
+   if it is made of letters, digits and ._-/ and names a file of its skill at exact case
+   from the skill root; a file name with a blank is refused for itself.
+3. Anchors. The only ids are those of ATX headings indented 0-3 spaces, outside a ``` or
+   ~~~ fence, whose text holds no link, defined [label], entity, HTML, backslash or
+   underscore at a word edge, numbered on repeats as on GitHub; Setext headings give
+   none, and a fence mark after a list or quote marker, indented 4+ spaces or by a tab,
+   or a backtick fence whose info string holds a backtick puts the rest of the file in a
+   fence, so that doubt refuses rather than accepts.
+4. HTML that could hide a heading is refused by name: '<!--' anywhere, and outside a
+   fence a line that starts (indented 0-3 spaces) with '<' then a letter, '/' or '!',
+   unless it is an autolink with a scheme.
 
 The frontmatter and UI readers accept only the subsets present in these files; they are
 not YAML parsers. Structural success certifies neither the quality of a prompt, nor the
@@ -30,9 +55,11 @@ import ast
 import hashlib
 import importlib.util
 import json
+import posixpath
 import re
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 _spec = importlib.util.spec_from_file_location('rc_update_registry', Path(__file__).with_name('rc_update.py'))
 _registry = importlib.util.module_from_spec(_spec)
@@ -49,56 +76,53 @@ DEPENDENCY_POLICY = {
     'unslop': {'allow_implicit_invocation': False, 'default_prompt': False},
 }
 TEXT_SUFFIXES = {'.md', '.py', '.yaml', '.yml', '.svg', '.txt', '.json'}
-RESOURCE = re.compile(r'`((?:references|scripts|assets|agents)/[A-Za-z0-9_.\-/]+)`')
-LINK = re.compile(r'\[[^\]]*\]\(([^)]+)\)')
-REFERENCE = re.compile(r'^ {0,3}\[([^\]^][^\]]*)\]:[ \t]*(\S+)', re.M)
-FENCE = re.compile(r' {0,3}(`{3,}|~{3,})')
-LIST_ITEM = re.compile(r' {0,3}(?:[-*+]|\d+[.)])\s')
-CODE_SPAN = re.compile(r'(`+)(?!`)(.+?)(?<!`)\1(?!`)')
-MACHINE = re.compile(r'[A-Z]:[\\/]|[a-f0-9]{40}')
+MACHINE = re.compile(r'(?<![A-Za-z])[A-Za-z]:[\\/]|\\\\[^\s\\]+\\|/(?:home|Users)/|[0-9A-Fa-f]{40}')
+DEFINITION = r'^[ \t>]*(?:(?:[-*+]|\d{1,9}[.)])[ \t>]+)*\['
+LABELS = re.compile(DEFINITION + r'([^\]\n]+)\]:', re.M)
+DESTINATIONS = re.compile(
+    r'\]\(([^)\n]*)'
+    r'|' + DEFINITION + r'[^\]\n]+\]:[ \t]*\n?[ \t>]*(\S*)'
+    r'|(?:href|src)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))', re.M)
+RESOURCE = re.compile(r'(?:(?<=\./)|(?<![\w./\-]))(?:references|scripts|assets)/[^\s`"\'()<>\[\]{},;:!?|*#]+')
+SAFE_RESOURCE = re.compile(r'(?:references|scripts|assets)/[\w.\-/]*[\w\-]')
+HEADING = re.compile(r' {0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*')
+NOT_SIMPLE = re.compile(r'\]\(|\]\[|&#?\w+;|<|\\|(?<!\w)_|_(?!\w)')
+HTML_LINE = re.compile(r' {0,3}<(?![A-Za-z][A-Za-z0-9+.-]*:)[A-Za-z/!]')
+DEAD = 'not a package file at exact case; an example in code carries a scheme'
+ANCHORLESS = 'no simple ATX heading has this id'
+UNSAFE = "unsupported destination: use letters, digits and ._-/%# or a URL with a scheme"
 
 
-def outside_fences(text):
-    """Text with the lines of fenced and indented code blocks blanked, line numbering kept."""
-    lines, fence, in_list, after_blank, indented = [], None, False, True, False
-    for line in text.split('\n'):
-        match = FENCE.match(line)
-        if fence is None and match:
-            fence, indented = match[1], False
-            line = ''
-        elif fence is not None:
-            closing = re.fullmatch(r' {0,3}(`{3,}|~{3,})\s*', line)
-            if closing and closing[1][0] == fence[0] and len(closing[1]) >= len(fence):
+def outline(text):
+    """Ids of the simple ATX headings outside fences, GitHub numbering of repeats, and the
+    numbers of the lines outside fences that open an HTML block."""
+    seen, fence, html = {}, None, []
+    defined = {' '.join(label.split()).lower() for label in LABELS.findall(text)}
+    for number, line in enumerate(text.split('\n'), 1):
+        stripped = line.lstrip(' \t')
+        inner = re.sub(r'^(?:(?:[-*+]|\d{1,9}[.)]|>)[ \t]*)+', '', stripped)
+        opening = re.match(r'(`{3,}|~{3,})(.*)', inner)
+        if opening:
+            margin = line[:len(line) - len(stripped)]
+            if len(margin) >= 4 or '\t' in margin or inner != stripped or (opening[1][0] == '`' and '`' in opening[2]):
+                break  # in doubt, the rest of the file is in a fence
+            if fence is None:
+                fence = opening[1]
+            elif opening[1][0] == fence[0] and len(opening[1]) >= len(fence) and not opening[2].strip():
                 fence = None
-            line = ''
-        elif not line.strip():
-            lines.append(line)
-            after_blank = True
             continue
-        elif re.match(r' {4}|\t', line) and not in_list and (after_blank or indented):
-            indented = True
-            line = ''
-        else:
-            indented = False
-            if not line.startswith('    '):
-                in_list = bool(LIST_ITEM.match(line))
-        after_blank = False
-        lines.append(line)
-    return '\n'.join(lines)
-
-
-def link_targets(text):
-    """Destinations of inline links, then of reference definitions, outside code blocks and spans."""
-    prose = CODE_SPAN.sub('code', outside_fences(text))
-    targets = LINK.findall(prose) + [m[2] for m in REFERENCE.finditer(prose)]
-    out = []
-    for raw in targets:
-        raw = raw.strip()
-        if raw.startswith('<') and '>' in raw:
-            out.append(raw[1:raw.index('>')])
-        else:
-            out.append(raw.split()[0] if raw else raw)
-    return out
+        if fence is None and HTML_LINE.match(line):
+            html.append(number)
+        heading = HEADING.fullmatch(line) if fence is None else None
+        labels = {' '.join(label.split()).lower() for label in re.findall(r'\[([^\]\n]+)\]', heading[1])} \
+            if heading else set()
+        if heading and not NOT_SIMPLE.search(heading[1]) and not labels & defined:
+            base = anchor = re.sub(r'[^\w\- ]', '', heading[1].lower()).replace(' ', '-')
+            while anchor in seen:
+                seen[base] += 1
+                anchor = f'{base}-{seen[base]}'
+            seen[anchor] = 0
+    return set(seen), html
 
 
 def scalar(value):
@@ -181,22 +205,6 @@ def read_ui(text):
     return root
 
 
-def slug(heading):
-    heading = re.sub(r'[^\w\- ]', '', heading.strip().lower())
-    return heading.replace(' ', '-')
-
-
-def anchors(text):
-    """Heading anchors in document order; a repeated heading gets -1, -2, ... as on GitHub."""
-    seen, found = {}, set()
-    for m in re.finditer(r'^#{1,6}\s+(.+?)\s*#*\s*$', outside_fences(text), re.M):
-        base = slug(m[1])
-        count = seen.get(base, 0)
-        seen[base] = count + 1
-        found.add(f'{base}-{count}' if count else base)
-    return found
-
-
 def stdlib_imports(source, filename):
     names = set()
     for node in ast.walk(ast.parse(source, filename)):
@@ -210,11 +218,31 @@ def stdlib_imports(source, filename):
 
 def validate(root, provenance=None):
     root = root.resolve()
-    checks = []
-    files = []
+    checks, files, texts = [], [], {}
 
     def check(name, condition, detail=''):
         checks.append({'check': name, 'passed': bool(condition), 'detail': detail})
+
+    def resolve(folder, target):
+        path = posixpath.normpath(posixpath.join(folder, target)) if isinstance(target, str) else None
+        return path if path in names else None
+
+    paths = sorted(p for p in root.rglob('*') if p.is_file())
+    names = {p.relative_to(root).as_posix() for p in paths}
+    for path in paths:
+        rel = path.relative_to(root)
+        data = path.read_bytes()
+        entry = {'path': rel.as_posix(), 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}
+        if path.suffix.lower() in TEXT_SUFFIXES:
+            try:
+                text = data.decode('utf-8')
+                if text.startswith('\ufeff'):
+                    raise UnicodeError('UTF-8 BOM: save the file without BOM')
+                texts[rel.as_posix()] = text.replace('\r\n', '\n').replace('\r', '\n')
+                entry['words'] = len(texts[rel.as_posix()].split())
+            except UnicodeError as exc:
+                check(f'{rel}:utf8', False, str(exc))
+        files.append(entry)
 
     present = {p.name for p in root.iterdir() if p.is_dir()}
     distribution = next((d for d, skills in DISTRIBUTIONS.items() if present == set(skills)), None)
@@ -223,12 +251,11 @@ def validate(root, provenance=None):
     roles = DISTRIBUTIONS.get(distribution, {s: ('rc' if s in NAMES else 'dependency') for s in present})
 
     for name in [s for s in ALL_SKILLS if s in roles]:
-        folder = root / name
-        path = folder / 'SKILL.md'
-        check(f'{name}:skill_exists', path.is_file())
-        if not path.is_file():
+        check(f'{name}:skill_exists', f'{name}/SKILL.md' in names)
+        text, ui = texts.get(f'{name}/SKILL.md'), texts.get(f'{name}/agents/openai.yaml')
+        check(f'{name}:ui_exists', f'{name}/agents/openai.yaml' in names)
+        if text is None:
             continue
-        text = path.read_text(encoding='utf-8')
         if roles[name] == 'rc':
             try:
                 meta, body = frontmatter(text)
@@ -239,24 +266,26 @@ def validate(root, provenance=None):
                 check(f'{name}:metadata_keys', set(meta) == {'name', 'description'})
                 check(f'{name}:no_unfinished_scaffold', not re.search(r'^\s*\[TODO:', body, re.M))
                 check(f'{name}:no_automatic_reference_import', not re.search(r'^@\S+', body, re.M))
-                check(f'{name}:no_machine_snapshot', not re.search(r'[A-Z]:[\\/]|[a-f0-9]{40}\b', body))
             except (ValueError, json.JSONDecodeError) as exc:
                 check(f'{name}:frontmatter_subset', False, str(exc))
-            ui = folder / 'agents/openai.yaml'
-            check(f'{name}:ui_exists', ui.is_file())
-            if ui.is_file():
+            if ui is not None:
                 values = {}
-                for line in ui.read_text(encoding='utf-8').splitlines():
-                    if line.startswith('  '):
-                        key, _, value = line.strip().partition(':')
-                        try:
-                            values[key] = json.loads(value.strip())
-                        except json.JSONDecodeError as exc:
-                            check(f'{name}:ui_string:{key}', False, str(exc))
-                short = values.get('short_description', '')
-                check(f'{name}:ui_short_description', 25 <= len(short) <= 64)
-                check(f'{name}:ui_invocation', f'${name}' in values.get('default_prompt', ''))
-                check(f'{name}:ui_normal_discovery', 'allow_implicit_invocation: false' not in ui.read_text(encoding='utf-8'))
+                for number, line in enumerate(ui.splitlines(), 1):
+                    if not line.strip() or re.fullmatch(r'[a-z_]+:', line):
+                        continue
+                    item = re.fullmatch(r'  ([a-z_]+): (\S.*)', line)
+                    if not item or item[1] in values:
+                        check(f'{name}:ui_line:{number}', False,
+                              'canonical form only: "  key: <JSON value>", one space after the colon, no repeat')
+                        continue
+                    try:
+                        values[item[1]] = json.loads(item[2])
+                    except json.JSONDecodeError as exc:
+                        check(f'{name}:ui_string:{item[1]}', False, str(exc))
+                short, prompt = values.get('short_description'), values.get('default_prompt')
+                check(f'{name}:ui_short_description', isinstance(short, str) and 25 <= len(short) <= 64)
+                check(f'{name}:ui_invocation', isinstance(prompt, str) and f'${name}' in prompt)
+                check(f'{name}:ui_normal_discovery', values.get('allow_implicit_invocation', True) is True)
         else:
             try:
                 meta, body = frontmatter(text)
@@ -267,11 +296,9 @@ def validate(root, provenance=None):
                       f'{len(desc)} characters')
             except (ValueError, json.JSONDecodeError) as exc:
                 check(f'{name}:frontmatter_subset', False, str(exc))
-            ui = folder / 'agents/openai.yaml'
-            check(f'{name}:ui_exists', ui.is_file())
-            if ui.is_file():
+            if ui is not None:
                 try:
-                    doc = read_ui(ui.read_text(encoding='utf-8'))
+                    doc = read_ui(ui)
                     check(f'{name}:ui_subset', True)
                 except (ValueError, json.JSONDecodeError) as exc:
                     check(f'{name}:ui_subset', False, str(exc))
@@ -286,10 +313,8 @@ def validate(root, provenance=None):
                           f'{len(short) if isinstance(short, str) else 0} characters')
                     for key in ('icon_small', 'icon_large'):
                         if key in interface:
-                            icon = interface[key]
-                            dest = (folder / icon).resolve() if isinstance(icon, str) else None
-                            check(f'{name}:ui_{key}', dest is not None and not Path(icon).is_absolute()
-                                  and dest.is_file() and dest.is_relative_to(folder.resolve()), icon)
+                            icon = resolve(name, interface[key])
+                            check(f'{name}:ui_{key}', icon and icon.startswith(name + '/'), interface[key])
                     expected = DEPENDENCY_POLICY.get(name)
                     check(f'{name}:ui_policy_known', expected is not None)
                     if expected:
@@ -305,48 +330,57 @@ def validate(root, provenance=None):
                     check(f'{name}:ui_products', isinstance(products, list) and products
                           and all(isinstance(p, str) for p in products))
 
-    for path in sorted(root.rglob('*')):
+    for path in paths:
         rel = path.relative_to(root)
-        if path.is_file() and path.suffix == '.md':
-            body = path.read_text(encoding='utf-8')
-            check(f'{rel}:no_machine_snapshot', not MACHINE.search(body))
-        if path.is_file() and path.suffix == '.py':
-            try:
-                source = path.read_text(encoding='utf-8')
-                compile(source, str(path), 'exec')
-                check(f'{rel}:compiles', True)
-                outside = stdlib_imports(source, str(path))
-                check(f'{rel}:stdlib_imports', not outside, outside)
-            except SyntaxError as exc:
-                check(f'{rel}:compiles', False, str(exc))
-        if path.is_file() and ('__pycache__' in path.parts or path.suffix in {'.pyc', '.lock', '.tmp'}):
+        key = rel.as_posix()
+        text = texts.get(key)
+        check(f'file:{rel}:regular', not path.is_symlink())
+        if re.search(r'\s', key):
+            check(f'file:{rel}:name', False, 'file name contains a blank: rename it without spaces')
+        suffix = path.suffix.lower()
+        if '__pycache__' in path.parts or suffix in {'.pyc', '.lock', '.tmp'}:
             check(f'{rel}:no_cache_or_temp', False)
-        if path.is_file():
-            check(f'file:{rel}:regular', not path.is_symlink())
-            data = path.read_bytes()
-            entry = {'path': rel.as_posix(), 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}
-            if path.suffix in TEXT_SUFFIXES:
-                entry['words'] = len(data.decode('utf-8').split())
-            files.append(entry)
-            if path.suffix == '.md':
-                text = data.decode('utf-8')
-                skill_dir = root / rel.parts[0]
-                for index, target in enumerate(link_targets(text)):
-                    if re.match(r'^[a-z][a-z0-9+.-]*://', target) or target.startswith('mailto:'):
-                        continue
-                    file_part, _, anchor = target.partition('#')
-                    if not file_part:
-                        check(f'{rel}:link:{index}', anchor in anchors(text), target)
-                        continue
-                    dest = (path.parent / file_part).resolve()
-                    ok = dest.is_file() and dest.is_relative_to(root)
-                    if ok and anchor and dest.suffix == '.md':
-                        ok = anchor in anchors(dest.read_text(encoding='utf-8'))
-                    check(f'{rel}:link:{index}', ok, target)
-                for index, target in enumerate(RESOURCE.findall(text)):
-                    candidates = [(skill_dir / target).resolve(), (path.parent / target).resolve()]
-                    check(f'{rel}:resource:{index}', any(c.is_file() and c.is_relative_to(skill_dir.resolve())
-                                                         for c in candidates), target)
+        if suffix == '.py' and text is not None:
+            try:
+                compile(text, str(path), 'exec')
+                check(f'{rel}:compiles', True)
+                outside = stdlib_imports(text, str(path))
+                check(f'{rel}:stdlib_imports', not outside, outside)
+            except (SyntaxError, ValueError) as exc:
+                check(f'{rel}:compiles', False, str(exc))
+        if suffix != '.md' or text is None:
+            continue
+        check(f'{rel}:no_machine_snapshot', not MACHINE.search(text))
+        if '<!--' in text:
+            check(f'{rel}:html_comment', False, 'HTML comment: remove it, a heading inside would count')
+        for number in outline(text)[1]:
+            check(f'{rel}:html_block:{number}', False, 'HTML block outside a fence: put it in a fenced block')
+        skill, folder = rel.parts[0], posixpath.dirname(key)
+        for index, match in enumerate(DESTINATIONS.finditer(text)):
+            target = next(g for g in match.groups() if g is not None).strip()
+            if target.startswith('<') and target.endswith('>'):
+                target = target[1:-1]
+            if re.match(r'[A-Za-z][A-Za-z0-9+.-]*:', target):
+                continue
+            file_part, _, anchor = target.partition('#')
+            if not re.fullmatch(r'[\w.\-/%]*(?:#[\w.\-%]*)?', target) or not target:
+                ok, reason = False, UNSAFE
+            elif not file_part:
+                ok, reason = unquote(anchor) in outline(text)[0], ANCHORLESS
+            else:
+                dest = resolve(folder, unquote(file_part))
+                ok = dest is not None and (not anchor or (dest.lower().endswith('.md') and dest in texts
+                                                          and unquote(anchor) in outline(texts[dest])[0]))
+                reason = ANCHORLESS if dest else DEAD
+            check(f'{rel}:link:{index}', ok, target if ok else f'{target} ({reason})')
+        for index, word in enumerate(RESOURCE.findall(text)):
+            word = word.rstrip('.')
+            found = (resolve(skill, word) or '').startswith(skill + '/')
+            blank = any(n.startswith(posixpath.normpath(posixpath.join(skill, word)) + ' ') for n in names)
+            if not SAFE_RESOURCE.fullmatch(word):
+                check(f'{rel}:resource:{index}', False, f'{word} (unsupported resource word: use letters, digits and ._-/)')
+            elif not blank:  # a word cut at a blank of an existing file name: its name check reports it
+                check(f'{rel}:resource:{index}', found, word if found else f'{word} (not a file of the skill at exact case)')
     if provenance is not None:
         records = {}
         for item in json.loads(Path(provenance).read_text(encoding='utf-8'))['files']:
@@ -365,6 +399,8 @@ def validate(root, provenance=None):
             'passed': sum(c['passed'] for c in checks),
             'failed': sum(not c['passed'] for c in checks), 'files': files,
             'limits': ['Structural subset validator; frontmatter and UI readers are not YAML parsers.',
+                       'Markdown is scanned as raw text: every destination and resource word is checked, '
+                       'code examples included; anchors resolve only to simple ATX headings.',
                        'Dependency copies are checked as delivered, not rewritten; their prompt quality is not assessed.',
                        'Python files are compiled and their imports listed; vendored scripts are not executed here.',
                        'No runtime, launch, model quality or product behavior is certified.']}

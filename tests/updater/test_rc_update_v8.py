@@ -230,6 +230,7 @@ class ManifestV2Tests(Base):
             'escape': {**base, 'files': [dict(base['files'][0], path='unslop/../../evil.md')] + base['files'][1:]},
             'legacy_with_dependency': {'files': json.loads(OLD_MANIFEST.read_text(encoding='utf-8'))['files']
                                        + [base['files'][0]]},
+            'legacy_digest': {**json.loads(OLD_MANIFEST.read_text(encoding='utf-8')), 'digest': '0' * 64},
         }
         before = self.trees()
         for label, doc in forged.items():
@@ -237,7 +238,7 @@ class ManifestV2Tests(Base):
                 path = self.dir / f'{label}.json'
                 path.write_text(json.dumps(doc), encoding='utf-8')
                 plan = self.dir / f'plan-{label}.json'
-                prev, manifest = (path, NEW_MANIFEST) if label == 'legacy_with_dependency' else (OLD_MANIFEST, path)
+                prev, manifest = (path, NEW_MANIFEST) if label.startswith('legacy') else (OLD_MANIFEST, path)
                 code, out = self.preflight(prev=prev, manifest=manifest, plan=plan)
                 self.assertEqual(code, 1, out)
                 self.assertFalse(plan.exists())
@@ -413,6 +414,42 @@ class PlanV8Tests(Base):
         self.assertFalse(self.plan.exists())
         self.assertEqual(list(elsewhere.iterdir()), [])
 
+    def test_other_spelling_of_a_target_refused(self):
+        alias = (lambda path: '\\\\?\\' + str(path)) if os.name == 'nt' else str
+        self.assertEqual(self.preflight()[0], 0)
+        t0, t1 = self.targets
+        inner = t0 / 'rc-prepare-supervisor'
+        copy_tree(NEW_PKG, t0 / 'pkg')
+        before = self.trees()
+        common = ['preflight', '--previous-manifest', OLD_MANIFEST, '--new-manifest', NEW_MANIFEST]
+        cases = {'plan': [*common, '--new-package', NEW_PKG, '--target', t0, '--target', t1,
+                          '--plan-out', alias(inner / 'plan.json')],
+                 'targets': [*common, '--new-package', NEW_PKG, '--target', t0, '--target', alias(t0),
+                             '--plan-out', self.dir / 'plan-2.json'],
+                 'package': [*common, '--new-package', alias(t0 / 'pkg'), '--target', t0, '--target', t1,
+                             '--plan-out', self.dir / 'plan-3.json'],
+                 'state': ['apply', '--plan', self.plan, '--state-dir', alias(inner / 'etat')]}
+        for label, args in cases.items():
+            with self.subTest(label):
+                code, out = self.run_main(*args)
+                self.assertEqual(code, 1, out)
+                self.assertEqual(self.trees(), before)
+                self.assertFalse((self.dir / 'plan-2.json').exists())
+
+    def test_unknown_file_at_new_directory_refused(self):
+        pkg = self.dir / 'pkg'
+        copy_tree(NEW_PKG, pkg)
+        (pkg / 'rc-prepare-supervisor' / 'newdir').mkdir()
+        (pkg / 'rc-prepare-supervisor' / 'newdir' / 'x.md').write_bytes(b'x\n')
+        manifest = self.dir / 'new.json'
+        self.assertEqual(self.run_main('manifest', '--package', pkg, '--out', manifest)[0], 0)
+        (self.targets[0] / 'rc-prepare-supervisor' / 'newdir').write_bytes(b'fichier du proprietaire\n')
+        before = self.trees()
+        code, out = self.preflight(pkg=pkg, manifest=manifest)
+        self.assertEqual(code, 2, out)
+        self.assertEqual([t['status'] for t in out['targets']], ['refused', 'ok'])
+        self.assertEqual(self.trees(), before)
+
 
 class ApplyV8Tests(Base):
     def test_apply_installs_and_verifies(self):
@@ -521,6 +558,75 @@ class ApplyV8Tests(Base):
         self.assertEqual(code, 1, out)  # paquet déplacé incomplet : refus ciblé
         self.assertIn('unslop/assets/icon.svg', out['error'])
 
+    def test_break_lock_after_brutal_stop(self):
+        initial = self.snapshot()
+        self.preflight()
+        with self.fail_target_swap(5):
+            self.assertEqual(self.apply()[0], 1)
+        lock = self.state / self.plan_doc()['plan_id'] / 'lock'
+        for command in ('resume', 'rollback'):
+            with self.subTest(command):
+                lock.write_bytes(b'4242')  # verrou laissé par un processus tué
+                code, out = self.run_main(command, '--plan', self.plan, '--state-dir', self.state)
+                self.assertEqual(code, 1, out)
+                self.assertIn('--break-lock', out['error'])
+                code, out = self.run_main(command, '--plan', self.plan, '--state-dir', self.state, '--break-lock')
+                self.assertEqual(code, 0, out)
+        self.assertEqual(self.snapshot(), initial)
+        self.assertFalse(lock.exists())
+
+    def test_resume_after_torn_journal_line(self):
+        self.preflight()
+        with self.fail_target_swap(5):
+            self.assertEqual(self.apply()[0], 1)
+        journal = self.state / self.plan_doc()['plan_id'] / 'journal.jsonl'
+        with journal.open('ab') as stream:
+            stream.write('{"seq": 999, "event": "é'.encode('utf-8')[:-1])  # arrêt du système pendant l'ajout
+        code, out = self.resume()
+        self.assertEqual(code, 0, out)
+        for t in self.targets:
+            self.assert_new(t)
+        self.assertNotIn(999, [e['seq'] for e in self.journal()])
+
+    def test_apply_stopped_before_journal(self):
+        initial = self.snapshot()
+        self.preflight()
+        with mock.patch.object(rc_update.Journal, 'append', side_effect=OSError('arrêt avant le journal')):
+            self.assertEqual(self.apply()[0], 1)
+        lock = self.state / self.plan_doc()['plan_id'] / 'lock'
+        for command in ('resume', 'rollback'):
+            with self.subTest(command):
+                lock.write_bytes(b'4242')  # verrou laissé par un processus tué avant son journal
+                code, out = self.run_main(command, '--plan', self.plan, '--state-dir', self.state)
+                self.assertEqual(code, 1, out)
+                self.assertIn('nouveau --state-dir', out['error'])
+                self.assertTrue(lock.exists())
+                code, out = self.run_main(command, '--plan', self.plan, '--state-dir', self.state, '--break-lock')
+                self.assertEqual(code, 1, out)
+                self.assertIn('Verrou retiré', out['error'])
+                self.assertIn('nouveau --state-dir', out['error'])
+                self.assertFalse(lock.exists())
+        self.assertEqual(self.snapshot(), initial)
+
+    def test_cli_errors_exit_1_with_utf8_json(self):
+        self.preflight()
+        listed, items = self.dir / 'liste.json', self.dir / 'items.json'
+        listed.write_text('[]', encoding='utf-8')
+        items.write_text('{"files": [1]}', encoding='utf-8')
+        env = {k: v for k, v in os.environ.items() if k not in ('PYTHONIOENCODING', 'PYTHONUTF8')}
+        preflight = ['preflight', '--new-package', NEW_PKG, '--target', self.targets[0]]
+        cases = {'no command': [], 'missing option': ['apply', '--plan', self.plan],
+                 'bad choice': ['verify', '--plan', self.plan, '--expect', 'ancien'], 'unknown command': ['appliquer'],
+                 'manifest list': [*preflight, '--previous-manifest', listed, '--plan-out', self.dir / 'p1.json'],
+                 'manifest items': [*preflight, '--previous-manifest', items, '--plan-out', self.dir / 'p2.json'],
+                 'accented refusal': [*preflight, '--previous-manifest', OLD_MANIFEST,
+                                      '--plan-out', self.dir / 'absent' / 'p.json']}
+        for label, args in cases.items():
+            with self.subTest(label):
+                proc = subprocess.run([sys.executable, '-B', str(SCRIPT), *map(str, args)], capture_output=True, env=env)
+                self.assertEqual(proc.returncode, 1)
+                self.assertEqual(json.loads(proc.stderr.decode('utf-8'))['code'], 1)
+
 
 class RollbackV8Tests(Base):
     def test_rollback_after_install(self):
@@ -595,6 +701,24 @@ class RollbackV8Tests(Base):
         self.assertEqual(self.snapshot(), initial)
         self.assertTrue((self.targets[1] / 'unslop' / 'SKILL.md').is_file())
         self.assertFalse((self.targets[0] / 'unslop').exists())
+
+    def test_rollback_recreates_vanished_parent_dir(self):
+        prev = self.dir / 'prev'
+        copy_tree(OLD_PKG, prev)
+        (prev / 'rc-prepare-supervisor' / 'old').mkdir()
+        (prev / 'rc-prepare-supervisor' / 'old' / 'gone.md').write_bytes(b'old\n')
+        manifest = self.dir / 'prev.json'
+        self.assertEqual(self.run_main('manifest', '--package', prev, '--out', manifest)[0], 0)
+        for t in self.targets:
+            self.build_profile(t, prev)
+        initial = self.snapshot()
+        self.assertEqual(self.preflight(prev=manifest)[0], 0)
+        self.assertEqual(self.apply()[0], 0)
+        for t in self.targets:
+            (t / 'rc-prepare-supervisor' / 'old').rmdir()  # dossier vidé par la mise à jour, retiré par le propriétaire
+        code, out = self.rollback()
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.snapshot(), initial)
 
 
 class CompatTests(Base):

@@ -4,7 +4,7 @@ Formats et règles communes aux trois skills RC ; le lire ne lance rien. Conduit
 
 ## Outil
 
-Toute création ou modification d'état passe par [rc_state.py](../scripts/rc_state.py) (`--help`, exemples compris), jamais par un script ad hoc ni à la main. Il contrôle titulaire, révision, verrous et déclarations, sans certifier autorité, revue ni exécution. `init` crée un index ou une vague détachée à la révision 0 avec titulaire ; `init --template program|wave` donne les types ; `--replace-invalid --evidence` remplace seulement un fichier initial écrit hors outil, invalide et sans autre titulaire, en conservant l'ancien. `--expect-revision` est la révision lue pour décider ; une relecture automatique désarme ce contrôle. `check_wave.py` vise seulement le format v1. `ready` donne le travail prêt et les conflits de ressources déclarées, y compris entre vagues admises ; `resume`, les actions de reprise. Un refus se corrige à sa cause, sans contournement ; une suite de commandes s'arrête au premier refus, et aucun lancement ne suit une porte non constatée ; sorties détaillées et refus inexpliqués : [moteur](engine.md). [rc_footprint.py](../scripts/rc_footprint.py) mesure l'empreinte d'un candidat et sort des signaux d'examen ; il n'accepte ni ne refuse rien.
+Toute création ou modification d'état passe par [rc_state.py](../scripts/rc_state.py) (`--help`, exemples compris), jamais par un script ad hoc ni à la main. Il contrôle titulaire, révision, verrous et déclarations, sans certifier autorité, revue ni exécution. `init` crée un index ou une vague détachée à la révision 0 avec titulaire ; `init --template program|wave` donne les types ; `--replace-invalid --evidence` remplace seulement un fichier initial écrit hors outil, invalide et sans autre titulaire, en conservant l'ancien. `--expect-revision` est la révision lue pour décider ; une relecture automatique désarme ce contrôle. `ready` donne le travail prêt et les conflits de ressources déclarées, y compris entre vagues admises ; `resume`, les actions de reprise. Un refus se corrige à sa cause, sans contournement ; une suite de commandes s'arrête au premier refus, et aucun lancement ne suit une porte non constatée ; sorties détaillées et refus inexpliqués : [moteur](engine.md). [rc_footprint.py](../scripts/rc_footprint.py) mesure l'empreinte d'un candidat et sort des signaux d'examen ; il n'accepte ni ne refuse rien.
 
 ## Fichiers et propriétaires
 
@@ -14,7 +14,7 @@ Toute création ou modification d'état passe par [rc_state.py](../scripts/rc_st
 | `wave.json` (`schema_version: 2`) | lots, artefacts, revues, acteurs, intentions, candidat | titulaire de la vague, normalement le pilote |
 | `journal.jsonl` | événements reçus et décisions, en ajout seul | `rc_state.py` |
 
-Ces fichiers seuls font foi ; un résumé ou tableau de suivi cite sa source et ne sert pas à décider. Décisions produit et backlog restent dans leur source projet. Sauf attribution, les enfants n'écrivent pas ces fichiers : ils remettent des deltas. `owner` vaut `{role, ref}` avec une référence réellement retournée, ou `null` ; reprise de propriété seulement sur transfert consigné ou arrêt constaté (`claim --takeover --evidence`).
+Ces fichiers seuls font foi ; un résumé ou tableau de suivi cite sa source et ne sert pas à décider. Décisions produit et backlog restent dans leur source projet. Sauf attribution, les enfants n'écrivent pas ces fichiers : ils remettent des deltas. `owner` vaut `{role, ref}` avec une référence retournée ou convenue, ou `null` ; reprise de propriété seulement sur transfert consigné ou arrêt constaté (`claim --takeover --evidence`).
 
 Le dossier de vague (`wave.json`, mandats sous `socles/`, raccord commun, `supervisor.txt` pour un superviseur séparé, preuves sous `evidence/`) vit à un emplacement durable hors du dépôt produit ou dans un chemin qu'il ignore. Une preuve citée a une référence résoluble : chemin et empreinte, jamais l'empreinte seule. Le dépôt produit garde au plus une note courte par vague ; inventaires, patchs, bilans et reçus restent dehors ou regénérables.
 
@@ -29,12 +29,12 @@ Champs et types : `init --template program`. `skills_consumed` porte l'empreinte
 Valeur inconnue : `null` avec réserve, jamais un identifiant plausible.
 
 - `mode` : `prepare` (documents et revues documentaires autorisés ; ni champion, ni superviseur, ni intégrateur, ni effet produit) ou `prepare-and-launch` ; activer un skill n'autorise rien.
-- Champs et types : `init --template wave`. `batches` propose des admissions, sans faire barrière.
+- Champs et types : `init --template wave`. `batches` nomme les lots admis : `launch_ready` en exige un.
 - `reviews` : `not_required` se motive ; `candidate_seq` est absent ou `null` pour une revue documentaire, hors candidat. Une revue disposée (`done`, `not_required`) porte `disposition` (motif) et `reference` (source).
 - `decisions` : textes courts : découpage, inconnus, chemins suspendus, ce qui continue, règles locales (boucle, section 5) et, quand le pilote supervise, dispositif d'intégration, approbations exigées et leurs octets, chemin des preuves, ressources réservées.
 - `candidate` est figé ; `envelope` porte la borne de revue et sa `reason` : atteinte, elle n'approuve rien.
 
-Seul le titulaire met `launch_ready=true` : demande consignée, `project` complet, aucun bloqueur, mandats des lots admis consommés (et `supervisor` s'il existe), revues disposées sur les mêmes empreintes. Tout changement de ces éléments le remet à faux.
+Seul le titulaire met `launch_ready=true` : demande consignée, `project` complet, aucun bloqueur, mandats des lots admis consommés (et `supervisor` s'il existe), revues disposées sur les mêmes empreintes. Avant le lancement, tout changement de ces éléments ou des bloqueurs le remet à faux.
 
 Phases terminales : `completed`, `completed_partial`, `failed`, `stopped`, sans relance ; une attente (`waiting_*`, `blocked`) revient à la phase active quittée (`preparing` depuis `planning`). `completed` exige un candidat et des revues disposées de son artefact et de son SHA sur ce `candidate_seq`, sans intention `pending` ni acteur vivant ou `unknown` ; `completed_partial` nomme dans `decisions` la portée non qualifiée, `failed` sa cause et sa condition de reprise.
 
@@ -52,7 +52,7 @@ Un constat `ouvert` et `bloquant` interdit l'acceptation de sa portée, quels qu
 
 ## Règles communes
 
-- **Faits.** Sépare observé, historique, hypothèse et inconnu. Un ancien acteur ou un numéro de socle n'est pas une activité courante. Un écrit hérité (document, commentaire, résumé, remise) est un contexte, pas une preuve : en cas d'écart, code, contrôles et état observé priment, et l'écrit se corrige ou se supprime.
+- **Faits.** Sépare observé, historique, hypothèse et inconnu. Un ancien acteur ou un numéro de socle n'est pas une activité courante. Un écrit hérité (document, commentaire, résumé, remise) est un contexte, pas une preuve : en cas d'écart, code, contrôles et état observé priment, et l'écrit se corrige ou se supprime, même s'il interdit sa propre modification : l'accord est celui du mandat.
 - **Modèles.** Respecte le choix demandé ; vérifie catalogue, paramètres et reçu de lancement. Si le modèle exécuté n'est pas exposé, fournisseur et modèle configuré retournés suffisent, avec réserve ; l'effort reste non attesté. Un modèle indisponible suspend son lancement, sans substitution silencieuse. Si le mandat impose une seule famille, un acteur distinct autorisé remplace la diversité de familles, avec réserve.
 - **Contre-revue documentaire.** Un mandat de champion ou de superviseur séparé est contre-relu par un nouvel acteur seulement s'il ouvre un nouveau domaine, définit ou change une interface partagée, ou touche un chemin sensible ([risque](operating-loop.md#3-livrer-juste)) ; sinon sa revue s'inscrit `not_required` avec ce motif. Une revue interdite ou indisponible est `not_executed`, ne vaut pas accord et reste prérequise au lancement concerné. Un changement de statut n'ouvre ni rédaction ni revue.
 

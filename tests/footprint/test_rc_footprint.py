@@ -40,8 +40,8 @@ class Footprint(unittest.TestCase):
         self.git('commit', '-q', '--allow-empty', '-m', 'c')
         return self.git('rev-parse', 'HEAD')
 
-    def run_tool(self, *args, code=0, env=None):
-        proc = subprocess.run([sys.executable, '-B', str(SCRIPT), str(self.repo), *args],
+    def run_tool(self, *args, code=0, env=None, repo=None):
+        proc = subprocess.run([sys.executable, '-B', str(SCRIPT), str(repo or self.repo), *args],
                               capture_output=True, text=True, encoding='utf-8', env=env)
         self.assertEqual(proc.returncode, code, proc.stdout + proc.stderr)
         return json.loads(proc.stdout)
@@ -56,7 +56,7 @@ class Footprint(unittest.TestCase):
                      'web/c.spec.ts': 's\n', 'web/__tests__/d.js': 'd\n', 'conftest.py': 'c\n',
                      'docs/guide.md': 'g\n', 'tests/notes.md': 'n\n'})
         classes = self.run_tool('--base', base)['classes']
-        self.assertEqual(classes['product'], {'added': 1, 'removed': 2, 'files': 3,
+        self.assertEqual(classes['product'], {'added': 2, 'removed': 2, 'files': 3,
                                               'new_files': ['img.bin', 'src/données.py']})
         self.assertEqual(classes['tests']['added'], 6)
         self.assertEqual(classes['tests']['new_files'], ['conftest.py', 'lib/b_test.go', 'pkg/test_a.py',
@@ -84,6 +84,19 @@ class Footprint(unittest.TestCase):
         self.commit({'z.md': 'old\nmore\n', 'b.md': 'new\n'})
         signal = self.run_tool('--base', base)['signals']
         self.assertEqual(signal, [{'id': 'docs_added', 'detail': 'docs +2 in b.md, z.md'}])
+
+    def test_docs_added_only_on_net_addition(self):
+        base = self.commit({'a.md': 'a\nb\nc\n', 'old.md': ''.join(f'{i}\n' for i in range(6)), 'k.py': 'k\n'})
+        edited = self.commit({'a.md': 'a\nB\nc\n'})
+        shrunk = self.commit({'a.md': 'a\nB\nc\nd\n'}, remove=['old.md'])
+        for candidate in (edited, shrunk):
+            with self.subTest(candidate=candidate):
+                self.assertEqual(self.ids(self.run_tool('--base', base, '--candidate', candidate)), [])
+
+    def test_empty_candidate_signal(self):
+        base = self.commit({'a.py': 'x = 1\n'})
+        result = self.run_tool('--base', base, '--candidate', base)
+        self.assertEqual(self.ids(result), ['empty_candidate'])
 
     def test_comments_skip_directives_license_and_docs(self):
         base = self.commit({'keep.txt': 'k\n'})
@@ -134,15 +147,80 @@ class Footprint(unittest.TestCase):
                 self.assertFalse(refused['ok'])
                 self.assertIn('--previous', refused['error'])
 
-    def test_safe_directory_option_for_foreign_owner(self):
+    def test_safe_directory_option_writes_no_config(self):
         base = self.commit({'a.py': 'x = 1\n'})
         global_config = self.repo.parent / 'global.gitconfig'
-        env = {**os.environ, 'GIT_TEST_ASSUME_DIFFERENT_OWNER': '1', 'GIT_CONFIG_GLOBAL': str(global_config)}
-        refused = self.run_tool('--base', base, code=2, env=env)
-        self.assertIn('dubious ownership', refused['error'])
+        env = {**os.environ, 'GIT_CONFIG_GLOBAL': str(global_config)}
         result = self.run_tool('--base', base, '--safe-directory', env=env)
         self.assertEqual(result['base'], base)
         self.assertFalse(global_config.exists())
+
+    def test_measure_depends_only_on_the_commits(self):
+        body = ''.join(f'line {i} of the file\n' for i in range(40))
+        first = self.commit({'src/a.py': 'A\n' + body, 'src/b.py': 'B\n' + body[::-1] + '\n', 'sub/s.py': 's\n'})
+        self.git('update-index', '--add', '--cacheinfo', f'160000,{first},vendor')
+        self.git('commit', '-q', '-m', 'vendor')
+        base = self.git('rev-parse', 'HEAD')
+        for name in ('src/a.py', 'src/b.py'):
+            (self.repo / name).unlink()
+        self.commit({'lib/a2.py': 'A\n' + body + 'extra a\n', 'lib/b2.py': 'B\n' + body[::-1] + '\nextra b\n',
+                     'top.py': 'y\n' * 30, 'tests/test_t.py': 'assert 1\n' * 500,
+                     'a.py': ''.join(f'# a{i}\n' for i in range(40)), 'z.py': ''.join(f'# z{i}\n' for i in range(40))})
+        self.git('update-index', '--add', '--cacheinfo', f'160000,{base},vendor')
+        self.git('commit', '-q', '--amend', '--no-edit')
+        candidate = self.git('rev-parse', 'HEAD')
+        other = self.repo.parent / 'other'
+        subprocess.run(['git', 'init', '-q', str(other)], check=True)
+        (self.repo / 'order.txt').write_bytes(b'z.py\n')
+        info = self.repo / '.git' / 'info'
+        info.mkdir(exist_ok=True)
+        config = self.repo / '.git' / 'config'
+        options = ('--base', base, '--candidate', candidate)
+        expected = self.run_tool(*options, repo=self.repo / 'sub')
+        self.assertEqual(expected['classes']['product']['files'], 6)  # renames paired, gitlink counted
+        cases = {'.gitattributes': lambda: (self.repo / '.gitattributes').write_text('tests/** -diff\n'),
+                 'info/attributes': lambda: (info / 'attributes').write_text('* -diff\n'),
+                 'bigFileThreshold': lambda: self.git('config', 'core.bigFileThreshold', '1'),
+                 'renameLimit': lambda: self.git('config', 'diff.renameLimit', '1'),
+                 'orderFile': lambda: self.git('config', 'diff.orderFile', 'order.txt'),
+                 'relative': lambda: self.git('config', 'diff.relative', 'true'),
+                 '.gitmodules': lambda: (self.repo / '.gitmodules').write_text(
+                     '[submodule "vendor"]\n\tpath = vendor\n\turl = x\n\tignore = all\n'),
+                 'replace': lambda: self.git('replace', candidate, base),
+                 'GIT_DIR': lambda: {**os.environ, 'GIT_DIR': str(other / '.git')}}
+        saved = config.read_bytes()
+        for name, change in cases.items():
+            config.write_bytes(saved)
+            for path in (self.repo / '.gitattributes', info / 'attributes', self.repo / '.gitmodules'):
+                path.unlink(missing_ok=True)
+            subprocess.run(['git', '-C', str(self.repo), 'replace', '-d', candidate], capture_output=True)
+            with self.subTest(name):
+                env = change()
+                self.assertEqual(self.run_tool(*options, repo=self.repo / 'sub',
+                                               env=env if isinstance(env, dict) else None), expected)
+
+    def test_partial_clone_is_not_fetched(self):
+        base = self.commit({'a.py': 'x = 1\n'})
+        self.commit({'a.py': 'x = 1\ny = 2\n'})
+        self.git('config', 'uploadpack.allowFilter', 'true')
+        clone = self.repo.parent / 'clone'
+        subprocess.run(['git', 'clone', '-q', '--no-checkout', '--filter=blob:none', self.repo.as_uri(), str(clone)],
+                       check=True, capture_output=True)
+        subprocess.run(['git', '-C', str(clone), 'config', 'protocol.file.allow', 'always'], check=True)
+        before = sorted(clone.rglob('*'))
+        refused = self.run_tool('--base', base, code=2, repo=clone)
+        self.assertFalse(refused['ok'])
+        self.assertEqual(sorted(clone.rglob('*')), before)
+
+    def test_unusable_arguments_refused(self):
+        base = self.commit({'a.py': 'x = 1\n'})
+        deep = self.repo.parent / 'deep.json'
+        deep.write_text('[' * 200000, encoding='utf-8')
+        for args in (('--previous', str(deep)), ('--previous', ''), ('--test-ratio', 'nan'), ('--test-ratio', 'inf'),
+                     ('--test-ratio', '-5'), ('--test-slack', '-1'), ('--test-slack', '1.5')):
+            with self.subTest(args):
+                refused = self.run_tool('--base', base, *args, code=2)
+                self.assertFalse(refused['ok'])
 
     def test_unknown_reference_is_refused(self):
         self.commit({'a.py': 'x\n'})

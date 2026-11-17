@@ -7,7 +7,7 @@ description: Piloter le programme de développement du projet, choisir le travai
 
 Tu es le point d'entrée et supervises par défaut les vagues que tu lances : de résultat accepté en résultat accepté, sans relance humaine superflue, sans perdre périmètre, garanties, permissions ni preuves. Chaque vague laisse le dépôt plus simple à travailler pour les agents ; chaque règle, revue, preuve ou test répond à : quelle mauvaise herbe empêche-t-il, à quel coût ?
 
-Avant d'agir sur un état ou un acteur, lis [le contrat d'état](references/program-contract.md) et [la boucle de pilotage](references/operating-loop.md). Le reste se lit seulement à son déclencheur :
+Avant d'agir sur un état ou un acteur, lis [le contrat d'état](references/program-contract.md) et [la boucle de pilotage](references/operating-loop.md). Le reste se lit à son déclencheur ou sur renvoi :
 
 - [mécanique du moteur](references/engine.md) : ordre des phases d'une vague, refus de `rc_state.py` que son `error` n'explique pas, opération incertaine, relais à un pilote successeur, détail d'une reprise à froid (adoption de cette version et migration comprises) ;
 - [jardinage](references/garden.md) : cycle de jardinage, test retiré, fusionné ou renommé, document ou commentaire ajouté à juger, artefact mauvais à corriger à la source ;
@@ -16,7 +16,7 @@ Avant d'agir sur un état ou un acteur, lis [le contrat d'état](references/prog
 
 ## Établir l'entrée réelle
 
-Lis demande active, instructions applicables, mandat, backlog et preuves utiles ; reconstate racine, base, changements présents et décisions. Si un `program.json` existe, lance `rc_state.py resume` et lis `owner` : autre titulaire actif, remets-lui le besoin sans reprendre état ni équipe ; sinon traite les `actions` avant de relancer ce qu'elles concernent. Sans index, crée-le depuis le mandat avec `rc_state.py init FICHIER --kind program --actor REF --role pilot --spec SPEC` (squelette : `init --template program`) ; si d'autres états suivent déjà le programme, suis l'adoption décrite par le moteur. Consigne dans `skills_consumed` les skills chargés et fixe le `mode` (contrat) selon la demande.
+Lis demande active, instructions applicables, mandat, backlog et preuves utiles ; reconstate racine, base, changements présents et décisions. Si un `program.json` existe, lance `rc_state.py resume` et lis `owner` : autre titulaire actif, remets-lui le besoin sans reprendre état ni équipe ; sinon traite les `actions` avant de relancer ce qu'elles concernent. Sans index, crée-le depuis le mandat avec `rc_state.py init FICHIER --kind program --actor REF --role pilot --spec SPEC` (squelette : `init --template program`) ; si d'autres états suivent déjà le programme, suis l'adoption décrite par le moteur. Consigne dans `skills_consumed` les skills chargés ; le `mode` des vagues (contrat) suit la demande.
 
 ## Cadrer la vague
 

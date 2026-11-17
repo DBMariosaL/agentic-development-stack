@@ -21,6 +21,10 @@ Exigences du mandat, puis `base..candidat` et son empreinte (`rc_footprint.py`, 
 ## Constats
 
 - Bloquant seulement si le cas visé est faux, si un critère explicite du mandat n'est pas tenu, même sur un cas rare, ou si un appelant réel rencontrera le défaut dans la portée. Autre chemin, cas rare hors critère, petit coût, style : non bloquant.
-- Un constat bloquant porte sa preuve : commande, sortie et attendu, ou lecture de source citée. Sans preuve, range-le sous « écarté », sans demander de retouche.
+- Un constat bloquant porte sa preuve : commande, sortie et attendu, ou lecture de source citée. Sans preuve, il est non bloquant et ne demande aucune retouche.
 - Propose le correctif qui retire ou resserre. Ne demande ni test, ni garde, ni compatibilité que l'intention n'exige pas.
 - Format, identifiants stables et issues : [rapport de revue](program-contract.md#rapport-de-revue).
+
+## Remise
+
+Écris le rapport dans le fichier que nomme le pilote, puis rends le même texte en message final : verdict et constats bloquants d'abord, sans récit. Le filtre de remise suit le modèle de ton parent ([contrat](program-contract.md#filtres)) ; si son skill ne t'est pas accessible, dis-le et tiens-t'en à ce format.

@@ -9,13 +9,13 @@ Les sept dossiers sous `package/` sont les dossiers de skills complets. Selon le
 - Codex : `%USERPROFILE%\.codex\skills` ;
 - Claude Code : `%USERPROFILE%\.claude\skills`.
 
-Vérifier les chemins réellement utilisés par le client. Copier uniquement les sept dossiers, après contrôle de leurs empreintes et de l'absence de dossiers existants de même nom. Contrôle des empreintes : `python -B tools/rc_update.py manifest --package package --out <fichier neuf>` doit produire un fichier identique à `manifest.json` ; la même commande sur le dossier de skills installé, après la copie, doit le produire aussi. Les quatre dépendances (`gpt-prompt-optimizer`, `claude-opus-prompt-optimizer`, `claude-fable-prompt-optimizer`, `unslop`) sont souvent déjà présentes dans un profil personnel : si une version existe déjà, suivre la procédure de mise à jour ci-dessous, qui ne remplace jamais une copie personnalisée.
+Vérifier les chemins réellement utilisés par le client. Copier uniquement les sept dossiers, après contrôle de leurs empreintes et de l'absence de dossiers existants de même nom. Contrôle des empreintes : `python -B tools/rc_update.py manifest --package package --out <fichier neuf>` doit produire un fichier identique à `manifest.json` ; après la copie, un `preflight` sur le dossier de skills installé, avec `manifest.json` comme manifeste précédent et comme nouveau manifeste, doit classer les sept skills `already-new` (les autres dossiers du profil ne sont pas lus). Les quatre dépendances (`gpt-prompt-optimizer`, `claude-opus-prompt-optimizer`, `claude-fable-prompt-optimizer`, `unslop`) sont souvent déjà présentes dans un profil personnel : si une version existe déjà, suivre la procédure de mise à jour ci-dessous, qui ne remplace jamais une copie personnalisée.
 
 La prise en compte des skills par une nouvelle conversation doit ensuite être constatée dans le client concerné. Unslop reste en invocation explicite (`allow_implicit_invocation: false`).
 
 ## Mise à jour d'une installation existante
 
-`tools/rc_update.py` fournit `manifest`, `preflight`, `apply`, `verify`, `resume` et `rollback`. Lancer `python -B tools/rc_update.py --help` pour les paramètres. L'outil n'installe aucune dépendance Python.
+`tools/rc_update.py` fournit `manifest`, `preflight`, `apply`, `verify`, `resume` et `rollback`. Lancer `python -B tools/rc_update.py <commande> --help` pour les paramètres d'une commande. L'outil n'installe aucune dépendance Python.
 
 Exemple de préflight sous PowerShell, avec une racine de profil explicitement choisie :
 
@@ -44,7 +44,7 @@ Transitions acceptées : `rc-core` vers `rc-core`, `rc-core` vers `rc-core-with-
 - Skills RC : règles inchangées depuis la v7. Copie de la version précédente : mise à jour ; déjà à jour : rien ; fichier personnalisé : conflit ; fichiers manquants ou versions mélangées : profil refusé.
 - Dépendances : absente ou dossier vide : installation (`install`) ; identique : aucune écriture (`already-new`) ; copie exacte de la version précédente du manifeste : mise à jour ; personnalisée, partielle ou dossier existant sans fichier géré : conflit, sans écriture.
 - Une ancienne copie de `claude-fable-prompt-optimizer` peut déjà exister dans un profil : la mise à jour depuis une version à trois dépendances la classe en conflit sans l'écraser ; pour installer la version du paquet, son propriétaire écarte lui-même ce dossier hors de la racine de skills avant le préflight. Sans cet accord, la copie reste en place et la migration reste partielle.
-- Fichiers inconnus dans un dossier de skill : conservés (`preserve-unknown`). Dossiers hors de la distribution : ni lus ni modifiés.
+- Fichiers inconnus dans un dossier de skill : conservés (`preserve-unknown`) ; un fichier inconnu à la place d'un chemin géré (même chemin à la casse près, ou dossier d'un fichier géré) fait refuser le profil. Dossiers hors de la distribution : ni lus ni modifiés.
 
 Un conflit bloque le plan. `apply --allow-blocked` met à jour les seuls skills non bloqués : les sorties d'`apply` et de `verify` listent alors les skills non migrés (`not_migrated`), et `migration_complete` reste faux tant qu'il en reste, même quand `ok` est vrai. Relire le plan, ses conflits, les fichiers inconnus et les actions prévues avant application. L'outil sauvegarde les octets remplacés dans le dossier d'état et refuse les états inattendus ou un plan périmé.
 
@@ -53,11 +53,11 @@ python -B tools/rc_update.py apply --plan "chemin/etat-neuf/plan.json" --state-d
 python -B tools/rc_update.py verify --plan "chemin/etat-neuf/plan.json"
 ```
 
-Une issue partielle se traite avec `resume` sur le même plan et le même dossier d'état. `rollback` restaure l'état précédent si les contrôles le permettent : il retire les fichiers que le plan a lui-même publiés, reconnus à l'identité de fichier consignée au journal, et les dossiers qu'il a créés et consignés, s'ils sont vides. Un fichier sans cette preuve, même identique au paquet, ou une édition postérieure, fait refuser le retour arrière sans rien supprimer. Une destination à plusieurs liens physiques fait refuser `apply`, `resume` et `rollback` avant toute écriture. Conserver plan, sauvegardes, journaux et rapports ; reconstater l'état après une erreur avant de relancer.
+Une issue partielle se traite avec `resume` sur le même plan et le même dossier d'état. Après un arrêt brutal, le verrou `lock` du dossier d'état fait refuser `resume` et `rollback` : une fois constaté qu'aucune mise à jour ne tourne sur ce dossier d'état, les relancer avec `--break-lock`. Si l'arrêt a précédé le journal, rien n'a été publié : `--break-lock` retire le verrou et le dit, et la mise à jour se reprend par un nouvel `apply` dans un autre dossier d'état. `rollback` restaure l'état précédent si les contrôles le permettent : il retire les fichiers que le plan a lui-même publiés, reconnus à l'identité de fichier consignée au journal, et les dossiers qu'il a créés et consignés, s'ils sont vides ; il recrée les dossiers parents disparus des fichiers qu'il restaure. Un fichier sans cette preuve, même identique au paquet, ou une édition postérieure, fait refuser le retour arrière sans rien supprimer. Une destination à plusieurs liens physiques fait refuser `apply`, `resume` et `rollback` avant toute écriture. Conserver plan, sauvegardes, journaux et rapports ; reconstater l'état après une erreur avant de relancer.
 
 ### Formats et compatibilité
 
-- `rc-update-manifest/1` (ou sans champ `format`) reste lu tel quel : trois skills RC.
+- `rc-update-manifest/1` (ou sans champ `format`) reste lu tel quel : trois skills RC ; son empreinte `digest`, quand elle est présente, est vérifiée.
 - `rc-update-manifest/2` ajoute `distribution`, la liste ordonnée `skills` avec leur rôle (`rc` ou `dependency`) et une empreinte `digest` calculée sur ces trois champs ; un écart avec le registre de l'outil ou une empreinte incohérente est refusé.
 - Les plans sont écrits au format `rc-update-plan/2` (ajout de `roles` et `distributions`). Un plan `rc-update-plan/1` écrit par l'outil v7 reste lisible par `apply`, `resume`, `rollback` et `verify`.
 
