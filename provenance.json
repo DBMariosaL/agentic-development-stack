@@ -268,7 +268,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/validate_package.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "1ca84e30385bd92bdbf93def03a98ec39e37131776c352617e8bc042a816d473",
-      "sha256": "d0f092d6383561693790c5c69b508e9394eff36c13bda569cd06c4ea0a86009c",
+      "sha256": "12edede87d17e71100fde15a959555f0f084a363c1751d2023a05baef8ac5814",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/validate_package.py",
@@ -580,7 +580,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/check.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
-      "sha256": "da002d4eaccd0139c11c6819b80418260db11628c78a9224d14a4b2dc9125a74",
+      "sha256": "bec5dcc604f460ecdd1d1f385a190676314d3736a7b430b444e722d7e946a4c7",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/check.py",
@@ -612,7 +612,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/package/test_package_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
-      "sha256": "b8d07d3a1e069f0ba663272e0d102da735b1abe5849feb8458ad1edde94dc68d",
+      "sha256": "0746de65367e2a851ff8070c78bd417ec889b8037d0c6855244ffd371bb34d0b",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/package/test_package_v8.py",
@@ -1772,6 +1772,14 @@
       "source_sha256": null,
       "sha256": "e4e8a4c10cedac4c4effc056c9c24e4173aa4bec8e0711909b87ce11474ae1d6",
       "adaptation": "v10 creation"
+    },
+    {
+      "path": "docs/qualification.md",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "docs/qualification.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": null,
+      "sha256": "d79a43f4d86ba881c7e1fb8cf1ef61554813de835ff6d257e11592d8e2e03b86",
+      "adaptation": "v10 edit"
     },
     {
       "path": "package/claude-fable-prompt-optimizer/agents/openai.yaml",
