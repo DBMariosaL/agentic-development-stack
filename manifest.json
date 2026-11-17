@@ -99,8 +99,8 @@
     },
     {
       "path": "claude-fable-prompt-optimizer/scripts/prompt_lint.py",
-      "sha256": "06726946291157c9c66b67ac73ad506331a21e2b304e45b20e9aa5d945434b13",
-      "bytes": 21715
+      "sha256": "b4c3d54925ce068f9dcced4c2070268be2ccd77a9bfa3dffe5e0bfa337e6a532",
+      "bytes": 22564
     },
     {
       "path": "claude-opus-prompt-optimizer/SKILL.md",
@@ -174,8 +174,8 @@
     },
     {
       "path": "claude-opus-prompt-optimizer/scripts/prompt_lint.py",
-      "sha256": "a6edb51eadef376c5cb8ff0aa4f04f1b5d1ca4ce9d5553051c5218b178eff3c7",
-      "bytes": 23343
+      "sha256": "226bec8be4dd4750debb1048b3d260cffd310083ab8e94de28ab5e35b4403f4d",
+      "bytes": 24124
     },
     {
       "path": "gpt-prompt-optimizer/SKILL.md",
@@ -249,8 +249,8 @@
     },
     {
       "path": "gpt-prompt-optimizer/scripts/prompt_lint.py",
-      "sha256": "9651133c00a7e9b27cdb583f74ef66b79c23d8eca998cb4334500ffe499bb868",
-      "bytes": 9520
+      "sha256": "734ef11299a24ea3c6e5e651a2eb4b77503a9985f6454add1ef2c5a3099e5700",
+      "bytes": 10032
     },
     {
       "path": "rc-coordinate-development/SKILL.md",
@@ -363,5 +363,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "50782a98a6f60c5a8630e3304c54e0718a0ab4eb89cf31cb6a6699210a8e0d91"
+  "digest": "95766a07f5854e88f14d9d991b0ae484842b5a57ccf76a83e93b0f15afe01a28"
 }

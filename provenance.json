@@ -228,7 +228,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "ec145f9a1c039f1ac0823ba7947861bb5fd8453486bb152167b0ca584be1ab14",
+      "sha256": "45fdd856d2b33906d5ac76296acca7756d0fa7e68ed9debe88c84831563dec21",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -612,7 +612,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/package/test_package_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
-      "sha256": "49fb1faf998a9404bd7596d02ec5aee94dc06bba756eccf324bfda5228d45954",
+      "sha256": "ad8356b005e9d739be0917b444992e816d9e4f7a7910aac9c0119f4293d2a28a",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/package/test_package_v8.py",
@@ -971,7 +971,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/gpt-prompt-optimizer/scripts/prompt_lint.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "813dfb2d7418474c8519bcd732c74be11de42908867d2334fcd8d25a1f258076",
-      "sha256": "9651133c00a7e9b27cdb583f74ef66b79c23d8eca998cb4334500ffe499bb868",
+      "sha256": "734ef11299a24ea3c6e5e651a2eb4b77503a9985f6454add1ef2c5a3099e5700",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/gpt-prompt-optimizer/scripts/prompt_lint.py",
@@ -1144,7 +1144,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/claude-opus-prompt-optimizer/scripts/prompt_lint.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "4ddc3e6e25ec274215711885c63b00298a95534f6cdd635e42fe72dacc121158",
-      "sha256": "a6edb51eadef376c5cb8ff0aa4f04f1b5d1ca4ce9d5553051c5218b178eff3c7",
+      "sha256": "226bec8be4dd4750debb1048b3d260cffd310083ab8e94de28ab5e35b4403f4d",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/claude-opus-prompt-optimizer/scripts/prompt_lint.py",
@@ -1909,9 +1909,9 @@
       "path": "package/claude-fable-prompt-optimizer/scripts/prompt_lint.py",
       "source_group": "rc-stack-v10-20261116",
       "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/scripts/prompt_lint.py (owner profile, 2026-09-03, Fable 5.1)",
-      "bytes": 21715,
+      "bytes": 22564,
       "source_sha256": "547b90dfe90d35b352a6a39291c0a2ac5aa8806e362b6d71a7c83e89c263f5f7",
-      "sha256": "06726946291157c9c66b67ac73ad506331a21e2b304e45b20e9aa5d945434b13",
+      "sha256": "b4c3d54925ce068f9dcced4c2070268be2ccd77a9bfa3dffe5e0bfa337e6a532",
       "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
     },
     {
