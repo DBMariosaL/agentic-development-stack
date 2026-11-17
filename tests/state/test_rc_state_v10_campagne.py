@@ -172,6 +172,21 @@ class PrepareMode(Campaign):
         self.assertEqual((self.doc(wave)['revision'], self.doc(wave)['actors']), (1, []))
         self.ok(*resolve, '--role', 'Reviewer')
         self.assertEqual([(a['role'], a['status']) for a in self.doc(wave)['actors']], [('Reviewer', 'running')])
+        requalified = [{'op': 'update', 'path': 'actors', 'match': {'correlation': 'l1'},  # R01-08
+                        'value': {'status': 'completed', 'evidence': 'task read', 'role': 'champion'}}]
+        self.refused("actor l1: role 'champion' refused in a wave without launch authorization", 'write', wave,
+                     '--actor', OWNER, '--expect-revision', 2, '--ops', json.dumps(requalified))
+
+    def test_R01_07_launch_confirmed_only_with_the_actor_it_creates(self):
+        """R01-07, R03-04: confirming a launch by ops would leave no actor, so no relaunch guard and no role rule."""
+        wave = self.solo()
+        self.ok('intent', wave, 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'k1',
+                '--op', 'launch', '--target', 'cible')
+        confirm = [{'op': 'update', 'path': 'intents', 'match': {'correlation': 'k1'},
+                    'value': {'status': 'confirmed', 'result_ref': 'thread-champion-1'}}]
+        self.refused('intent k1: a launch is confirmed only with the actor it creates', 'write', wave, '--actor',
+                     OWNER, '--expect-revision', 1, '--ops', json.dumps(confirm))
+        self.assertEqual(self.doc(wave)['intents'][0]['status'], 'pending')
 
     def test_R01_03_live_champion_invalid_once_authorization_is_withdrawn(self):
         w = wave2()

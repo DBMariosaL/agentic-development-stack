@@ -800,6 +800,8 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
                           'enters launched only from ready, with state.launch_ready=true')
         if old.get('program_ref') is not None and new.get('program_ref') != old.get('program_ref'):
             errors.append('program_ref is immutable once set')
+        oa = {a['correlation']: a for a in _items(old.get('actors')) if text(a.get('correlation'))}
+        na = {a['correlation']: a for a in _items(new.get('actors')) if text(a.get('correlation'))}
         oi = {i['correlation']: i for i in _items(old.get('intents')) if text(i.get('correlation'))}
         ni = {i['correlation']: i for i in _items(new.get('intents')) if text(i.get('correlation'))}
         for corr, intent in oi.items():
@@ -808,14 +810,16 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
                 continue
             if sval(intent, 'status') != 'pending' and ni[corr] != intent:
                 errors.append(f'intent {corr} is resolved and immutable')
+            elif (intent.get('op') == 'launch' and sval(ni[corr], 'status') == 'confirmed'
+                  and sval(intent, 'status') != 'confirmed' and corr not in set(na) - set(oa)):
+                errors.append(f'intent {corr}: a launch is confirmed only with the actor it creates; use intent '
+                              'resolve or write --resolve-intent, which record it')
             for field in ('op', 'target'):
                 if ni[corr].get(field) != intent.get(field):
                     errors.append(f'intent {corr}: {field} is immutable')
         for corr, intent in ni.items():
             if corr not in oi and sval(intent, 'status') != 'pending':
                 errors.append(f'intent {corr} must be created pending, before the runtime call')
-        oa = {a['correlation']: a for a in _items(old.get('actors')) if text(a.get('correlation'))}
-        na = {a['correlation']: a for a in _items(new.get('actors')) if text(a.get('correlation'))}
         for corr, actor in oa.items():
             if corr not in na:
                 errors.append(f'actor {corr} removed (keep actors; mark their status)')
@@ -829,12 +833,13 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
                 errors.append(f'actor {corr}: {actor.get("status")} -> {na[corr].get("status")} needs its evidence: '
                               'give the actor a new "evidence" (task status read, delivered signal, file) or apply '
                               'the signal that proves it with --applies-event')
-        for corr in sorted(set(na) - set(oa)):
-            role = na[corr].get('role')
-            where = documentary_only(new)
-            if where and not documentary_role(role):
+        where = documentary_only(new)
+        for corr, actor in sorted(na.items()):  # the role rule is judged on the resulting state, requalification included
+            role = actor.get('role')
+            if where and not documentary_role(role) and (corr not in oa or oa[corr].get('role') != role):
                 errors.append(f'actor {corr}: role {role!r} refused in a wave {where}: only a documentary '
                               'review, --role reviewer')
+        for corr in sorted(set(na) - set(oa)):
             linked = ni.get(corr)
             if not linked or sval(linked, 'status') != 'confirmed' or linked.get('op') != 'launch':
                 errors.append(f'actor {corr} needs a confirmed launch intent with the same correlation')
