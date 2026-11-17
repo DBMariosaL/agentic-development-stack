@@ -651,12 +651,16 @@ class Messages(Campaign):
         wave = self.solo()
         with mock.patch.object(rc.os, 'replace', side_effect=OSError('stopped')):
             self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'next'}])
+        journal = wave.parent / 'journal.jsonl'
+        intact = journal.read_bytes()
         prepare = [e for e in self.journal(wave) if e['kind'] == 'prepare'][-1]
-        forged = dict(prepare, old_sha256='0' * 64, new_sha256=hashlib.sha256(wave.read_bytes()).hexdigest())
-        with (wave.parent / 'journal.jsonl').open('a', encoding='utf-8') as stream:
-            stream.write(json.dumps(forged) + '\n')
-        self.refused('has prepare lines that differ (between or within journals)', 'reconcile', wave, '--actor', OWNER,
-                     '--op', prepare['id'], '--evidence', 'bytes')
+        for label, change in (('digests', {'old_sha256': '0' * 64,
+                                           'new_sha256': hashlib.sha256(wave.read_bytes()).hexdigest()}),
+                              ('author', {'actor': 'thread:someone-else'})):
+            with self.subTest(label):
+                journal.write_bytes(intact + (json.dumps(dict(prepare, **change)) + '\n').encode('utf-8'))
+                self.refused('has prepare lines that differ (between or within journals)', 'reconcile', wave,
+                             '--actor', OWNER, '--op', prepare['id'], '--evidence', 'bytes')
 
     def test_resume_lists_local_events_and_advises_commands_that_converge(self):
         """R02-07, R03-03 (local journal of a referenced detached wave), R03-10 (stale), R03-06 (closed v1)."""
