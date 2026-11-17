@@ -269,10 +269,12 @@ class PackageTests(Base):
                     if old is not None:
                         self.assertIn(old, text)
                     path.write_bytes((text.replace(old, new, 1) if old is not None else text + new).encode('utf-8'))
-                with patch:
-                    bad = failing(validator.validate(copy, PROVENANCE))
+                try:
+                    with patch:
+                        bad = failing(validator.validate(copy, PROVENANCE))
+                finally:
+                    shutil.rmtree(copy)
                 self.assertTrue(any(expected in name for name in bad), bad)
-                shutil.rmtree(copy)
 
     def test_unslop_policy_enforced(self):
         for label, old, new, check in (
