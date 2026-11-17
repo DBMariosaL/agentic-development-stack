@@ -2,6 +2,7 @@
 
 Steps:
   inventory   manifest.json against package/, provenance.json against every listed file,
+              every package file and every Python source of tools/ and tests/ listed,
               pilot mandatory reading against READING_BUDGET
   state       tests/state, unchanged v7 state regressions
   updater-v7  tests/updater/test_rc_update.py, unchanged, against the frozen v7 fixture
@@ -142,7 +143,9 @@ def inventory():
             problems.append({'check': 'provenance_sha256', 'path': item['path']})
         if item.get('adaptation') == 'byte-identical' and got != item.get('source_sha256'):
             problems.append({'check': 'provenance_source', 'path': item['path']})
-    unlisted = sorted('package/' + p for p in actual if 'package/' + p not in listed)
+    sources = [p.relative_to(ROOT).as_posix() for base in ('tools', 'tests') for p in (ROOT / base).rglob('*.py')
+               if '_fixtures' not in p.parts]
+    unlisted = sorted(p for p in [f'package/{name}' for name in actual] + sources if p not in listed)
     if unlisted:
         problems.append({'check': 'provenance_inventory', 'unlisted': unlisted})
     reading = 0
