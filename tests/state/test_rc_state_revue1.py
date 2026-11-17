@@ -124,8 +124,16 @@ class Review1(Base):
         ops = json.dumps([{'op': 'set', 'path': 'artifacts.extra', 'value': 'extra.txt'},
                           {'op': 'set', 'path': 'state.launch_ready', 'value': True}])
         result = self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 3, '--ops', ops)
-        self.assertEqual(result['launch_ready_reset']['changed'], ['artifacts'])
-        self.assertIs(self.wave()['state']['launch_ready'], False)
+        self.assertNotIn('launch_ready_reset', result)  # P-01: launched, launch_ready no longer moves
+        self.assertIs(self.wave()['state']['launch_ready'], True)
+        candidate = {'seq': 1, 'ref': 'm1', 'artifact': 'manifest', 'sha256': 'b' * 64}
+        blocker = [{'op': 'set', 'path': 'candidate', 'value': candidate},
+                   {'op': 'set', 'path': 'state.blockers', 'value': ['port taken']}]
+        result = self.ok('write', self.wave_path, '--actor', OWNER, '--expect-revision', 4, '--ops', json.dumps(blocker))
+        self.assertNotIn('launch_ready_reset', result)
+        self.refused('it no longer changes once the wave is launched', 'write', self.wave_path, '--actor', OWNER,
+                     '--expect-revision', 5, '--ops', json.dumps([{'op': 'set', 'path': 'state.launch_ready',
+                                                                   'value': False}]))
 
     def test_F10_blocked_keeps_its_origin(self):
         self.ok('transition', self.wave_path, '--actor', OWNER, '--expect-revision', 0, '--to', 'blocked',

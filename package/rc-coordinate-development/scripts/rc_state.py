@@ -314,6 +314,8 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
             pstate['phase'] = 'waiting_children'
         elif phase in {'failed', 'stopped'}:
             pstate['phase'] = 'blocked'
+        if pstate.get('launch_ready') is True and not before_launch(state):
+            pstate['launch_ready'] = False  # launched: the launch conditions were checked at the entry, not again
     details = _v1_details(projected)
     for message in v1.validate(projected, directory, check_paths=live_files):
         replacement = details.get(message)
@@ -781,9 +783,11 @@ def wait_origin(state):
 
 
 def launch_context_changes(old, new):
-    """Launch-context fields changed by a write whose new version declares launch_ready true, whatever the old value."""
+    """Launch-context fields changed, before launch, by a write whose new version declares launch_ready true.
+    launch_ready only guards the entry into launched: once the wave is launched it no longer moves."""
     ostate, nstate = old.get('state'), new.get('state')
-    if not (isinstance(ostate, dict) and isinstance(nstate, dict) and nstate.get('launch_ready') is True):
+    if not (isinstance(ostate, dict) and isinstance(nstate, dict) and nstate.get('launch_ready') is True
+            and before_launch(ostate)):
         return []
     changed = [f for f in LAUNCH_CONTEXT if old.get(f) != new.get(f)]
     if ostate.get('consumed') != nstate.get('consumed'):
@@ -813,6 +817,9 @@ def check_evolution(old, new, owner_change=False, applies_event=None):
             errors.append(f'transition {po} -> {pn} not allowed{hint}')
         elif pn == 'launched' and po == 'ready' and nstate.get('launch_ready') is not True:
             errors.append('entering launched requires state.launch_ready=true, set by the owner after checking the launch context')
+        if not before_launch(ostate) and nstate.get('launch_ready') != ostate.get('launch_ready'):
+            errors.append('state.launch_ready only guards the entry into launched: it no longer changes once the wave '
+                          'is launched')
         # The origin of a wait is the active phase it leaves (null from planning), recorded when the wait opens and
         # never changed while waiting; the only active exit is that origin, or preparing for a null origin.
         origin = wait_origin(ostate) if po in WAITLIKE else None
