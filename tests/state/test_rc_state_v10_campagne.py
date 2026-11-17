@@ -5,9 +5,11 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from test_rc_state import OWNER, SCRIPT, Base, rc, wave2
@@ -79,7 +81,7 @@ class ShortForm(Campaign):
                    'value': {'status': 'pending', 'result_ref': None}}]
         code, result = self.short(wave, 1, '--ops', json.dumps(reopen))
         self.assertEqual(code, 1, result)
-        self.assertIn('intent c1 is resolved and immutable', result['error'])
+        self.assertIn('intent c1 changes only through intent resolve or write --resolve-intent', result['error'])
         self.assertEqual(self.doc(wave)['revision'], 1)
         self.assertEqual(self.applied(wave), [])
         code, result = self.short(wave, 1)
@@ -182,16 +184,22 @@ class PrepareMode(Campaign):
         self.refused("actor l1: role 'champion' refused in a wave without launch authorization", 'write', wave,
                      '--actor', OWNER, '--expect-revision', 2, '--ops', json.dumps(requalified))
 
-    def test_R01_07_launch_confirmed_only_with_the_actor_it_creates(self):
-        """R01-07, R03-04: confirming a launch by ops would leave no actor, so no relaunch guard and no role rule."""
-        wave = self.solo()
-        self.ok('intent', wave, 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'k1',
-                '--op', 'launch', '--target', 'cible')
-        confirm = [{'op': 'update', 'path': 'intents', 'match': {'correlation': 'k1'},
-                    'value': {'status': 'confirmed', 'result_ref': 'thread-champion-1'}}]
-        self.refused('intent k1: a launch is confirmed only with the actor it creates', 'write', wave, '--actor',
-                     OWNER, '--expect-revision', 1, '--ops', json.dumps(confirm))
-        self.assertEqual(self.doc(wave)['intents'][0]['status'], 'pending')
+    def test_R01_07_intent_confirmed_only_by_the_path_that_records_or_revives_its_actor(self):
+        """R01-07, R03-04 (launch without actor), E01 (send leaving its actor completed): ops never resolve an intent."""
+        done = {'role': 'reviewer', 'model': None, 'ref': 'thread-1', 'correlation': 'r1', 'status': 'completed',
+                'target': 'cible', 'evidence': 'returned'}
+        for op, actors in (('launch', []), ('send', [done])):
+            with self.subTest(op=op):
+                w = wave2('planning')
+                w.update(actors=actors, intents=[{'correlation': 'k1', 'op': op, 'target': 'cible',
+                                                  'status': 'pending', 'result_ref': None}])
+                self.write(self.wave_path, w)
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                confirm = [{'op': 'update', 'path': 'intents', 'match': {'correlation': 'k1'},
+                            'value': {'status': 'confirmed', 'result_ref': 'thread-2'}}]
+                self.refused('intent k1 changes only through intent resolve or write --resolve-intent', 'write', self.wave_path, '--actor', OWNER,
+                             '--expect-revision', 0, '--ops', json.dumps(confirm))
+                self.assertEqual(self.doc(self.wave_path)['revision'], 0)
 
     def test_P05_confirmed_send_makes_the_actor_it_reaches_alive_again(self):
         champion = {'role': 'champion', 'model': None, 'ref': 'agent-1', 'correlation': 'champ/1',
@@ -645,12 +653,16 @@ class Messages(Campaign):
         wave = self.solo()
         with mock.patch.object(rc.os, 'replace', side_effect=OSError('stopped')):
             self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'next'}])
+        journal = wave.parent / 'journal.jsonl'
+        intact = journal.read_bytes()
         prepare = [e for e in self.journal(wave) if e['kind'] == 'prepare'][-1]
-        forged = dict(prepare, old_sha256='0' * 64, new_sha256=hashlib.sha256(wave.read_bytes()).hexdigest())
-        with (wave.parent / 'journal.jsonl').open('a', encoding='utf-8') as stream:
-            stream.write(json.dumps(forged) + '\n')
-        self.refused('has prepare lines that differ (between or within journals)', 'reconcile', wave, '--actor', OWNER,
-                     '--op', prepare['id'], '--evidence', 'bytes')
+        for label, change in (('digests', {'old_sha256': '0' * 64,
+                                           'new_sha256': hashlib.sha256(wave.read_bytes()).hexdigest()}),
+                              ('author', {'actor': 'thread:someone-else'})):
+            with self.subTest(label):
+                journal.write_bytes(intact + (json.dumps(dict(prepare, **change)) + '\n').encode('utf-8'))
+                self.refused('has prepare lines that differ (between or within journals)', 'reconcile', wave,
+                             '--actor', OWNER, '--op', prepare['id'], '--evidence', 'bytes')
 
     def test_resume_lists_local_events_and_advises_commands_that_converge(self):
         """R02-07, R03-03 (local journal of a referenced detached wave), R03-10 (stale), R03-06 (closed v1)."""
@@ -875,20 +887,30 @@ class Successor(Campaign):
         carried = [e for e in self.journal(self.program_path) if e['id'] == 'shared-id']
         self.assertEqual([e['wave'] for e in carried], ['waves/a/wave.json'])
 
-    def test_R02_05_moved_state_folder_keeps_accepting_writes(self):
-        wave = self.solo()
-        self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'a'}])
-        journal = wave.parent / 'journal.jsonl'
-        entries = self.journal(wave)
-        self.assertEqual([e['journals'] for e in entries if e['kind'] == 'prepare'][-1], ['journal.jsonl'])
-        for e in entries:  # as the previous version wrote them: absolute paths of the old folder
-            if e.get('journals'):
-                e['journals'] = [str(journal.resolve())]
-        journal.write_text(''.join(json.dumps(e) + '\n' for e in entries), encoding='utf-8')
-        moved = wave.parent.with_name('moved')
-        wave.parent.rename(moved)
-        self.assertEqual(self.ops(moved / 'wave.json', 1, [{'op': 'set', 'path': 'state.next_action',
-                                                             'value': 'b'}])[0], 0)
+    def test_R02_05_moved_or_copied_state_folder_keeps_accepting_writes_and_touches_nothing_outside(self):
+        """R02-05 (moved folder) and v10.2 review, point 4 (copy of a state whose prepares list absolute paths)."""
+        for how in ('moved', 'copied'):
+            with self.subTest(how):
+                path, code, result = self.init(f'origin-{how}', 'wave', WAVE_SPEC)
+                self.ops(path, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'a'}])
+                journal = path.parent / 'journal.jsonl'
+                entries = self.journal(path)
+                self.assertEqual([e['journals'] for e in entries if e['kind'] == 'prepare'][-1], ['journal.jsonl'])
+                for e in entries:  # as the previous version wrote them: absolute paths of the old folder
+                    if e.get('journals'):
+                        e['journals'] = [str(journal.resolve())]
+                journal.write_text(''.join(json.dumps(e) + '\n' for e in entries), encoding='utf-8')
+                target = path.parent.with_name(f'state-{how}')
+                if how == 'moved':
+                    path.parent.rename(target)
+                else:
+                    shutil.copytree(path.parent, target)
+                    Path(str(journal) + '.lock').write_text('another writer', encoding='utf-8')
+                self.assertEqual(self.ops(target / 'wave.json', 1, [{'op': 'set', 'path': 'state.next_action',
+                                                                      'value': 'b'}])[0], 0)
+                if how == 'copied':
+                    self.assertEqual((path.parent / 'journal.jsonl.lock').read_text(encoding='utf-8'), 'another writer')
+                    self.assertEqual(self.rev(path), 1)
 
 
 class Phases(Campaign):

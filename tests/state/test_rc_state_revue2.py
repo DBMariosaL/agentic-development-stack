@@ -28,12 +28,11 @@ class Review2(Base):
     def test_R2_01_actor_target_must_match_intent(self):
         self.ok('intent', self.wave_path, 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'a/1',
                 '--op', 'launch', '--target', 'champion-A')
-        ops = json.dumps([
-            {'op': 'update', 'path': 'intents', 'match': {'correlation': 'a/1'}, 'value': {'status': 'confirmed', 'result_ref': 't'}},
-            {'op': 'append', 'path': 'actors', 'value': {'role': 'c', 'ref': 't', 'correlation': 'a/1', 'status': 'running',
-                                                         'target': 'champion-B'}}])
+        ops = json.dumps([{'op': 'update', 'path': 'actors', 'match': {'correlation': 'a/1'},
+                           'value': {'target': 'champion-B'}}])
         self.refused('target must be its launch intent target', 'write', self.wave_path, '--actor', OWNER,
-                     '--expect-revision', 1, '--ops', ops)
+                     '--expect-revision', 1, '--resolve-intent', 'a/1', '--status', 'confirmed', '--result-ref', 't',
+                     '--ops', ops)
 
     def test_R2_02_wait_origin_is_derived_and_waiting_null_outside_waits(self):
         ops = json.dumps([{'op': 'set', 'path': 'state.phase', 'value': 'blocked'},
