@@ -18,6 +18,7 @@ import posixpath
 import secrets
 import stat
 import sys
+import time
 from pathlib import Path
 
 sys.dont_write_bytecode = True  # never leave caches inside an installed skill
@@ -919,6 +920,17 @@ def check_state_file(path):
         raise StateError(f'state file must be a regular file, not a link or reparse point: {path}')
 
 
+def replace_file(source, target, attempts=10):
+    """os.replace, retried briefly: under Windows a mere reader of target makes it fail with PermissionError."""
+    for attempt in range(attempts):
+        try:
+            return os.replace(source, target)
+        except PermissionError:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(0.05 * (attempt + 1))
+
+
 def write_new_file(name, data):
     """Write data into a file created exclusively at name; False if an entry already exists there."""
     try:
@@ -1226,7 +1238,7 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
                     raise OpenOperation(f'operation {op_id} prepared in {recorded[0]} only ({exc}); state not replaced: '
                                         'run reconcile before any other write')
             try:
-                os.replace(tmp, path)
+                replace_file(tmp, path)
             except OSError as exc:
                 raise OpenOperation(f'operation {op_id} prepared but the state replacement failed ({exc}): '
                                     'run reconcile before any other write')
@@ -1743,7 +1755,7 @@ def cmd_init(args):
                 raise
             try:
                 if old is not None:
-                    os.replace(tmp, path)
+                    replace_file(tmp, path)
                 else:
                     create_exclusive(tmp, path)
             except (OSError, StateError) as exc:  # not published: remove only our own temporary, keep the evidence copy
@@ -2281,4 +2293,7 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
+    for stream in (sys.stdout, sys.stderr):  # agents read this text raw: UTF-8 whatever the console code page
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='backslashreplace')
     raise SystemExit(main())

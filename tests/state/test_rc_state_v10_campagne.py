@@ -3,10 +3,13 @@ import contextlib
 import hashlib
 import io
 import json
+import os
+import subprocess
+import sys
 import unittest
 from unittest import mock
 
-from test_rc_state import OWNER, Base, rc, wave2
+from test_rc_state import OWNER, SCRIPT, Base, rc, wave2
 
 EVENT = 'task-7:run1'
 WAVE_SPEC = {'authorization': {'exclusions': []}, 'state': {'next_action': 'prepare documents'}}
@@ -501,6 +504,34 @@ class StrictInputs(Campaign):
                 self.assertEqual(code, 1, result)
                 self.assertIn(fragment, result['error'])
                 self.assertFalse(path.exists())
+
+
+class Windows(Campaign):
+    def test_R01_06_output_is_utf8_whatever_the_console_encoding(self):
+        folder = self.root / 'vague_Ω'
+        folder.mkdir()
+        (folder / 'spec.json').write_text(json.dumps(dict(WAVE_SPEC, state={'next_action': 'lot B1 → B2'})),
+                                          encoding='utf-8')
+        env = {k: v for k, v in os.environ.items() if k not in ('PYTHONUTF8', 'PYTHONIOENCODING')}
+        env['PYTHONIOENCODING'] = 'ascii'  # a code page without these characters
+        done = subprocess.run([sys.executable, '-B', str(SCRIPT), 'init', str(folder / 'wave.json'), '--kind', 'wave',
+                               '--actor', OWNER, '--role', 'pilot', '--spec', str(folder / 'spec.json')],
+                              capture_output=True, env=env)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertTrue(json.loads(done.stdout.decode('utf-8'))['written'].endswith('wave.json'))
+
+    def test_state_replacement_retries_a_transient_permission_error(self):
+        wave = self.solo()
+        real, calls = rc.os.replace, []
+
+        def busy_once(source, target):
+            calls.append(target)
+            if len(calls) == 1:
+                raise PermissionError('a reader holds the file')
+            return real(source, target)
+        with mock.patch.object(rc.os, 'replace', side_effect=busy_once):
+            self.assertEqual(self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'n'}])[0], 0)
+        self.assertEqual((len(calls), self.rev(wave)), (2, 1))
 
 
 class Successor(Campaign):
