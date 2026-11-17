@@ -1,8 +1,11 @@
 """Run the offline repository checks using synthetic files and isolated profiles.
 
 Steps:
-  inventory   manifest.json against package/, provenance.json against every listed file,
-              every file of package/, tools/ and tests/ (outside __pycache__) listed,
+  inventory   provenance.json against every listed file, whose verified bytes are copied,
+              with manifest.json and provenance.json, into a fresh folder under the fixture
+              root: every following step runs on that copy only, so a file outside the
+              provenance, present before the run or added during it, never reaches a step;
+              manifest.json against package/, every package file listed in provenance.json,
               pilot mandatory reading against READING_BUDGET
   state       tests/state, unchanged v7 state regressions
   updater-v7  tests/updater/test_rc_update.py, unchanged, against the frozen v7 fixture
@@ -22,18 +25,22 @@ Steps:
 A zero exit code is never enough. A test step passes only if its exit code is 0, its
 collection matches the declared count, nothing failed or errored, every skip is declared
 for this platform and its results were produced for the expected inputs. summary.json
-records candidate identity, input digests, commands, working directories, relevant
-environment, log hashes, collections and skips. Results go to a new .local/ folder.
-Fixture roots are short folders under RC_CHECK_FIXTURES_ROOT (default: the system temp
-folder; give an absolute folder outside the clone), so a deep clone path cannot exceed the legacy Windows
-260-character limit; a preflight measures the resolved base and refuses one still too long, records the refusal
-in summary.json and runs no step. Only empty fixture
-roots are removed.
-Every step runs under python -I -S -B -X pycache_prefix=<fresh folder>, so neither the
-environment, nor the script folder, nor site-packages (.pth files, sitecustomize) reach it;
-the collector refuses to run outside isolated mode. Steps get no inherited PYTHON* variable,
-so the processes a test starts are isolated from PYTHONPATH too. The interpreter and its
-standard library are trusted: summary.json records which executable ran.
+records candidate identity, the copy that ran, input digests, commands, working
+directories, relevant environment, log hashes, collections and skips. Results go to a new
+.local/ folder of the clone; the copy is removed at the end. A test that reads a file
+missing from provenance.json finds it missing in the copy and fails.
+Fixture roots and the copy are short folders under RC_CHECK_FIXTURES_ROOT (default: the
+system temp folder; give an absolute folder outside the clone), so a deep clone path cannot
+exceed the legacy Windows 260-character limit; a preflight measures the resolved base and
+refuses one still too long, records the refusal in summary.json and runs no step. Only
+empty fixture roots are removed. No git repository is needed: git state is recorded when
+available.
+Every step runs under python -I -S -B, so neither the environment, nor the script folder,
+nor site-packages (.pth files, sitecustomize) reach it, and no bytecode is written; the
+collector refuses to run outside isolated mode. Steps get no inherited PYTHON* variable,
+so the processes a test starts are isolated from PYTHONPATH too, but they do not inherit
+-S. The trusted base is the interpreter installation, standard library and site-packages:
+summary.json records which executable ran.
 Nothing is installed in an active profile and no network access is used.
 """
 import datetime
@@ -41,6 +48,7 @@ import hashlib
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -49,7 +57,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 228, 'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 34, 'footprint': 16}
+EXPECTED = {'state': 228, 'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 35, 'footprint': 16}
 READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
 READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.
@@ -87,7 +95,7 @@ def canonical(obj):
 
 def collect(start, top, out, pattern='test*.py'):
     """Subprocess mode: discover and run a unittest suite, write ids, counts and skips."""
-    if not sys.flags.isolated:  # results come only from an isolated interpreter
+    if not sys.flags.isolated:
         Path(out).write_text(json.dumps({'error': 'collect runs only under python -I', 'tests_run': 0,
                                          'collected': []}) + '\n', encoding='utf-8')
         return 2
@@ -123,13 +131,38 @@ def read_json(name, problems):
         return None
 
 
-def inventory():
-    """Candidate identity and byte integrity; returns (identity, problems)."""
+def inventory(copy=None):
+    """Candidate identity, input digests and byte integrity; returns (identity, problems).
+
+    With copy, the verified bytes of every file listed in provenance.json, and the two
+    manifests, are written below it: the steps run there."""
     problems = []
-    manifest_path = ROOT / 'manifest.json'
     manifest, provenance = read_json('manifest.json', problems), read_json('provenance.json', problems)
     if problems:
         return {}, problems
+    listed, inputs = set(), []
+    for item in provenance['files']:
+        listed.add(item['path'])
+        path = ROOT / item['path']
+        if not path.is_file():
+            problems.append({'check': 'provenance_missing', 'path': item['path']})
+            continue
+        raw = path.read_bytes()
+        got = sha(raw)
+        if got != item['sha256']:
+            problems.append({'check': 'provenance_sha256', 'path': item['path']})
+        if item.get('adaptation') == 'byte-identical' and got != item.get('source_sha256'):
+            problems.append({'check': 'provenance_source', 'path': item['path']})
+        inputs.append({'path': item['path'], 'sha256': got})
+        if copy is not None:
+            (copy / item['path']).parent.mkdir(parents=True, exist_ok=True)
+            (copy / item['path']).write_bytes(raw)
+    for name in ('manifest.json', 'provenance.json'):
+        raw = (ROOT / name).read_bytes()
+        if name not in listed:
+            inputs.append({'path': name, 'sha256': sha(raw)})
+        if copy is not None:
+            (copy / name).write_bytes(raw)
     expected = {entry['path'] for entry in manifest['files']}
     actual = {p.relative_to(ROOT / 'package').as_posix()
               for p in (ROOT / 'package').rglob('*') if p.is_file()}
@@ -141,21 +174,7 @@ def inventory():
             raw = path.read_bytes()
             if sha(raw) != entry['sha256'] or len(raw) != entry['bytes']:
                 problems.append({'check': 'package_bytes', 'path': entry['path']})
-    listed = set()
-    for item in provenance['files']:
-        listed.add(item['path'])
-        path = ROOT / item['path']
-        if not path.is_file():
-            problems.append({'check': 'provenance_missing', 'path': item['path']})
-            continue
-        got = sha_file(path)
-        if got != item['sha256']:
-            problems.append({'check': 'provenance_sha256', 'path': item['path']})
-        if item.get('adaptation') == 'byte-identical' and got != item.get('source_sha256'):
-            problems.append({'check': 'provenance_source', 'path': item['path']})
-    sources = [p.relative_to(ROOT).as_posix() for base in ('tools', 'tests') for p in (ROOT / base).rglob('*')
-               if p.is_file() and '__pycache__' not in p.parts]
-    unlisted = sorted(p for p in [f'package/{name}' for name in actual] + sources if p not in listed)
+    unlisted = sorted(f'package/{name}' for name in actual if f'package/{name}' not in listed)
     if unlisted:
         problems.append({'check': 'provenance_inventory', 'unlisted': unlisted})
     reading = 0
@@ -167,22 +186,12 @@ def inventory():
             problems.append({'check': 'pilot_reading_missing', 'path': name})
     if reading > READING_BUDGET:
         problems.append({'check': 'pilot_reading', 'words': reading, 'budget': READING_BUDGET})
-    identity = {'pilot_reading_words': reading, 'manifest_sha256': sha_file(manifest_path), 'manifest_format': manifest.get('format'),
+    identity = {'pilot_reading_words': reading, 'manifest_sha256': sha_file(ROOT / 'manifest.json'),
+                'manifest_format': manifest.get('format'),
                 'distribution': manifest.get('distribution', 'rc-core'), 'manifest_digest': manifest.get('digest'),
-                'package_files': len(actual), 'provenance_sha256': sha_file(ROOT / 'provenance.json')}
+                'package_files': len(actual), 'provenance_sha256': sha_file(ROOT / 'provenance.json'),
+                'inputs': inputs}
     return identity, problems
-
-
-def input_files():
-    """Files whose bytes define what is checked: tools, tests, package, manifests."""
-    names = []
-    for base in ('tools', 'tests', 'package'):
-        for p in sorted((ROOT / base).rglob('*')):
-            parts = p.relative_to(ROOT).parts
-            if p.is_file() and '__pycache__' not in parts and '_fixtures' not in parts and p.suffix != '.pyc':
-                names.append(p.relative_to(ROOT).as_posix())
-    names += ['manifest.json', 'provenance.json']
-    return [{'path': n, 'sha256': sha_file(ROOT / n)} for n in names]
 
 
 def git_state():
@@ -201,8 +210,9 @@ def git_state():
     return out
 
 
-def judge(name, exit_code, results):
-    """Pass only with exit 0, exact collection, no failure, declared skips, results present."""
+def judge(name, exit_code, results, root=ROOT):
+    """Pass only with exit 0, exact collection, no failure, declared skips, results present
+    and, for updater-v7, produced for the module and fixture manifest below root."""
     reasons = []
     if exit_code != 0:
         reasons.append(f'exit code {exit_code}')
@@ -222,6 +232,11 @@ def judge(name, exit_code, results):
     undeclared = [s for s in skipped if '.'.join(s.split('.')[-2:]) not in allowed]
     if undeclared:
         reasons.append(f'undeclared skips {undeclared}')
+    if name == 'updater-v7':
+        inputs = results.get('inputs', {})
+        if inputs.get('module_sha256') != sha_file(root / 'tools/rc_update.py') \
+                or inputs.get('new_manifest_sha256') != sha_file(root / 'tests/fixtures/v7/manifest.json'):
+            reasons.append('results produced for other inputs')
     return not reasons, reasons
 
 
@@ -231,77 +246,75 @@ def main():
     out.mkdir(parents=True)
     (out / 'tmp').mkdir()
     started = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    identity, problems = inventory()
+    # Short fixture roots outside the clone keep NTFS paths below the legacy 260-character limit.
+    base = Path(os.environ.get('RC_CHECK_FIXTURES_ROOT') or tempfile.gettempdir()).resolve()
+    base = base / ('rcchk-' + uuid.uuid4().hex[:6])
+    preflight = None
+    if os.name == 'nt' and len(str(base)) + FIXTURE_DEPTH_MARGIN > 259:
+        preflight = {'check': 'fixture_root_length', 'root': str(base), 'not_run': STEPS}
+        identity, problems = inventory()
+    else:
+        copy = base / 's'
+        copy.mkdir(parents=True)
+        identity, problems = inventory(copy)
+    inputs = identity.pop('inputs', [])
     summary = {'started_at': started, 'candidate': identity, 'inventory_problems': problems,
-               'git': git_state(), 'inputs': input_files(),
+               'git': git_state(), 'copy': None if preflight else str(copy), 'inputs': inputs,
                'environment': {'python': platform.python_version(), 'executable': sys.executable,
                                'os': f'{platform.system()} {platform.release()} ({platform.version()})'},
                'expected_collections': EXPECTED, 'results': []}
-    summary['inputs_digest'] = sha(canonical(summary['inputs']))
+    summary['inputs_digest'] = sha(canonical(inputs))
     print('inventory: ' + ('passed' if not problems else 'FAILED'), flush=True)
-    preflight = None
-    if not problems:
-        # Short fixture roots outside the clone keep NTFS paths below the legacy 260-character limit.
-        base = Path(os.environ.get('RC_CHECK_FIXTURES_ROOT') or tempfile.gettempdir()).resolve()
-        base = base / ('rcchk-' + uuid.uuid4().hex[:6])
-        if os.name == 'nt' and len(str(base)) + FIXTURE_DEPTH_MARGIN > 259:
-            preflight = {'check': 'fixture_root_length', 'root': str(base), 'not_run': STEPS}
-            summary['preflight_problem'] = preflight
-            print(f'preflight: FAILED fixture root {base} is too long for 260-character paths; '
-                  'set RC_CHECK_FIXTURES_ROOT to a short folder (for example C:\\rc)', flush=True)
+    if preflight:
+        summary['preflight_problem'] = preflight
+        print(f'preflight: FAILED fixture root {base} is too long for 260-character paths; '
+              'set RC_CHECK_FIXTURES_ROOT to a short folder (for example C:\\rc)', flush=True)
     if not problems and preflight is None:
-        base.mkdir(parents=True)
         from_steps = [n for n in EXPECTED if n.startswith('updater-from-')]
         roots = {k: base / k for k in ('f', 'g', 'p')}
         roots.update({n: base / f'h{i}' for i, n in enumerate(from_steps)})
         for r in roots.values():
             r.mkdir()
-        # Steps run isolated (no PYTHON* variable, no script folder on sys.path, no site-packages) with a fresh cache prefix.
-        py = [sys.executable, '-I', '-S', '-B', '-X', 'pycache_prefix=' + str(out / 'pycache')]
+        py = [sys.executable, '-I', '-S', '-B']
         env = {**{k: v for k, v in os.environ.items() if not k.upper().startswith('PYTHON')},
                'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONIOENCODING': 'utf-8',
-               'PYTHONPYCACHEPREFIX': str(out / 'pycache'),
                'TMP': str(out / 'tmp'), 'TEMP': str(out / 'tmp'),
-               'RC_STATE_PACKAGE': str(ROOT / 'package'),
-               'RC_UPDATE_LOT': str(ROOT),
-               'RC_UPDATE_PREVIOUS': str(ROOT / 'tests/fixtures/previous'),
-               'RC_UPDATE_CANDIDATE': str(ROOT / 'tests/fixtures/v7'),
-               'RC_UPDATE_MODULE': str(ROOT / 'tools/rc_update.py'),
+               'RC_STATE_PACKAGE': str(copy / 'package'),
+               'RC_UPDATE_LOT': str(copy),
+               'RC_UPDATE_PREVIOUS': str(copy / 'tests/fixtures/previous'),
+               'RC_UPDATE_CANDIDATE': str(copy / 'tests/fixtures/v7'),
+               'RC_UPDATE_MODULE': str(copy / 'tools/rc_update.py'),
                'RC_UPDATE_FIXTURES': str(roots['f'])}
-        me = str(Path(__file__).resolve())
+        me = str(copy / 'tools/check.py')
         steps = [
             ('state', [*py, me, '--collect', '.', '.', str(out / 'state.json')],
-             ROOT / 'tests/state', {}, out / 'state.json'),
-            ('updater-v7', [*py, str(ROOT / 'tests/updater/test_rc_update.py'),
-                            '--results-out', str(out / 'updater-v7.json')], ROOT, {}, out / 'updater-v7.json'),
-            ('updater-v8', [*py, me, '--collect', str(ROOT / 'tests/updater'), str(ROOT / 'tests/updater'),
+             copy / 'tests/state', {}, out / 'state.json'),
+            ('updater-v7', [*py, str(copy / 'tests/updater/test_rc_update.py'),
+                            '--results-out', str(out / 'updater-v7.json')], copy, {}, out / 'updater-v7.json'),
+            ('updater-v8', [*py, me, '--collect', str(copy / 'tests/updater'), str(copy / 'tests/updater'),
                             str(out / 'updater-v8.json'), 'test_rc_update_v8.py'],
-             ROOT, {'RC_UPDATE_FIXTURES': str(roots['g'])}, out / 'updater-v8.json'),
+             copy, {'RC_UPDATE_FIXTURES': str(roots['g'])}, out / 'updater-v8.json'),
         ] + [
-            (n, [*py, me, '--collect', str(ROOT / 'tests/updater'), str(ROOT / 'tests/updater'),
+            (n, [*py, me, '--collect', str(copy / 'tests/updater'), str(copy / 'tests/updater'),
                  str(out / (n + '.json')), 'test_update_from_previous.py'],
-             ROOT, {'RC_UPDATE_FIXTURES': str(roots[n]), 'RC_UPDATE_FROM': n[len('updater-from-'):]},
+             copy, {'RC_UPDATE_FIXTURES': str(roots[n]), 'RC_UPDATE_FROM': n[len('updater-from-'):]},
              out / (n + '.json'))
             for n in from_steps
         ] + [
-            ('package', [*py, me, '--collect', str(ROOT / 'tests/package'), str(ROOT / 'tests/package'),
+            ('package', [*py, me, '--collect', str(copy / 'tests/package'), str(copy / 'tests/package'),
                          str(out / 'package.json')],
-             ROOT, {'RC_PACKAGE_FIXTURES': str(roots['p'])}, out / 'package.json'),
-            ('footprint', [*py, me, '--collect', str(ROOT / 'tests/footprint'),
-                           str(ROOT / 'tests/footprint'), str(out / 'footprint.json')],
-             ROOT, {}, out / 'footprint.json'),
+             copy, {'RC_PACKAGE_FIXTURES': str(roots['p'])}, out / 'package.json'),
+            ('footprint', [*py, me, '--collect', str(copy / 'tests/footprint'),
+                           str(copy / 'tests/footprint'), str(out / 'footprint.json')],
+             copy, {}, out / 'footprint.json'),
         ]
         for name, command, cwd, extra, results_path in steps:
             step_env = {**env, **extra}
+            cwd.mkdir(parents=True, exist_ok=True)
             with (out / (name + '.txt')).open('w', encoding='utf-8') as log:
                 proc = subprocess.run(command, cwd=cwd, env=step_env, stdout=log, stderr=subprocess.STDOUT, check=False)
             results = json.loads(results_path.read_text(encoding='utf-8')) if results_path.is_file() else None
-            passed, reasons = judge(name, proc.returncode, results)
-            if name == 'updater-v7' and results is not None:
-                inputs = results.get('inputs', {})
-                if inputs.get('module_sha256') != sha_file(ROOT / 'tools/rc_update.py') \
-                        or inputs.get('new_manifest_sha256') != sha_file(ROOT / 'tests/fixtures/v7/manifest.json'):
-                    passed, reasons = False, reasons + ['results produced for other inputs']
+            passed, reasons = judge(name, proc.returncode, results, copy)
             summary['results'].append({
                 'step': name, 'command': command, 'cwd': str(cwd), 'exit_code': proc.returncode,
                 'environment': {k: step_env[k] for k in ENV_KEYS if k in step_env},
@@ -312,10 +325,10 @@ def main():
                 'skipped': results.get('skipped') if results else None,
                 'passed': passed, 'reasons': reasons})
             print(name + ': ' + ('passed' if passed else 'FAILED ' + '; '.join(reasons)), flush=True)
-        command = [*py, str(ROOT / 'tools/validate_package.py'), str(ROOT / 'package'),
-                   '--output', str(out / 'structure.json'), '--provenance', str(ROOT / 'provenance.json')]
+        command = [*py, str(copy / 'tools/validate_package.py'), str(copy / 'package'),
+                   '--output', str(out / 'structure.json'), '--provenance', str(copy / 'provenance.json')]
         with (out / 'structure.txt').open('w', encoding='utf-8') as log:
-            proc = subprocess.run(command, cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, check=False)
+            proc = subprocess.run(command, cwd=copy, env=env, stdout=log, stderr=subprocess.STDOUT, check=False)
         structure = json.loads((out / 'structure.json').read_text(encoding='utf-8')) \
             if (out / 'structure.json').is_file() else None
         reasons = []
@@ -324,12 +337,12 @@ def main():
         if structure is None or structure['failed'] or not structure['passed']:
             reasons.append('structural checks failed or absent')
         elif {f['path'] for f in structure['files']} != {e['path'] for e in json.loads(
-                (ROOT / 'manifest.json').read_text(encoding='utf-8'))['files']}:
+                (copy / 'manifest.json').read_text(encoding='utf-8'))['files']}:
             reasons.append('validated files differ from manifest')
         elif structure['distribution'] != identity['distribution']:
             reasons.append('validated distribution differs from manifest')
         summary['results'].append({
-            'step': 'structure', 'command': command, 'cwd': str(ROOT), 'exit_code': proc.returncode,
+            'step': 'structure', 'command': command, 'cwd': str(copy), 'exit_code': proc.returncode,
             'log': str(out / 'structure.txt'), 'log_sha256': sha_file(out / 'structure.txt'),
             'checks_passed': structure['passed'] if structure else None,
             'checks_failed': structure['failed'] if structure else None,
@@ -341,6 +354,8 @@ def main():
             summary['fixtures_left'][str(r)] = left
             if not left:
                 r.rmdir()
+    if preflight is None:
+        shutil.rmtree(copy)
         if not any(base.iterdir()):
             base.rmdir()
     summary['finished_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()

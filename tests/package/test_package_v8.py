@@ -13,6 +13,7 @@ import sys
 sys.dont_write_bytecode = True
 
 import codecs  # noqa: E402
+import contextlib  # noqa: E402
 import hashlib  # noqa: E402
 import importlib.util  # noqa: E402
 import json  # noqa: E402
@@ -224,6 +225,57 @@ class PackageTests(Base):
                 for name, detail in bad.items():
                     self.assertIn(expected, f'{name} {detail}')
 
+    def test_rules_refused(self):
+        """Chaque règle promise par la docstring du validateur refuse sa violation (R3B-V01 à V03)."""
+        fable = 'claude-fable-prompt-optimizer/references/behavior-fixes.md'
+        rc, gpt = 'rc-coordinate-development', 'gpt-prompt-optimizer'
+        for label, rel, old, new, expected in (
+                ('fichier non régulier', None, None, None, ':regular'),
+                ('cache', 'unslop/scripts/__pycache__/x.pyc', None, 'x', 'no_cache_or_temp'),
+                ('compilation', f'{gpt}/scripts/prompt_lint.py', None, '\nreturn 1\n', ':compiles'),
+                ('import hors bibliothèque standard', f'{gpt}/scripts/prompt_lint.py', None, '\nimport requests\n',
+                 ':stdlib_imports'),
+                ('dépendance maintenue ici réécrite', fable, None, ' ', 'provenance:' + fable),
+                ('fichier hors provenance', 'unslop/references/extra.md', None, 'x\n', 'provenance:inventory'),
+                ('fichier à la racine', 'README.md', None, 'x\n', 'no_file_at_package_root'),
+                ('nom RC', f'{rc}/SKILL.md', f'name: {rc}', 'name: autre', f'{rc}:name'),
+                ('description RC', f'{rc}/SKILL.md', 'description: ', 'description: <', f'{rc}:description'),
+                ('clé de métadonnées RC', f'{rc}/SKILL.md', '---\n', '---\nextra: x\n', f'{rc}:metadata_keys'),
+                ('clé de frontmatter', f'{rc}/SKILL.md', 'name:', 'Name:', f'{rc}:frontmatter_subset'),
+                ('scalaire ambigu', f'{rc}/SKILL.md', 'description: ', 'description: a: b ', f'{rc}:frontmatter_subset'),
+                ('gabarit inachevé', f'{rc}/SKILL.md', None, '\n[TODO: finir]\n', 'no_unfinished_scaffold'),
+                ('import automatique', f'{rc}/SKILL.md', None, '\n@SKILL.md\n', 'no_automatic_reference_import'),
+                ('clé UI répétée', f'{rc}/agents/openai.yaml', None, '  display_name: "X"\n', f'{rc}:ui_line'),
+                ('invocation RC', f'{rc}/agents/openai.yaml', f'${rc}', rc, f'{rc}:ui_invocation'),
+                ('découverte normale', f'{rc}/agents/openai.yaml', None, 'policy:\n  allow_implicit_invocation: false\n',
+                 f'{rc}:ui_normal_discovery'),
+                ('produits', f'{gpt}/agents/openai.yaml', '    - "chatgpt"', '    - true', f'{gpt}:ui_products'),
+                ('description courte de dépendance', f'{gpt}/agents/openai.yaml',
+                 'short_description: "Optimise les prompts GPT et les instructions d\'agents"', 'short_description: ""',
+                 f'{gpt}:ui_short_description'),
+                ('ligne UI hors sous-ensemble', f'{gpt}/agents/openai.yaml', None, '\nnotakey\n', f'{gpt}:ui_subset'),
+                ('titre indenté de quatre espaces', 'unslop/references/patterns.md', None,
+                 '\n    ## Four\n\n[x](#four)\n', ':link:'),
+                ('extension .MD', 'unslop/references/README.MD', None, '[dead](absent.md)\n', ':link:'),
+                ('Markdown avec BOM', 'unslop/references/bom.md', None, '\ufeff[dead]: absent.md\n', ':utf8')):
+            with self.subTest(label):
+                copy = self.copy()
+                patch = mock.patch.object(type(copy), 'is_symlink', lambda path: path.name == 'patterns.md') \
+                    if rel is None else contextlib.nullcontext()
+                if rel is not None:
+                    path = copy / rel
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    text = path.read_text(encoding='utf-8') if path.exists() else ''
+                    if old is not None:
+                        self.assertIn(old, text)
+                    path.write_bytes((text.replace(old, new, 1) if old is not None else text + new).encode('utf-8'))
+                try:
+                    with patch:
+                        bad = failing(validator.validate(copy, PROVENANCE))
+                finally:
+                    shutil.rmtree(copy)
+                self.assertTrue(any(expected in name for name in bad), bad)
+
     def test_unslop_policy_enforced(self):
         for label, old, new, check in (
                 ('implicit', b'allow_implicit_invocation: false', b'allow_implicit_invocation: true',
@@ -363,17 +415,6 @@ class RunnerR1Tests(Base):
         self.assertEqual(len(report['expected_failures']), 1)
         self.assertTrue(report['expected_failures'][0].endswith('Synthetic.test_24'))
 
-    def test_expected_failure_judge(self):
-        """Même un code zéro ne permet pas au juge d'effacer un expectedFailure."""
-        runner = _load('check_r1_judge', ROOT / 'tools' / 'check.py')
-        count = runner.EXPECTED['updater-v8']
-        report = {'tests_run': count, 'collected': [f'test_{i}' for i in range(count)],
-                  'failures': [], 'errors': [], 'skipped': [], 'unexpected_successes': [],
-                  'expected_failures': ['test_24']}
-        passed, reasons = runner.judge('updater-v8', 0, report)
-        self.assertFalse(passed)
-        self.assertTrue(any('expected failure' in reason for reason in reasons), reasons)
-
     def test_clean_collection_passes(self):
         """Témoin propre : les 25 vrais succès restent acceptés."""
         proc, report = self.collect_synthetic()
@@ -386,17 +427,42 @@ class RunnerR1Tests(Base):
             passed, reasons = runner.judge('updater-v8', 0, report)
         self.assertTrue(passed, reasons)
 
-    def test_off_windows_skip_matched_on_class_and_method(self):
-        """Hors Windows, seul le skip déclaré est admis, pas une méthode homonyme d'une autre classe."""
-        runner = _load('check_skip_ids', ROOT / 'tools' / 'check.py')
-        count = runner.EXPECTED['updater-v8']
-        for skipped, accepted in (('test_rc_update_v8.PlanV8Tests.test_dependency_junction_refused', True),
-                                  ('test_rc_update_v8.OtherTests.test_dependency_junction_refused', False)):
-            report = {'tests_run': count, 'collected': [f'test_{i}' for i in range(count)], 'failures': [],
-                      'errors': [], 'skipped': [{'id': skipped, 'reason': 'x'}], 'unexpected_successes': []}
-            with self.subTest(skipped), mock.patch.object(runner, 'os', mock.NonCallableMock(name='posix')):
-                runner.os.name = 'posix'
-                self.assertEqual(runner.judge('updater-v8', 0, report)[0], accepted)
+    def test_judge_rules(self):
+        """Chaque règle du juge refuse un résultat synthétique qui la viole ; le témoin passe (R3B-C04)."""
+        runner = _load('check_judge_rules', ROOT / 'tools' / 'check.py')
+        v7 = {'module_sha256': hashlib.sha256((ROOT / 'tools' / 'rc_update.py').read_bytes()).hexdigest(),
+              'new_manifest_sha256': hashlib.sha256((ROOT / 'tests' / 'fixtures' / 'v7' / 'manifest.json')
+                                                    .read_bytes()).hexdigest()}
+        junction = 'test_rc_update_v8.PlanV8Tests.test_dependency_junction_refused'
+        for label, step, change, code, system, expected in (
+                ('témoin', 'updater-v8', {}, 0, 'nt', None),
+                ('code de sortie', 'updater-v8', {}, 1, 'nt', 'exit code'),
+                ('résultats absents', 'updater-v8', None, 0, 'nt', 'no results file'),
+                ('compte attendu', 'updater-v8', {'tests_run': 1, 'collected': ['a']}, 0, 'nt', 'collection'),
+                ('identifiants collectés', 'updater-v8', {'collected': ['a']}, 0, 'nt', 'collected ids differ'),
+                ('échec', 'updater-v8', {'failures': ['a']}, 0, 'nt', 'failures or errors'),
+                ('erreur', 'updater-v8', {'errors': ['a']}, 0, 'nt', 'failures or errors'),
+                ('succès inattendu', 'updater-v8', {'unexpected_successes': ['a']}, 0, 'nt', 'failures or errors'),
+                ('échec attendu', 'updater-v8', {'expected_failures': ['a']}, 0, 'nt', 'expected failure'),
+                ('skip sous Windows', 'updater-v8', {'skipped': [{'id': junction}]}, 0, 'nt', 'undeclared skips'),
+                ('skip déclaré hors Windows', 'updater-v8', {'skipped': [{'id': junction}]}, 0, 'posix', None),
+                ('skip homonyme hors Windows', 'updater-v8',
+                 {'skipped': [{'id': junction.replace('PlanV8Tests', 'OtherTests')}]}, 0, 'posix', 'undeclared skips'),
+                ('entrées v7', 'updater-v7', {'inputs': v7}, 0, 'nt', None),
+                ('autres entrées v7', 'updater-v7', {'inputs': {**v7, 'module_sha256': '0' * 64}}, 0, 'nt',
+                 'other inputs')):
+            count = runner.EXPECTED[step]
+            report = None if change is None else {
+                'tests_run': count, 'collected': [f'test_{i}' for i in range(count)], 'failures': [], 'errors': [],
+                'skipped': [], 'unexpected_successes': [], 'expected_failures': [], **change}
+            with self.subTest(label), mock.patch.object(runner, 'os', mock.NonCallableMock(name=system)):
+                runner.os.name = system
+                passed, reasons = runner.judge(step, code, report)
+                if expected is None:
+                    self.assertTrue(passed, reasons)
+                else:
+                    self.assertFalse(passed)
+                    self.assertTrue(any(expected in reason for reason in reasons), reasons)
 
     def test_collect_refuses_non_isolated(self):
         """T2-08, T2-10 : le collecteur lancé hors de python -I ne produit pas de résultats."""
@@ -415,7 +481,7 @@ class RunnerR1Tests(Base):
 
 
 class CheckPreflightTests(Base):
-    def mini_repo(self, name='repo', sources=None):
+    def mini_repo(self, name='repo', sources=None, reading=b'mot\n'):
         """check.py, un paquet de trois fichiers de lecture et les sources données, toutes inventoriées."""
         repo = self.dir / name
         (repo / 'tools').mkdir(parents=True)
@@ -428,9 +494,9 @@ class CheckPreflightTests(Base):
         for name in ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md'):
             path = repo / 'package' / 'rc-coordinate-development' / name
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(b'mot\n')
+            path.write_bytes(reading)
             entries.append({'path': 'rc-coordinate-development/' + name,
-                            'sha256': hashlib.sha256(b'mot\n').hexdigest(), 'bytes': 4})
+                            'sha256': hashlib.sha256(reading).hexdigest(), 'bytes': len(reading)})
         (repo / 'manifest.json').write_text(json.dumps({'files': entries}), encoding='utf-8')
         listed = [{'path': 'package/' + e['path'], 'sha256': e['sha256']} for e in entries]
         listed += [{'path': rel, 'sha256': hashlib.sha256((repo / rel).read_bytes()).hexdigest()}
@@ -465,29 +531,71 @@ class CheckPreflightTests(Base):
                 self.assertFalse(long_root.exists())
 
     def test_inventory_refusal_writes_summary(self):
-        """R06-13, R06-17, CTL-07, T2-07 : lecture obligatoire retirée, BOM dans un JSON d'inventaire ou
-        fichier de tests/ hors provenance : refus nommé à l'inventaire et summary.json, sans trace."""
-        for label, check in (('SKILL.md', 'pilot_reading_missing'), ('provenance.json', 'unreadable'),
-                             ('manifest.json', 'unreadable'), ('tests/_fixtures/t.txt', 'provenance_inventory')):
+        """Chaque règle de l'inventaire : refus nommé, summary.json, aucune étape, aucune trace (R06-13,
+        R06-17, R3B-C04)."""
+        reading = 'package/rc-coordinate-development/SKILL.md'
+
+        def provenance(repo, change):
+            doc = json.loads((repo / 'provenance.json').read_text(encoding='utf-8'))
+            change(doc['files'])
+            (repo / 'provenance.json').write_text(json.dumps(doc), encoding='utf-8')
+
+        def append(repo, rel, data=b'x\n'):
+            (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (repo / rel).write_bytes(((repo / rel).read_bytes() if (repo / rel).exists() else b'') + data)
+
+        def extra_listed(repo):
+            append(repo, 'package/rc-coordinate-development/extra.md')
+            provenance(repo, lambda files: files.append(
+                {'path': 'package/rc-coordinate-development/extra.md', 'sha256': hashlib.sha256(b'x\n').hexdigest()}))
+
+        def extra_in_manifest(repo):
+            append(repo, 'package/rc-coordinate-development/extra.md')
+            doc = json.loads((repo / 'manifest.json').read_text(encoding='utf-8'))
+            doc['files'].append({'path': 'rc-coordinate-development/extra.md',
+                                 'sha256': hashlib.sha256(b'x\n').hexdigest(), 'bytes': 2})
+            (repo / 'manifest.json').write_text(json.dumps(doc), encoding='utf-8')
+
+        for label, sources, words, change, check in (
+                ('lecture obligatoire retirée', None, 1, lambda repo: (repo / reading).unlink(), 'pilot_reading_missing'),
+                ('budget de lecture', None, 4000, lambda repo: None, 'pilot_reading'),
+                ('provenance à BOM', None, 1, lambda repo: (repo / 'provenance.json').write_bytes(
+                    codecs.BOM_UTF8 + (repo / 'provenance.json').read_bytes()), 'unreadable'),
+                ('manifeste à BOM', None, 1, lambda repo: (repo / 'manifest.json').write_bytes(
+                    codecs.BOM_UTF8 + (repo / 'manifest.json').read_bytes()), 'unreadable'),
+                ('octets du paquet', None, 1, lambda repo: append(repo, reading), 'package_bytes'),
+                ('octets hors paquet', {'docs/x.md': 'x\n'}, 1, lambda repo: append(repo, 'docs/x.md'),
+                 'provenance_sha256'),
+                ('fichier listé absent', {'docs/x.md': 'x\n'}, 1, lambda repo: (repo / 'docs/x.md').unlink(),
+                 'provenance_missing'),
+                ('copie identique à sa source', None, 1, lambda repo: provenance(repo, lambda files: files[0].update(
+                    adaptation='byte-identical', source_sha256='0' * 64)), 'provenance_source'),
+                ('fichier hors manifeste', None, 1, extra_listed, 'package_inventory'),
+                ('fichier du paquet hors provenance', None, 1, extra_in_manifest, 'provenance_inventory')):
             with self.subTest(label):
-                repo = self.mini_repo('repo-' + Path(label).stem)
-                if label == 'SKILL.md':
-                    (repo / 'package' / 'rc-coordinate-development' / label).unlink()
-                elif label.startswith('tests/'):
-                    (repo / label).parent.mkdir(parents=True)
-                    (repo / label).write_text('x\n', encoding='utf-8')
-                else:
-                    (repo / label).write_bytes(codecs.BOM_UTF8 + (repo / label).read_bytes())
-                proc, _, summary = self.run_check(repo, self.dir)
+                repo = self.mini_repo('repo-' + str(abs(hash(label)) % 10 ** 6), sources, b'mot ' * words + b'\n')
+                change(repo)
+                proc, _, summary = self.run_check(repo, FIXTURES)
                 self.assertIn('inventory: FAILED', proc.stdout)
                 self.assertIn(check, [p['check'] for p in summary['inventory_problems']])
                 self.assertEqual(summary['results'], [])
 
+    def test_unlisted_step_folder_writes_summary(self):
+        """R06-17 : une étape dont le dossier manque dans la copie échoue, et summary.json est écrit."""
+        _, _, summary = self.run_check(self.mini_repo(), FIXTURES)
+        self.assertEqual(summary['inventory_problems'], [])
+        self.assertEqual([r['step'] for r in summary['results']][0], 'state')
+        self.assertFalse(summary['results'][0]['passed'])
+
     def test_tree_bytecode_not_loaded(self):
-        """R06-16, T2-10 : ni un .pyc forgé dans l'arbre, à l'en-tête valide, ni un sitecustomize.py
-        atteint par PYTHONPATH ne sont chargés par une étape."""
-        repo = self.mini_repo(sources={'tests/state/test_mini.py': 'import unittest\n\n\nclass T(unittest.TestCase):\n'
-                                                                   '    def test_a(self):\n        pass\n'})
+        """R06-16, T2-10, R3B-C01 : les étapes tournent sur la copie des fichiers listés, sous -I -S -B ;
+        ni un .pyc forgé, ni un module hors provenance, ni un sitecustomize.py atteint par PYTHONPATH n'y
+        entrent, et la copie est retirée à la fin."""
+        repo = self.mini_repo(sources={'tests/state/test_mini.py': (
+            'import sys\nimport unittest\n\n\nclass T(unittest.TestCase):\n    def test_a(self):\n'
+            '        self.assertTrue(sys.flags.isolated and sys.flags.no_site and sys.dont_write_bytecode)\n')})
+        (repo / 'tests' / 'state' / 'test_unlisted.py').write_text("print('MODULE HORS PROVENANCE')\n",
+                                                                   encoding='utf-8')
         source = repo / 'tests' / 'state' / 'test_mini.py'
         code = compile(source.read_text(encoding='utf-8') + "\nprint('PYC FORGE CHARGE')\n", str(source), 'exec')
         stat = source.stat()
@@ -500,10 +608,13 @@ class CheckPreflightTests(Base):
         self.assertEqual(summary['results'][0]['step'], 'state')
         self.assertEqual(summary['results'][0]['tests_run'], 1)
         self.assertNotIn('PYTHONPATH', summary['results'][0]['environment'])
-        self.assertIn('-S', summary['results'][0]['command'])
+        state = json.loads((out / 'state.json').read_text(encoding='utf-8'))
+        self.assertEqual((state['failures'], state['errors']), ([], []))
+        self.assertTrue(summary['results'][0]['cwd'].startswith(summary['copy']))
+        self.assertFalse(Path(summary['copy']).exists())
         log = (out / 'state.txt').read_text(encoding='utf-8')
-        self.assertNotIn('PYC FORGE CHARGE', log)
-        self.assertNotIn('SITECUSTOMIZE CHARGE', log)
+        for marker in ('PYC FORGE CHARGE', 'MODULE HORS PROVENANCE', 'SITECUSTOMIZE CHARGE'):
+            self.assertNotIn(marker, log)
 
 
 class QualificationScenarioTests(unittest.TestCase):
