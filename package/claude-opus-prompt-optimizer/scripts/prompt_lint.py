@@ -240,15 +240,12 @@ OPUS_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
 # --- Generic contract patterns ----------------------------------------------
 
 SECTION_PATTERNS = {
-    "task": re.compile(r"\b(task|objective|goal|mission|your job|t[aâ]che|objectif|r[eé]sultat (?:attendu|demand[eé])|"
-                       r"ce qui est demand[eé])\b|(?m:^#{1,6}[ \t]+(?:r[eé]sultats?|objet|besoin|livrables?|"
-                       r"exigences?|d[eé]faut|constat|friction|revue|contre-revue|port[eé]e de ce tour|ce que le pilote attend|passe cibl[eé]e|ce que tu v[eé]rifies)\b)", re.I),
+    "task": re.compile(r"\b(task|objective|goal|mission|your job|r[eé]sultat attendu)\b", re.I),
     "output": re.compile(r"\b(output|format|schema|structure|deliverable|return|report at the end)\b", re.I),
     "reason": re.compile(r"\b(because|so that|why this matters|this enables|in order to|the reason)\b", re.I),
     "scope": re.compile(
         r"\b(in scope|out of scope|scope|deliver what was asked|stop short of|"
-        r"do not (?:add|refactor|extend)|domaine|p[eé]rim[eè]tre|ce qui ne change pas|port[eé]e de ce tour|en lecture seule|tu n.[eé]cris que?|seule? o[uù] tu|hors de ton lot|tu ne touches? ni|aucun changement hors)\b"
-        r"|(?m:^#{1,6}[ \t]+(?:limites?|port[eé]e)\b)",
+        r"do not (?:add|refactor|extend)|domaine|en lecture seule|aucun changement hors|ni document ni commentaire)\b",
         re.I,
     ),
     "tools": re.compile(
@@ -256,9 +253,7 @@ SECTION_PATTERNS = {
         r"sub-?agents?)\b",
         re.I,
     ),
-    "permissions": re.compile(
-        r"\b(confirm|confirmation|permission|approval|ask (?:the )?user|effets? permis|interdits?|"
-        r"autoris[eé]e?s?|autorisation|lecture seule|tu n.[eé]cris que|(?:ni|aucun|pas de) (?:acc[eè]s )?(?:r[eé]seau|push))\b", re.I),
+    "permissions": re.compile(r"\b(confirm|confirmation|permission|approval|ask (?:the )?user|effets? permis|interdits?|(?:ni|aucun) push)\b", re.I),
     "recovery": re.compile(
         r"\b(retry|fallback|empty|incomplete|partial|conflict|stale|malformed|failure)\b", re.I
     ),
@@ -268,6 +263,17 @@ SECTION_PATTERNS = {
         re.I,
     ),
 }
+
+# French mandate headings: they count only as a whole heading line, possibly followed by
+# a parenthesis or punctuation, and never inside fenced code.
+FR_TITLES = {
+    "task": r"r[eé]sultat(?: demand[eé])?|objet(?: de ce tour)?|besoin|exigences?|d[eé]faut|ce qui est demand[eé]|ce que le pilote attend en plus du brief|port[eé]e de ce tour|passe cibl[eé]e",
+}
+FR_TITLES = {
+    name: re.compile(r"(?m)^#{1,6}[ \t]+(?:" + forms + r")[ \t]*(?:[(:,;.!?\u2013\u2014-][^\n]*)?\r?$", re.I)
+    for name, forms in FR_TITLES.items()
+}
+FENCED = re.compile(r"(?ms)^[ \t]*(`{3,}|~{3,}).*?^[ \t]*\1[ \t]*\r?$")
 
 SIDE_EFFECT_VERBS = re.compile(
     r"\b(send|publish|deploy|delete|drop|purchase|pay|schedule|push|merge|commit|"
@@ -293,16 +299,14 @@ AGENTIC_MARKER = re.compile(
 DONE_CRITERION = re.compile(
     r"\b(done (?:means|when|looks like)|definition of done|finish line|you(?:'re| are) done when|"
     r"acceptance criteria|success criteria|complete when|until (?:the |all )?tests pass|"
-    r"the task is (?:complete|done|finished) when|termin[eé]e? quand|crit[eè]res? (?:de fin|d.acceptation)|"
-    r"fini quand)\b|(?m:^#{1,6}[ \t]+fin\b)",
+    r"the task is (?:complete|done|finished) when|termin[eé]e? quand|fini quand|crit[eè]res? de fin)\b",
     re.I,
 )
 STOP_RULE = re.compile(
     r"\b(stop and ask|ask (?:me|the user) (?:only|before|first|when)|check in (?:only|when|before)|"
     r"keep going|carry on|continue without|don'?t stop|without stopping|blocked on me|"
     r"requires? (?:explicit )?confirmation|before anything destructive|"
-    r"sans (?:t|vous )?.?arr[eê]ter|sans demander|va au bout|arr[eê]te-toi|ce qui remonte|"
-    r"ce que tu d[eé]cides seul|remonte (?:dans ta remise|au lieu de?)|dis-le dans ta remise)\b|(?m:^#{1,6}[ \t]+autonomie\b)",
+    r"ce que tu d[eé]cides seul|remonte dans ta remise|dis-le dans ta remise|outil refus[eé])\b",
     re.I,
 )
 RESEARCH_MARKER = re.compile(
@@ -317,8 +321,7 @@ UNCONFIRMED_RULE = re.compile(
 DELEGATION_INTENT = re.compile(r"\b(sub-?agents?|delegate|delegation|parallel agents)\b", re.I)
 DELEGATION_LIMIT = re.compile(
     r"\b(only for|do not delegate|keep spawn counts low|genuinely independent|"
-    r"cap|max(?:imum)?|concurren|depth|ne lances? aucun|aucun (?:acteur ni )?sous-agent|pas de sous-agents?|"
-    r"au plus)\b",
+    r"cap|max(?:imum)?|concurren|depth|ne lances? aucun)\b",
     re.I,
 )
 
@@ -345,6 +348,9 @@ def lint_prompt(text: str) -> dict[str, Any]:
     ]
 
     sections = {name: bool(pattern.search(text)) for name, pattern in SECTION_PATTERNS.items()}
+    unfenced = FENCED.sub("", text)
+    sections.update({name: sections.get(name, False) or bool(p.search(unfenced))
+                     for name, p in FR_TITLES.items()})
     warnings: list[dict[str, Any]] = []
 
     def scan(patterns: list[tuple[re.Pattern[str], str, str]], severity: str) -> None:

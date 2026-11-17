@@ -16,18 +16,25 @@ from pathlib import Path
 from typing import Any
 
 SECTION_PATTERNS = {
-    "task": re.compile(r"\b(task|tache|mission|objectif|goal|t[aâ]che|r[eé]sultat (?:attendu|demand[eé])|"
-                       r"ce qui est demand[eé])\b|(?m:^#{1,6}[ \t]+(?:r[eé]sultats?|objet|besoin|livrables?|"
-                       r"exigences?|d[eé]faut|constat|friction|revue|contre-revue|port[eé]e de ce tour|ce que le pilote attend|passe cibl[eé]e|ce que tu v[eé]rifies)\b)", re.I),
+    "task": re.compile(r"\b(task|tache|mission|objectif|goal|r[eé]sultat attendu)\b", re.I),
     "output": re.compile(r"\b(output|sortie|format|schema|structure|livrable)\b", re.I),
     "verification": re.compile(r"\b(verify|verification|validate|validation|check|controle)\b", re.I),
-    "done": re.compile(r"\b(done criteria|definition of done|critere[s]? de fin|termine[e]?|crit[eè]res? de fin|termin[eé]e? quand|"
-                       r"fini quand|crit[eè]res? d.acceptation)\b|(?m:^#{1,6}[ \t]+fin\b)", re.I),
+    "done": re.compile(r"\b(done criteria|definition of done|critere[s]? de fin|termine[e]?|termin[eé]e? quand|fini quand|crit[eè]res? de fin)\b", re.I),
     "tools": re.compile(r"\b(tools?|outils?|function calls?|mcp|connectors?|web search|file search|computer use|ssh|shell|terminal)\b", re.I),
-    "permissions": re.compile(r"\b(confirm|confirmation|permission|approval|consent|autorisation|validation explicite|effets? permis|interdits?|autoris[eé]e?s?|"
-                              r"lecture seule|tu n.[eé]cris que|(?:ni|aucun|pas de) (?:acc[eè]s )?(?:r[eé]seau|push))\b", re.I),
+    "permissions": re.compile(r"\b(confirm|confirmation|permission|approval|consent|autorisation|validation explicite|effets? permis|interdits?|(?:ni|aucun) push)\b", re.I),
     "recovery": re.compile(r"\b(retry|reessayer|fallback|empty|incomplete|partial|conflict|erreur|failure)\b", re.I),
 }
+
+# French mandate headings: they count only as a whole heading line, possibly followed by
+# a parenthesis or punctuation, and never inside fenced code.
+FR_TITLES = {
+    "task": r"r[eé]sultat(?: demand[eé])?|objet(?: de ce tour)?|besoin|exigences?|d[eé]faut|ce qui est demand[eé]|ce que le pilote attend en plus du brief|port[eé]e de ce tour|passe cibl[eé]e",
+}
+FR_TITLES = {
+    name: re.compile(r"(?m)^#{1,6}[ \t]+(?:" + forms + r")[ \t]*(?:[(:,;.!?\u2013\u2014-][^\n]*)?\r?$", re.I)
+    for name, forms in FR_TITLES.items()
+}
+FENCED = re.compile(r"(?ms)^[ \t]*(`{3,}|~{3,}).*?^[ \t]*\1[ \t]*\r?$")
 
 VAGUE_PATTERNS = [
     (re.compile(r"\b(be|sois) (accurate|precis|intelligent|smart|helpful|utile)\b", re.I), "vague quality directive"),
@@ -58,8 +65,7 @@ LOOP_BOUND = re.compile(
 DELEGATION_INTENT = re.compile(r"\b(subagents?|sub-agents?|delegate|delegation|sous-agents?)\b", re.I)
 DELEGATION_MERGE = re.compile(
     r"\b(wait for|collect|merge|deduplicate|synthesize|consolidate|"
-    r"attendre|collecter|fusionner|dedoublonner|synthetiser|consolider|"
-    r"d[eé]doublonner|synth[eé]tiser|ne lances? aucun|aucun (?:acteur ni )?sous-agent|pas de sous-agents?)\b",
+    r"attendre|collecter|fusionner|dedoublonner|synthetiser|consolider|ne lances? aucun)\b",
     re.I,
 )
 
@@ -87,6 +93,9 @@ def lint_prompt(text: str) -> dict[str, Any]:
     ]
 
     sections = {name: bool(pattern.search(text)) for name, pattern in SECTION_PATTERNS.items()}
+    unfenced = FENCED.sub("", text)
+    sections.update({name: sections.get(name, False) or bool(p.search(unfenced))
+                     for name, p in FR_TITLES.items()})
     warnings: list[dict[str, str]] = []
 
     if not sections["task"]:
