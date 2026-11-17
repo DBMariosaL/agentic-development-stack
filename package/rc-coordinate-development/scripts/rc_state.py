@@ -394,7 +394,8 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
         require(intent['correlation'] not in seen, label + ': duplicate correlation')
         seen.add(intent['correlation'])
         if intent['status'] == 'confirmed':
-            require(text(intent.get('result_ref')), label + ': confirmed intent requires result_ref')
+            require(text(intent.get('result_ref')) or text(intent.get('evidence')),
+                    label + ': confirmed intent requires result_ref, or an evidence of what was observed')
         if intent['status'] == 'pending':
             key = (intent['op'], intent['target'])
             require(key not in pending_targets, label + ': second pending intent for the same op/target')
@@ -657,7 +658,9 @@ update merges value into the single item whose fields equal match; it refuses ze
 actor return in one command (signal receipt, intent resolution and application in a single revision):
   write FILE --actor A --expect-revision N --resolve-intent CORR --status confirmed --result-ref R
         --record-event ID --kind K [--candidate-seq S] [--ops ...]
-  ops apply after the resolution, so they can update the actor it creates. The signal is recorded first, as
+  ops apply after the resolution, so they can update the actor it creates (its status included, without more
+  evidence). A launch proven without receipt: --status confirmed --evidence "what was observed", no --result-ref;
+  the actor is born with ref null and takes the status the ops give it. The signal is recorded first, as
   event does; the write runs only when it is new or received but unapplied on a wave not closed, otherwise its
   class is reported, nothing is written and the exit code is 1. After the write, event.effect reads "applied by
   this write". A refused write, invalid --ops included, leaves the event recorded
@@ -1811,10 +1814,11 @@ def cmd_write(args):
             raise StateError(f'refused: unknown key {", ".join(created)}: the {kind_of(doc)} format does not define it. '
                              'A path joins object keys with ".", never "/" (state.next_action, not state/next_action); '
                              'see write --help and init --template')
-        if mid is not doc and ops is not None:
-            errors = check_evolution(mid, new, applies_event=applies)
-            if errors:
-                raise StateError('refused: ops after the intent resolution: ' + '; '.join(errors))
+        if mid is not doc and ops:
+            resolved = [i for i in _items(mid.get('intents')) if i.get('correlation') == args.resolve_intent]
+            if resolved != [i for i in _items(new.get('intents')) if i.get('correlation') == args.resolve_intent]:
+                raise StateError(f'refused: ops after the intent resolution: intent {args.resolve_intent} is resolved '
+                                 'and immutable')
         return new
 
     event, applies = None, args.applies_event
@@ -1910,8 +1914,10 @@ def resolve_intent(doc, correlation, args):
     if current is not None and sval(current, 'status') != 'pending':
         raise StateError(f'intent {correlation} is resolved and immutable ({current.get("status")}): '
                          'a new attempt takes a new correlation')
+    observed = {'evidence': args.evidence} if text(args.evidence) else {}
     doc = apply_ops(doc, [{'op': 'update', 'path': 'intents', 'match': {'correlation': correlation},
-                           'value': {'status': args.status, 'result_ref': args.result_ref, 'resolved_at': now()}}])
+                           'value': {'status': args.status, 'result_ref': args.result_ref, 'resolved_at': now(),
+                                     **observed}}])
     intent = next(i for i in _items(doc['intents']) if i.get('correlation') == correlation)
     if args.status == 'confirmed' and intent.get('op') == 'launch':
         if not isinstance(doc.get('actors'), list):
@@ -1919,7 +1925,7 @@ def resolve_intent(doc, correlation, args):
                              'write --ops (set actors) before confirming a launch')
         doc['actors'].append({'role': args.role or 'unspecified', 'model': args.model, 'ref': args.result_ref,
                               'correlation': correlation, 'status': 'running',
-                              'target': intent.get('target'), 'candidate_seq': None})
+                              'target': intent.get('target'), 'candidate_seq': None, **observed})
     return doc
 
 
@@ -2252,6 +2258,7 @@ def build_parser():
                            help='resolve this pending intent in the same write, as intent resolve does')
             p.add_argument('--status', choices=['confirmed', 'absent', 'failed'])
             p.add_argument('--result-ref')
+            p.add_argument('--evidence', help='what was observed: confirms a launch without receipt (no --result-ref)')
             p.add_argument('--role', help='actor role recorded when a launch is confirmed')
             p.add_argument('--model')
             p.add_argument('--record-event', metavar='ID',
@@ -2277,6 +2284,7 @@ def build_parser():
             p.add_argument('--target')
             p.add_argument('--status', choices=['confirmed', 'absent', 'failed'])
             p.add_argument('--result-ref')
+            p.add_argument('--evidence', help='what was observed: confirms a launch without receipt (no --result-ref)')
             p.add_argument('--role', help='actor role recorded when a launch is confirmed')
             p.add_argument('--model')
         elif name in {'event', 'ack'}:
@@ -2305,8 +2313,9 @@ def main(argv=None):
         if args.ops is None and args.ops_file is None and not args.resolve_intent:
             parser.error('write needs --ops, --ops-file or --resolve-intent')
         if bool(args.resolve_intent) != bool(args.status) or \
-                (not args.resolve_intent and (args.result_ref or args.role or args.model)):
-            parser.error('--resolve-intent goes with --status; --result-ref, --role and --model need --resolve-intent')
+                (not args.resolve_intent and (args.result_ref or args.role or args.model or args.evidence)):
+            parser.error('--resolve-intent goes with --status; --result-ref, --evidence, --role and --model need '
+                         '--resolve-intent')
         if bool(args.record_event) != bool(args.kind) or (args.candidate_seq is not None and not args.record_event):
             parser.error('--record-event goes with --kind; --candidate-seq needs --record-event')
         if args.record_event and args.applies_event:

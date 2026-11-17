@@ -752,6 +752,25 @@ class Successor(Campaign):
         self.assertEqual(self.ok('event', self.wave_path, '--actor', self.OTHER, '--id', 'e9',
                                  '--kind', 'review')['classification'], 'late')
 
+    def test_P02_launch_proven_without_receipt_is_confirmed_in_one_command(self):
+        w = wave2()
+        w['intents'] = [{'correlation': 'champ/1', 'op': 'launch', 'target': 'A', 'status': 'pending',
+                         'result_ref': None}]
+        self.write(self.wave_path, w)
+        resolve = ('write', self.wave_path, '--actor', self.OTHER, '--expect-revision', 1, '--resolve-intent',
+                   'champ/1', '--status', 'confirmed', '--role', 'champion')
+        self.takeover(self.wave_path)
+        self.refused('confirmed intent requires result_ref, or an evidence of what was observed', *resolve)
+        seen = 'commit 37b2549 on lot/count observed; its author stopped with its parent, no receipt'
+        self.ok(*resolve, '--evidence', seen, '--ops', json.dumps(
+            [{'op': 'update', 'path': 'actors', 'match': {'correlation': 'champ/1'}, 'value': {'status': 'interrupted'}}]))
+        doc = self.doc(self.wave_path)
+        self.assertEqual((doc['revision'], doc['intents'][0]['status'], doc['intents'][0]['result_ref'],
+                          doc['intents'][0]['evidence']), (2, 'confirmed', None, seen))
+        self.assertEqual([(a['ref'], a['status'], a['evidence']) for a in doc['actors']], [(None, 'interrupted', seen)])
+        self.ok('intent', self.wave_path, 'add', '--actor', self.OTHER, '--expect-revision', 2, '--correlation',
+                'champ/2', '--op', 'launch', '--target', 'A')
+
     def test_R02_05_moved_state_folder_keeps_accepting_writes(self):
         wave = self.solo()
         self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'a'}])
