@@ -18,7 +18,7 @@ Les skills RC routent leurs livrables vers des filtres (section « Filtres » du
 
 ## Ce qui est contrôlé
 
-`tools/validate_package.py` vérifie sur ces copies, sans les réécrire : nom et description, sous-ensemble de `agents/openai.yaml` effectivement utilisé, icônes résolues depuis la racine du skill, politique d'invocation enregistrée (Unslop non implicite et sans `default_prompt`), liens Markdown et ancres, chemins `references/`, `scripts/` et `assets/` cités, compilation et imports de bibliothèque standard des scripts. Avec `--provenance`, toute modification d'octet est détectée.
+`tools/validate_package.py` vérifie sur ces copies, sans les réécrire : nom et description, sous-ensemble de `agents/openai.yaml` effectivement utilisé, icônes résolues depuis la racine du skill, politique d'invocation enregistrée (Unslop non implicite et sans `default_prompt`), liens Markdown et ancres, lus sur un sous-ensemble déclaré de Markdown (une construction hors de ce sous-ensemble est refusée par son nom), chemins `references/`, `scripts/` et `assets/` cités dans un span de code, y compris dans une ligne de commande, tous résolus à la casse exacte, compilation et imports de bibliothèque standard des scripts. Avec `--provenance`, toute modification d'octet est détectée.
 
 `tests/package/` exécute en plus `--help` et une entrée synthétique de chacun des huit scripts, hors ligne, sans écriture. Ces contrôles ne mesurent pas la qualité des optimiseurs ; un lint de prompt ne certifie pas un prompt.
 

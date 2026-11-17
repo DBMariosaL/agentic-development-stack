@@ -99,8 +99,8 @@
     },
     {
       "path": "claude-fable-prompt-optimizer/scripts/prompt_lint.py",
-      "sha256": "b085983cb262510d9fee8bef0b6f99575ae62225e2978fa131dd18522b819fb1",
-      "bytes": 21413
+      "sha256": "38b42b4038f472d2ca012dc07799dc8a40b8354d49492e02d58f95e2cbf55575",
+      "bytes": 21510
     },
     {
       "path": "claude-opus-prompt-optimizer/SKILL.md",
@@ -264,8 +264,8 @@
     },
     {
       "path": "rc-coordinate-development/references/engine.md",
-      "sha256": "a5f1ab6fc5a334164336bb3e861e229eb10048295901ddb4b225ec2dba146add",
-      "bytes": 16660
+      "sha256": "537c9db44e9b37231ac20e9fa850993842441247169901f4bc6d2c73bf89ac29",
+      "bytes": 21548
     },
     {
       "path": "rc-coordinate-development/references/garden.md",
@@ -304,23 +304,23 @@
     },
     {
       "path": "rc-coordinate-development/scripts/check_wave.py",
-      "sha256": "a7f2056806c078968ae1dcb15b8755b8a0d24f8a974805b91e118bec6fcda456",
-      "bytes": 17179
+      "sha256": "832c8e4faaa127fc83c7edc7ad09af54b3f45e8d57388c243416b467d5c0c389",
+      "bytes": 18231
     },
     {
       "path": "rc-coordinate-development/scripts/rc_footprint.py",
-      "sha256": "5c36e6373ffe4e28082691cb30ef9b402c4bc926bdc3f268a94e26924dbc8b03",
-      "bytes": 10885
+      "sha256": "8893853b98c7e18599207614d9131bad019e1b27e824c2a12a546286b4593f7b",
+      "bytes": 12131
     },
     {
       "path": "rc-coordinate-development/scripts/rc_state.py",
-      "sha256": "f7dd8134e1afc7d21d4761a3c169005e6782a44a545db48544fc45f9000295c9",
-      "bytes": 126836
+      "sha256": "7c36598349e150913327f0ea97a58eb113d2b3b190e43b3d5e443dc42333288f",
+      "bytes": 138835
     },
     {
       "path": "rc-prepare-socle-prompts/SKILL.md",
-      "sha256": "16fa87decd7ab9fc206b67bbf1fadec6ebf24e097ab6fd6bca7f9635c210917a",
-      "bytes": 8042
+      "sha256": "a7dec79dd47e3bbb657266ee8803be81d74f12b0c642f360366b19ecee43cbda",
+      "bytes": 8225
     },
     {
       "path": "rc-prepare-socle-prompts/agents/openai.yaml",
@@ -363,5 +363,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "c5a0ef6d0978a8fe2705d0ebd523204d72256571a0e795a03bf33d09fba7adb1"
+  "digest": "49b4a974c263c6aaa118981cb0a879f1373edda8ec2069222d602485a597d929"
 }

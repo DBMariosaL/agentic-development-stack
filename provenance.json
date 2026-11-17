@@ -121,18 +121,26 @@
     },
     {
       "path": "package/rc-coordinate-development/scripts/check_wave.py",
-      "source_group": "developpement-stack-autonome-20261104",
-      "source": "candidats/v7/package/rc-coordinate-development/scripts/check_wave.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "package/rc-coordinate-development/scripts/check_wave.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "a7f2056806c078968ae1dcb15b8755b8a0d24f8a974805b91e118bec6fcda456",
-      "sha256": "a7f2056806c078968ae1dcb15b8755b8a0d24f8a974805b91e118bec6fcda456",
-      "adaptation": "byte-identical"
+      "sha256": "832c8e4faaa127fc83c7edc7ad09af54b3f45e8d57388c243416b467d5c0c389",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "package/rc-coordinate-development/scripts/check_wave.py",
+        "source_group": "developpement-stack-autonome-20261104",
+        "source": "candidats/v7/package/rc-coordinate-development/scripts/check_wave.py",
+        "source_sha256": "a7f2056806c078968ae1dcb15b8755b8a0d24f8a974805b91e118bec6fcda456",
+        "sha256": "a7f2056806c078968ae1dcb15b8755b8a0d24f8a974805b91e118bec6fcda456",
+        "adaptation": "byte-identical"
+      }
     },
     {
       "path": "package/rc-coordinate-development/scripts/rc_state.py",
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/scripts/rc_state.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b9057d7c0d1968d7588d08a9ec178532a0a87ede7df54d4c897d1ab8a0cfa4e5",
-      "sha256": "f7dd8134e1afc7d21d4761a3c169005e6782a44a545db48544fc45f9000295c9",
+      "sha256": "7c36598349e150913327f0ea97a58eb113d2b3b190e43b3d5e443dc42333288f",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/scripts/rc_state.py",
@@ -148,7 +156,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-prepare-socle-prompts/SKILL.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "90f3fa8a0cf74caa7169f9cd15a69cfc2c4b5ce46546770291c2ea6bd2a6849e",
-      "sha256": "16fa87decd7ab9fc206b67bbf1fadec6ebf24e097ab6fd6bca7f9635c210917a",
+      "sha256": "a7dec79dd47e3bbb657266ee8803be81d74f12b0c642f360366b19ecee43cbda",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-prepare-socle-prompts/SKILL.md",
@@ -220,7 +228,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "e6471843b99a132c59e31b9872ff7cbb0c559dcdbfbbd0ebfde9da90897cafd8",
+      "sha256": "f7defa1c6b67f20f57366319c92636f02cf5a80994cdccaf15bbf0c8f1046cf9",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -236,7 +244,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/rc_update.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "13dd94554eca8a3bd2737c712b472e0b0e380fd9c476a43d483f3c88d1060e26",
-      "sha256": "a45a4a305b0d536f8055f688060877bc1328f724492b8a38dbec041195634a38",
+      "sha256": "1aeca7c24b663db8f15472930b587f6c847a12b802795d211d3aad3ee5629070",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/rc_update.py",
@@ -260,7 +268,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/validate_package.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "1ca84e30385bd92bdbf93def03a98ec39e37131776c352617e8bc042a816d473",
-      "sha256": "830a0117d3f2d6fe948ec7f9e2d4da1bcfe1a064bfa2f68faa1fdd27ce2bf6a4",
+      "sha256": "5fed1982c5248b808dac3b2b4803c873719ccf7edef6c2fd7196c1aa9ad35505",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/validate_package.py",
@@ -313,26 +321,42 @@
     },
     {
       "path": "tests/state/test_rc_state_ar2.py",
-      "source_group": "developpement-stack-autonome-20261104",
-      "source": "correction-ar3/tests/test_rc_state_ar2.py",
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tests/state/test_rc_state_ar2.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "42ef0a96f23c8b84ca4c822ac90bc549de3ac3be1e0b3cb8e94567144fb77569",
-      "sha256": "42ef0a96f23c8b84ca4c822ac90bc549de3ac3be1e0b3cb8e94567144fb77569",
-      "adaptation": "byte-identical"
+      "sha256": "c23f221e24f6224ad8ddd049a752a60d49000beb92611fe565fee9ed978a4bce",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "tests/state/test_rc_state_ar2.py",
+        "source_group": "developpement-stack-autonome-20261104",
+        "source": "correction-ar3/tests/test_rc_state_ar2.py",
+        "source_sha256": "42ef0a96f23c8b84ca4c822ac90bc549de3ac3be1e0b3cb8e94567144fb77569",
+        "sha256": "42ef0a96f23c8b84ca4c822ac90bc549de3ac3be1e0b3cb8e94567144fb77569",
+        "adaptation": "byte-identical"
+      }
     },
     {
       "path": "tests/state/test_rc_state_ar3.py",
-      "source_group": "developpement-stack-autonome-20261104",
-      "source": "correction-ar3/tests/test_rc_state_ar3.py",
-      "source_sha256": "7cf00d71051fb406031c9637cce4b45559d0da3a6585e348780a256200349385",
-      "sha256": "d47ac657acf38d94c6ac6120e5868daae943596a2fa4654b28918d7135225bad",
-      "adaptation": "fixture paths only"
+      "source_group": "rc-stack-v10-20261116",
+      "source": "tests/state/test_rc_state_ar3.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
+      "source_sha256": "d47ac657acf38d94c6ac6120e5868daae943596a2fa4654b28918d7135225bad",
+      "sha256": "224f88b3ef5a78330c99e748dcf311de506645ab383c2324c9706c3033ad2d6d",
+      "adaptation": "v10 edit",
+      "previous_record": {
+        "path": "tests/state/test_rc_state_ar3.py",
+        "source_group": "developpement-stack-autonome-20261104",
+        "source": "correction-ar3/tests/test_rc_state_ar3.py",
+        "source_sha256": "7cf00d71051fb406031c9637cce4b45559d0da3a6585e348780a256200349385",
+        "sha256": "d47ac657acf38d94c6ac6120e5868daae943596a2fa4654b28918d7135225bad",
+        "adaptation": "fixture paths only"
+      }
     },
     {
       "path": "tests/state/test_rc_state_revue1.py",
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/state/test_rc_state_revue1.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "42cd6059a98a0424a7a351c83892eb297bf8637a2da0f5d961534c0f37d9c02f",
-      "sha256": "525cbf8c1dd603b4c3f2406f85b365e60dced50eb6b04c5e4f2e8e1f0d9d17ff",
+      "sha256": "f0563abbe8146ddd41bc9004f46d9ee71fc95f574658f736da69d64b10088f90",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/state/test_rc_state_revue1.py",
@@ -548,7 +572,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/check.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
-      "sha256": "4a7b8ea73335bcc09ecdde6516bce1ccbcf2daab284ea287c16cd3e3a9c81e94",
+      "sha256": "413567903ded77b3703690f09dff6df97be4763e4f6caff8f69e00456adb0735",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/check.py",
@@ -564,7 +588,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/updater/test_rc_update_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "a492df0be2fd3e2ec4fc952b9372b6fc48fa72620a2e8851a059b50b8d12a048",
-      "sha256": "68d4907cd761b188084fbcc418ee070ee8285258f609e6bdc5ccb16b4367e685",
+      "sha256": "0c84d174c872e690c1ad345cb71b3cd0e310c5ffdc9eacf72b00438edfe4b3d7",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/updater/test_rc_update_v8.py",
@@ -580,7 +604,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/package/test_package_v8.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b6e682ca5d61fcd7bd76aac4bcb8dda7ef1e98c7e07a133609f19ecc292c0b96",
-      "sha256": "79d4ed47c6f9ad95952e35bc785c0b6b76b613934dc6cc371beacd22a62e298b",
+      "sha256": "5afd334000cc25f9b1337970c96ee97c70f01bdc00859927b49994686ebfe312",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/package/test_package_v8.py",
@@ -1274,7 +1298,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/engine.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "897f82d2b8b0f6b25fc25c3fb46ef4de77f275c9a9f0cd1a7cca05ba1ee1390c",
-      "sha256": "a5f1ab6fc5a334164336bb3e861e229eb10048295901ddb4b225ec2dba146add",
+      "sha256": "537c9db44e9b37231ac20e9fa850993842441247169901f4bc6d2c73bf89ac29",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/engine.md",
@@ -1442,7 +1466,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tests/state/test_rc_state_v91.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "1cee85a045755531a335c94f9e644713694774472690cad802f5f7dc7ec96f1e",
-      "sha256": "3c3bf15d01e7c78a159c24428b2ac4eda7b5cf379c93fcbb54a096a748a44c2f",
+      "sha256": "0dd28d1e735253c6c1f185f152276509f97102df85168ff0e9991bbb2c4e2d75",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tests/state/test_rc_state_v91.py",
@@ -1666,7 +1690,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/dependencies.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "d48c1c4bc2c60b9615085bbd9ccb0c5d3cc67954ae9693e94228ce1fbced4c3b",
-      "sha256": "102ae10d91b31499b2f9bfcc43ae3c0620798c4d9821610e934c4dc18ffbbbbd",
+      "sha256": "60caef0c233304e1d402056f34c8f7d10c0b4c53732475671d846fe82283b031",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "docs/dependencies.md",
@@ -1714,7 +1738,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "f22ae2a107494006d6d9b36be62813cb060fb0839c7f75b6ed6aaf42912e6390",
+      "sha256": "954dc9d85643fe183b978e01d7efcd12b41707a76865fca2b6c5082d75176de3",
       "adaptation": "v10 creation"
     },
     {
@@ -1722,7 +1746,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "5c36e6373ffe4e28082691cb30ef9b402c4bc926bdc3f268a94e26924dbc8b03",
+      "sha256": "8893853b98c7e18599207614d9131bad019e1b27e824c2a12a546286b4593f7b",
       "adaptation": "v10 creation"
     },
     {
@@ -1730,7 +1754,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "3e068ddd6555270db7227dc15039b7cd9e29b17e3ea0c1464a8a0a15b9459000",
+      "sha256": "be8a3235404327f0dc72ef31c9e41ebdcc49f78996f06614f14b0ae5773c2402",
       "adaptation": "v10 creation"
     },
     {
@@ -1853,9 +1877,9 @@
       "path": "package/claude-fable-prompt-optimizer/scripts/prompt_lint.py",
       "source_group": "rc-stack-v10-20261116",
       "source": "%USERPROFILE%\\.claude\\skills\\claude-fable-prompt-optimizer/scripts/prompt_lint.py (owner profile, 2026-09-03, Fable 5.1)",
-      "bytes": 21413,
+      "bytes": 21510,
       "source_sha256": "547b90dfe90d35b352a6a39291c0a2ac5aa8806e362b6d71a7c83e89c263f5f7",
-      "sha256": "b085983cb262510d9fee8bef0b6f99575ae62225e2978fa131dd18522b819fb1",
+      "sha256": "38b42b4038f472d2ca012dc07799dc8a40b8354d49492e02d58f95e2cbf55575",
       "adaptation": "updated in this repository on 2026-11-16 for Fable 5.2 from Anthropic documentation"
     },
     {

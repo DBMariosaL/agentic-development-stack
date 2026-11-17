@@ -24,7 +24,7 @@ for this platform and its results were produced for the expected inputs. summary
 records candidate identity, input digests, commands, working directories, relevant
 environment, log hashes, collections and skips. Results go to a new .local/ folder.
 Fixture roots are short folders under RC_CHECK_FIXTURES_ROOT (default: the system temp
-folder), outside the clone, so a deep clone path cannot exceed the legacy Windows
+folder; give an absolute folder outside the clone), so a deep clone path cannot exceed the legacy Windows
 260-character limit; a preflight measures the resolved base and refuses one still too long, records the refusal
 in summary.json and runs no step. Only empty fixture
 roots are removed.
@@ -43,7 +43,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 203, 'updater-v7': 30, 'updater-v8': 32, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 33, 'footprint': 11}
+EXPECTED = {'state': 227, 'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 8, 'updater-from-v9': 8, 'updater-from-v9.1': 8, 'updater-from-v9.1.1': 8, 'updater-from-v9.1.2': 8, 'package': 33, 'footprint': 16}
 READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
 READING_BUDGET = 3953
 # Every step in run order; all_passed requires exactly these results, in this order.
