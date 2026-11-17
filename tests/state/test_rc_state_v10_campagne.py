@@ -459,6 +459,83 @@ class MalformedState(Campaign):
         self.assertEqual(self.journal(self.program_path)[-1]['kind'], 'claim')
 
 
+class Successor(Campaign):
+    """A successor who has established the owner's stop always has a documented way on, named by resume."""
+    OTHER = 'thread:successor'
+
+    def takeover(self, path):
+        return self.ok('claim', path, '--actor', self.OTHER, '--role', 'pilot', '--expect-revision', self.rev(path),
+                       '--takeover', '--evidence', 'stop of the owner confirmed by the task list')
+
+    def test_R02_01_stop_during_a_write_is_reconciled_by_its_bytes_then_taken_over(self):
+        original = rc.append_journal
+
+        def no_commit(path, entry):
+            if entry.get('commits'):
+                raise OSError('owner stopped before the commit line')
+            return original(path, entry)
+        for point, patch, outcome in (
+                ('before replace', mock.patch.object(rc.os, 'replace', side_effect=OSError('stopped')), 'not_committed'),
+                ('before commit', mock.patch.object(rc, 'append_journal', side_effect=no_commit), 'committed')):
+            with self.subTest(point):
+                self.write(self.wave_path, wave2())
+                (self.root / 'journal.jsonl').unlink(missing_ok=True)
+                with patch:
+                    self.assertEqual(self.ops(self.wave_path, 0, [{'op': 'set', 'path': 'state.next_action',
+                                                                   'value': 'next'}])[0], 1)
+                code, cold = self.run_cli('resume', self.program_path)
+                op = cold['uncertain_operations'][0]['id']
+                self.assertTrue(any(f'run reconcile {self.wave_path.resolve()} --actor <you> --op {op}' in a
+                                    for a in cold['actions']), cold['actions'])
+                result = self.ok('reconcile', self.wave_path, '--actor', self.OTHER, '--op', op, '--evidence', 'bytes')
+                self.assertEqual((result['outcome'], result['declared']), (outcome, False))
+                self.takeover(self.wave_path)
+
+    def test_R02_04_takeover_of_the_index_inside_the_closure_window(self):
+        w = wave2('stopped')
+        self.write(self.wave_path, w)
+        window = 'A: contradictory state: outcome admitted but wave is stopped'
+        code, cold = self.run_cli('resume', self.program_path)
+        self.assertEqual(cold['consistency_errors'], [window])
+        self.assertTrue(any('outcome A is still admitted' in a and 'claim --takeover' in a for a in cold['actions']))
+        self.assertEqual(self.takeover(self.program_path)['consistency_errors'], [window])
+        self.ok('write', self.program_path, '--actor', self.OTHER, '--expect-revision', 1, '--ops', json.dumps(
+            [{'op': 'update', 'path': 'outcomes', 'match': {'id': 'A'},
+              'value': {'status': 'abandoned', 'closure': {'source': 'wave stopped', 'remaining': 'all'}}},
+             {'op': 'set', 'path': 'status', 'value': 'stopped'}]))
+        self.refused('takeover requires --takeover', 'claim', self.wave_path, '--actor', 'thread:third',
+                     '--role', 'pilot', '--expect-revision', 0)  # a takeover still needs its evidence
+
+    def test_R01_05_terminal_wave_of_a_stopped_owner_is_taken_over_then_disposed(self):
+        self.ok('event', self.wave_path, '--actor', OWNER, '--id', 'e1', '--kind', 'review')
+        w = self.doc(self.wave_path)
+        w['state']['phase'] = 'stopped'
+        self.write(self.wave_path, w)
+        code, cold = self.run_cli('resume', self.program_path)
+        self.assertTrue(any('dispose' in a and 'e1' in a and 'claim --takeover' in a for a in cold['actions']))
+        self.takeover(self.wave_path)
+        self.assertEqual(self.doc(self.wave_path)['state']['phase'], 'stopped')
+        self.ok('dispose', self.wave_path, '--actor', self.OTHER, '--id', 'e1', '--disposition', 'late',
+                '--evidence', 'wave closed')
+        self.assertEqual(self.ok('event', self.wave_path, '--actor', self.OTHER, '--id', 'e9',
+                                 '--kind', 'review')['classification'], 'late')
+
+    def test_R02_05_moved_state_folder_keeps_accepting_writes(self):
+        wave = self.solo()
+        self.ops(wave, 0, [{'op': 'set', 'path': 'state.next_action', 'value': 'a'}])
+        journal = wave.parent / 'journal.jsonl'
+        entries = self.journal(wave)
+        self.assertEqual([e['journals'] for e in entries if e['kind'] == 'prepare'][-1], ['journal.jsonl'])
+        for e in entries:  # as the previous version wrote them: absolute paths of the old folder
+            if e.get('journals'):
+                e['journals'] = [str(journal.resolve())]
+        journal.write_text(''.join(json.dumps(e) + '\n' for e in entries), encoding='utf-8')
+        moved = wave.parent.with_name('moved')
+        wave.parent.rename(moved)
+        self.assertEqual(self.ops(moved / 'wave.json', 1, [{'op': 'set', 'path': 'state.next_action',
+                                                             'value': 'b'}])[0], 0)
+
+
 class Phases(Campaign):
     def test_R07_01_wait_entered_from_planning_resumes_to_preparing(self):
         wave = self.solo()

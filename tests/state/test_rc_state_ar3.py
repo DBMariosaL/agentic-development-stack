@@ -85,9 +85,7 @@ class AttachedFixture(Base):
         code, res = self.next_write()
         self.assertEqual(code, 1, res)
         self.assertIn('unresolved state operation', res['error'])
-        code, res = cold('reconcile', self.wave_path, '--actor', 'thread:synthetic-other', '--op', op_id, '--evidence', 'x')
-        self.assertEqual(code, 1, res)
-        code, res = cold('reconcile', self.wave_path, '--actor', OWNER, '--op', op_id,
+        code, res = cold('reconcile', self.wave_path, '--actor', 'thread:synthetic-successor', '--op', op_id,
                          '--evidence', 'state sha compared with the prepare in every participating journal')
         self.assertEqual((code, res['outcome']), (0, expected_outcome), res)
         size = [len(journal(self.local_j)), len(journal(self.shared_j))]
@@ -169,7 +167,7 @@ class AR3_01_V7States(AttachedFixture):
         code, res = self.attach_with(mock.patch.object(rc.os, 'replace', side_effect=OSError('injected')))
         self.assertEqual(code, 1, res)
         op = [e for e in journal(self.local_j) if e.get('kind') == 'prepare' and e.get('wave') == 'wave.json'][-1]
-        self.assertEqual(op['journals'], [str(self.local_j.resolve())])
+        self.assertEqual(op['journals'], ['journal.jsonl'])  # relative to the state file: the folder may move
         self.recover(op['id'], 'not_committed')
         self.assertEqual(cold('write', self.wave_path, '--actor', OWNER, '--expect-revision', 1, '--ops', self.attach_ops)[0], 0)
 

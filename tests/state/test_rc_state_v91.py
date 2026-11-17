@@ -316,7 +316,7 @@ class ResumeAndReady(Base):
         self.assertEqual(len(intents), 1, result['actions'])
         self.assertEqual(len(actors), 1, result['actions'])
         self.assertIn('waves/a/wave.json (outcomes A, B)', intents[0])
-        self.assertEqual([w['outcome'] for w in result['waves']], ['A', 'B'])
+        self.assertEqual([w['outcomes'] for w in result['waves']], [['A', 'B']])  # P-03: the wave once
         self.assertEqual(len(result['actions']), len(set(result['actions'])))
 
     def test_admitted_admitted_conflict_between_waves(self):
@@ -399,9 +399,8 @@ class InitReview(InitBase):
         op = cold['uncertain_operations'][0]
         self.assertEqual(op['op_kind'], 'init')
         self.assertTrue(any(op['id'] in a for a in cold['actions']), cold['actions'])
-        self.refused('only the author of init', 'reconcile', path, '--actor', 'thread:other', '--op', op['id'],
-                     '--evidence', 'x')
-        result = self.ok('reconcile', path, '--actor', OWNER, '--op', op['id'], '--evidence', 'state bytes checked')
+        result = self.ok('reconcile', path, '--actor', 'thread:other', '--op', op['id'], '--evidence',
+                         'state bytes checked')
         self.assertEqual(result['outcome'], 'committed')
         self.assertEqual(self.ok('write', path, '--actor', OWNER, '--expect-revision', 0, '--ops', ops)['revision'], 1)
 
