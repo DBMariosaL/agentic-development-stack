@@ -235,12 +235,14 @@ class Footprint(unittest.TestCase):
         wave = self.write_wave({'brief.md': 'one two\nthree\n', 'notes/log.txt': 'four five',
                                 'bad.md': b'six \xff seven', 'nul.txt': 'a\0b', 'ops.json': '{"a": 1}',
                                 'ev.jsonl': '{}\n{}\n', 't.tsv': 'a\tb\n', 'run.py': 'x = 1\n\n  \ny = 2\n',
-                                'go.ps1': 'Write-Host 1\r\n', 'sub/do.sh': 'echo\n', 'img.png': b'\x89PNG\0\0'})
+                                'go.ps1': 'Write-Host 1\r\n', 'sub/do.sh': 'echo\n', 'img.png': b'\x89PNG\0\0',
+                                'ctl.txt': b'\x08\x01', 'page.txt': 'p\fq r\t', 'bom.md': '﻿\nhello',
+                                'bom.ps1': '﻿\nGet-Date'})
         result = self.run_tool('--wave-dir', str(wave), repo=False)
-        self.assertEqual(result, {'ok': True, 'wave_dir': {
-            'path': str(wave.resolve()), 'files': 11, 'prose': {'files': 2, 'words': 5},
-            'data': {'files': 3, 'bytes': 18}, 'scripts': {'files': 3, 'lines': 4},
-            'other': {'files': 3, 'bytes': 20}}})
+        self.assertEqual(result['wave_dir'], {
+            'path': str(wave.resolve()), 'files': 15, 'prose': {'files': 4, 'words': 9},
+            'data': {'files': 3, 'bytes': 18}, 'scripts': {'files': 4, 'lines': 5},
+            'other': {'files': 4, 'bytes': 22}})
 
     def test_wave_dir_follows_no_link_or_junction(self):
         wave = self.write_wave({'brief.md': 'one two\n'})
@@ -254,6 +256,12 @@ class Footprint(unittest.TestCase):
         else:
             os.symlink(outside, wave / 'joined', target_is_directory=True)
         self.assertEqual(self.run_tool('--wave-dir', str(wave), repo=False)['wave_dir'], expected)
+        refused = self.run_tool('--wave-dir', str(wave / 'joined'), repo=False, code=2)
+        self.assertIn('symbolic link or junction', refused['error'])
+
+    def test_failures_without_wave_dir_keep_parser_messages(self):
+        refused = self.run_tool('extra', code=2)
+        self.assertEqual(refused, {'ok': False, 'error': 'the following arguments are required: --base'})
 
     def test_writing_outweighs_diff_at_exact_threshold(self):
         base = self.commit({'a.py': 'x = 1\n'})
