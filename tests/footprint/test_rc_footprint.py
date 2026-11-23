@@ -41,7 +41,8 @@ class Footprint(unittest.TestCase):
         return self.git('rev-parse', 'HEAD')
 
     def run_tool(self, *args, code=0, env=None, repo=None):
-        proc = subprocess.run([sys.executable, '-B', str(SCRIPT), str(repo or self.repo), *args],
+        where = [] if repo is False else [str(repo or self.repo)]
+        proc = subprocess.run([sys.executable, '-B', str(SCRIPT), *where, *args],
                               capture_output=True, text=True, encoding='utf-8', env=env)
         self.assertEqual(proc.returncode, code, proc.stdout + proc.stderr)
         return json.loads(proc.stdout)
@@ -221,6 +222,50 @@ class Footprint(unittest.TestCase):
             with self.subTest(args):
                 refused = self.run_tool('--base', base, *args, code=2)
                 self.assertFalse(refused['ok'])
+
+    def write_wave(self, files):
+        wave = self.repo.parent / 'wave'
+        for name, content in files.items():
+            path = wave / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content if isinstance(content, bytes) else content.encode('utf-8'))
+        return wave
+
+    def test_wave_dir_alone_measures_each_class(self):
+        wave = self.write_wave({'brief.md': 'one two\nthree\n', 'notes/log.txt': 'four five',
+                                'bad.md': b'six \xff seven', 'nul.txt': 'a\0b', 'ops.json': '{"a": 1}',
+                                'ev.jsonl': '{}\n{}\n', 't.tsv': 'a\tb\n', 'run.py': 'x = 1\n\n  \ny = 2\n',
+                                'go.ps1': 'Write-Host 1\r\n', 'sub/do.sh': 'echo\n', 'img.png': b'\x89PNG\0\0'})
+        result = self.run_tool('--wave-dir', str(wave), repo=False)
+        self.assertEqual(result, {'ok': True, 'wave_dir': {
+            'path': str(wave.resolve()), 'files': 11, 'prose': {'files': 2, 'words': 5},
+            'data': {'files': 3, 'bytes': 18}, 'scripts': {'files': 3, 'lines': 4},
+            'other': {'files': 3, 'bytes': 20}}})
+
+    def test_wave_dir_follows_no_link_or_junction(self):
+        wave = self.write_wave({'brief.md': 'one two\n'})
+        expected = self.run_tool('--wave-dir', str(wave), repo=False)['wave_dir']
+        outside = self.repo.parent / 'outside'
+        outside.mkdir()
+        (outside / 'big.md').write_text('word ' * 5000, encoding='utf-8')
+        if os.name == 'nt':
+            import _winapi
+            _winapi.CreateJunction(str(outside), str(wave / 'joined'))
+        else:
+            os.symlink(outside, wave / 'joined', target_is_directory=True)
+        self.assertEqual(self.run_tool('--wave-dir', str(wave), repo=False)['wave_dir'], expected)
+
+    def test_writing_outweighs_diff_at_exact_threshold(self):
+        base = self.commit({'a.py': 'x = 1\n'})
+        self.commit({'a.py': 'x = 1\ny = 2\n', 'tests/t.py': 't\n', 'd.md': 'd\n'})
+        wave = self.write_wave({'w.md': 'w ' * 2090})
+        at = self.run_tool('--base', base, '--wave-dir', str(wave))
+        self.assertEqual((at['wave_dir']['added_lines'], at['wave_dir']['prose_words_per_added_line']), (3, 696.7))
+        self.assertNotIn('writing_outweighs_diff', self.ids(at))
+        (wave / 'more.txt').write_text('w', encoding='utf-8')
+        over = self.run_tool('--base', base, '--wave-dir', str(wave))
+        self.assertEqual(over['signals'][-1], {'id': 'writing_outweighs_diff',
+                                               'detail': 'wave prose 2091 words > 2000 + 30 x added lines 3'})
 
     def test_unknown_reference_is_refused(self):
         self.commit({'a.py': 'x\n'})
