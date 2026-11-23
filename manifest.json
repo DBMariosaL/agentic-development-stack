@@ -264,8 +264,8 @@
     },
     {
       "path": "rc-coordinate-development/references/engine.md",
-      "sha256": "123fa5df1d0c552a967bcb534995fb8385c184b232939efced9320375b0a8525",
-      "bytes": 24401
+      "sha256": "e22550855aee616904eeb2a75ecd0c8d58b57107d2018a577c688e67863aaf71",
+      "bytes": 24606
     },
     {
       "path": "rc-coordinate-development/references/garden.md",
@@ -279,8 +279,8 @@
     },
     {
       "path": "rc-coordinate-development/references/operating-loop.md",
-      "sha256": "c468c051ac41315cc548e723d00309083dbb502e82cafeec04f3353e3a91ad32",
-      "bytes": 14990
+      "sha256": "52e540f2adb2478785de0b8b47326c49377c30dd46066350e305453ed952f2c4",
+      "bytes": 14985
     },
     {
       "path": "rc-coordinate-development/references/program-contract.md",
@@ -314,8 +314,8 @@
     },
     {
       "path": "rc-coordinate-development/scripts/rc_state.py",
-      "sha256": "7e8e875264e82b7e1e80a7adf2a37473334b8be11e6b46d14f41f51dfe318533",
-      "bytes": 152818
+      "sha256": "d86fa29f2a0eae790ca8ecf1790f09c374b165d5a9efa6913f9dd2962ef0d101",
+      "bytes": 154907
     },
     {
       "path": "rc-prepare-socle-prompts/SKILL.md",
@@ -363,5 +363,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "18d44e163121044a4a9cf57fb8455794d608b505dcec87bcb3030d67e637e3e7"
+  "digest": "92164c2c2bc93ca6312ccba166886172f86a48436ae03682508cfef66f7051cc"
 }

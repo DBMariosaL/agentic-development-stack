@@ -76,7 +76,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/operating-loop.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "9ff7d5691371dfb52fcd1f2049fb4fb96f854bc98155f939a8d97b2c35b25d07",
-      "sha256": "c468c051ac41315cc548e723d00309083dbb502e82cafeec04f3353e3a91ad32",
+      "sha256": "52e540f2adb2478785de0b8b47326c49377c30dd46066350e305453ed952f2c4",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/operating-loop.md",
@@ -140,7 +140,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/scripts/rc_state.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "b9057d7c0d1968d7588d08a9ec178532a0a87ede7df54d4c897d1ab8a0cfa4e5",
-      "sha256": "7e8e875264e82b7e1e80a7adf2a37473334b8be11e6b46d14f41f51dfe318533",
+      "sha256": "d86fa29f2a0eae790ca8ecf1790f09c374b165d5a9efa6913f9dd2962ef0d101",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/scripts/rc_state.py",
@@ -228,7 +228,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "8a0b5209469662ec7686d058e584ec488d3906c6865ccc25ecbac918f5e71bdc",
+      "sha256": "da5e32a83ca24e8f7f6ba249298537e62eb757f19cd709f5b7fb51611ab239b1",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -580,7 +580,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "tools/check.py (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "e0ef4474ac8d43f91852f75f073f8e37cdd5b4752061b333a35d2564f61cfd41",
-      "sha256": "a91435d4e339b80a2bd6ebd1f964e9248aa3e541783ea772e7aaf0e1f5a205bf",
+      "sha256": "32f6cb0b8545d943d580fb2706a64f50267c31f7b89fa3c4e583be25fc2e2f54",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "tools/check.py",
@@ -1324,7 +1324,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "package/rc-coordinate-development/references/engine.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "897f82d2b8b0f6b25fc25c3fb46ef4de77f275c9a9f0cd1a7cca05ba1ee1390c",
-      "sha256": "123fa5df1d0c552a967bcb534995fb8385c184b232939efced9320375b0a8525",
+      "sha256": "e22550855aee616904eeb2a75ecd0c8d58b57107d2018a577c688e67863aaf71",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "package/rc-coordinate-development/references/engine.md",
@@ -1684,7 +1684,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "README.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "61d499802761a72e9273a2a894efe0ba6b08c80100d3561771a6bdc4c7acc355",
-      "sha256": "ce48861d1a952bf807382fcca50b202b35bbfcdcc5cdfbce7be5adb246a2e041",
+      "sha256": "ccd15fbff3344e1ee5125f633a63ad3ebdfd6bd72f61de39046792da40c03541",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "README.md",
@@ -1804,7 +1804,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "b7c315cbf123dd63945a724d823b04d99aa4dcfa06981eea927867d08278b02b",
+      "sha256": "8b8d605123fcbedfa1e2cd61c26273984190a1453df85e7a8950ee0e9e7ca28c",
       "adaptation": "v10 creation"
     },
     {
@@ -1812,7 +1812,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/qualification.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": null,
-      "sha256": "92ee16bb8df7527cd25eaab1b2e99448f625d07d7c7e8252336f031a43fbb5d6",
+      "sha256": "8b244528e542824d3eaa47ff99abde3d884303f92085717373b5c3e88aaecbda",
       "adaptation": "v10 edit"
     },
     {
