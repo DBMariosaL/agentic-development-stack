@@ -4,7 +4,7 @@ Classifies each touched file as tests, docs or product, counts added and removed
 lists new files and added comment lines, and emits signals that point where to look.
 Signals are neither acceptance nor refusal and never change the exit code: 0 when the
 measure succeeded, 2 on usage error, unknown repository or reference, or unusable --previous.
-The measure depends only on the two commits: plumbing diff with pinned options, every file
+The diff measure depends only on the two commits: plumbing diff with pinned options, every file
 read as text, no inherited GIT_* variable, no replace refs. Read-only: no write and no network
 from git 2.45 on, where GIT_NO_LAZY_FETCH stops the lazy fetch of a partial clone (a missing
 object is then an unknown reference); an older git ignores it and may fetch missing objects.
@@ -51,6 +51,9 @@ WAVE_CLASSES = {'prose': ({'.md', '.markdown', '.txt'}, 'words'),
                 'other': (set(), 'bytes')}
 WRITING_SLACK_WORDS = 2000
 WRITING_WORDS_PER_ADDED_LINE = 30
+CONTROL = re.compile('[\x00-\x08\x0b\x0e-\x1f\x7f-\x9f]')
+WAVE_LIMITS = ['--wave-dir refuses a DIR that is itself a symbolic link or junction; '
+               'links and junctions among the parent folders of DIR are not checked.']
 HUNK = re.compile(r'^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@')
 LIMITS = ['Comment detection is a per-extension line-prefix heuristic: docstrings, trailing comments, '
           'block comment bodies and unlisted extensions are not counted.',
@@ -218,20 +221,24 @@ def signals(rows, classes, comment_info, args, previous, empty):
     return found
 
 
+def is_link(info):
+    # A junction is a reparse point that S_ISLNK does not report.
+    return stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
+
+
 def wave_files(root):
-    # Sorted walk that never enters a symbolic link or another reparse point such as a junction.
     try:
-        entries = sorted(os.scandir(root), key=lambda entry: entry.name)
-    except OSError:
-        yield root, 0
-        return
+        with os.scandir(root) as iterator:
+            entries = list(iterator)
+    except OSError as exc:
+        raise UsageError(f'--wave-dir: cannot list folder {root}: {exc}') from None
     for entry in entries:
         try:
             info = entry.stat(follow_symlinks=False)
         except OSError:
             yield entry.path, 0
             continue
-        if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+        if is_link(info):
             continue
         if stat.S_ISDIR(info.st_mode):
             yield from wave_files(entry.path)
@@ -248,10 +255,10 @@ def wave_file(path, size):
     except OSError:
         return 'other', size
     try:
-        text = data.decode('utf-8')
+        text = data.decode('utf-8-sig')
     except UnicodeDecodeError:
         text = '\0'
-    if name == 'other' or '\0' in text:
+    if name == 'other' or CONTROL.search(text):
         return 'other', len(data)
     if name == 'prose':
         return name, len(text.split())
@@ -261,7 +268,13 @@ def wave_file(path, size):
 
 
 def measure_wave(root):
-    if not os.path.isdir(root):
+    try:
+        info = os.lstat(root)
+    except OSError:
+        raise UsageError(f'--wave-dir: not a directory: {root}') from None
+    if is_link(info):
+        raise UsageError(f'--wave-dir: {root} is a symbolic link or junction, not followed')
+    if not stat.S_ISDIR(info.st_mode):
         raise UsageError(f'--wave-dir: not a directory: {root}')
     classes = {name: {'files': 0, unit: 0} for name, (_, unit) in WAVE_CLASSES.items()}
     for path, size in wave_files(root):
@@ -287,7 +300,7 @@ def compare_wave(wave, classes):
 def footprint(args):
     wave = measure_wave(args.wave_dir) if args.wave_dir is not None else None
     if wave is not None and args.repo is None and args.base is None:
-        return {'ok': True, 'wave_dir': wave}
+        return {'ok': True, 'wave_dir': wave, 'limits': WAVE_LIMITS}
     missing = [name for name, value in (('REPO', args.repo), ('--base', args.base)) if value is None]
     if missing:
         raise UsageError('the following arguments are required: ' + ', '.join(missing))
@@ -310,6 +323,7 @@ def footprint(args):
     if wave is not None:
         result['signals'] += compare_wave(wave, classes)
         result['wave_dir'] = wave
+        result['limits'] = LIMITS + WAVE_LIMITS
     return result
 
 
@@ -323,10 +337,11 @@ def non_negative(kind):
     return parse
 
 
-def build_parser():
+def build_parser(wave_mode):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('repo', metavar='REPO', nargs='?', help='path of the git repository')
-    parser.add_argument('--base', help='reference the candidate is measured against (required with REPO)')
+    parser.add_argument('repo', metavar='REPO', nargs='?' if wave_mode else None, help='path of the git repository')
+    parser.add_argument('--base', required=not wave_mode,
+                        help='reference the candidate is measured against (optional with --wave-dir alone)')
     parser.add_argument('--candidate', default='HEAD', help='measured reference (default: HEAD)')
     parser.add_argument('--previous', metavar='FILE.json', help='earlier output of this tool on the same base')
     parser.add_argument('--test-ratio', type=non_negative(float), default=3.0,
@@ -339,7 +354,8 @@ def build_parser():
     parser.add_argument('--wave-dir', metavar='DIR',
                         help='also measure the files written in DIR: prose (.md, .markdown, .txt) in words, data '
                              '(.json, .jsonl, .tsv) in bytes, scripts (.py, .ps1, .psm1, .sh, .bash) in non-empty '
-                             'lines, other, binary or unreadable files in bytes; links and junctions are not followed. '
+                             'lines, other, binary or unreadable files in bytes; links and junctions inside DIR are '
+                             'not followed and a DIR that is one is refused. '
                              'With a diff, adds prose words per added line and writing_outweighs_diff when words > '
                              f'{WRITING_SLACK_WORDS} + {WRITING_WORDS_PER_ADDED_LINE} x added lines; '
                              'without REPO and --base, measures DIR only')
@@ -350,9 +366,21 @@ def build_parser():
     return parser
 
 
+def parse_arguments(argv):
+    # REPO and --base stay required in the parser unless --wave-dir is given, so that the
+    # failures of a call without --wave-dir are those of the tool before the option.
+    try:
+        args = build_parser(wave_mode=True).parse_args(argv)
+    except UsageError:
+        args = None
+    if args is None or args.wave_dir is None:
+        args = build_parser(wave_mode=False).parse_args(argv)
+    return args
+
+
 def main(argv=None):
     try:
-        result = footprint(build_parser().parse_args(argv))
+        result = footprint(parse_arguments(argv))
     except (UsageError, OSError) as exc:
         print(json.dumps({'ok': False, 'error': str(exc)}, indent=2))
         return 2
