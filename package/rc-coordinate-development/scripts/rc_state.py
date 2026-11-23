@@ -71,7 +71,8 @@ CLOSED_KEYS = {
               'authorization': {'launch', 'source', 'scope', 'exclusions'}},
 }
 LIMITS = ('Checks declarations, revisions and local files only. Cannot certify authority, '
-          'review quality, runtime delivery, idempotence of runtime calls or execution.')
+          'review quality, runtime delivery, idempotence of runtime calls or execution. A motive is checked for '
+          'three letters or digits, never for its quality.')
 
 text, digest, string_list, local_path, got = v1.text, v1.digest, v1.string_list, v1.local_path, v1.got
 
@@ -949,6 +950,126 @@ def check_evolution(old, new, owner_change=False, before=None):
     return errors
 
 
+MOTIVE_MIN = 3
+
+
+def meaningful(value):
+    """At least three letters or digits: the tool checks that a motive says something, never what it is worth."""
+    return isinstance(value, str) and sum(ch.isalnum() for ch in value) >= MOTIVE_MIN
+
+
+def drifted_artifacts(doc, directory, closing=False):
+    """Consumed artifacts whose file is present and no longer matches the recorded sha256. An absent or unreadable
+    file is left to check --check-paths, as before; a closed wave, an archive, is not signalled."""
+    state = doc.get('state') if isinstance(doc.get('state'), dict) else {}
+    if kind_of(doc) != 'wave2' or directory is None or (sval(state, 'phase') in TERMINAL_PHASES and not closing):
+        return []
+    artifacts = doc.get('artifacts') if isinstance(doc.get('artifacts'), dict) else {}
+    consumed = state.get('consumed') if isinstance(state.get('consumed'), dict) else {}
+    base, out = Path(directory).resolve(), []
+    for name, entry in sorted(consumed.items()):
+        rel = artifacts.get(name)
+        if not (isinstance(entry, dict) and digest(entry.get('sha256')) and local_path(rel)):
+            continue
+        target = (base / rel.replace('\\', '/')).resolve()
+        try:
+            actual = sha256_file(target) if target.is_file() and base in target.parents else None
+        except OSError:
+            actual = None
+        if actual is not None and actual != entry['sha256'].lower():
+            out.append({'artifact': name, 'path': rel, 'consumed_sha256': entry['sha256'], 'file_sha256': actual})
+    return out
+
+
+def _wave_phase(directory, ref):
+    """Phase of the wave a state_ref designates, or None when it cannot be read."""
+    if directory is None or not local_path(ref):
+        return None
+    try:
+        wave = load(Path(directory).resolve() / ref.replace('\\', '/'))
+    except (OSError, ValueError):
+        return None
+    return sval(wave.get('state'), 'phase') if isinstance(wave, dict) else None
+
+
+def introduced_refusals(old, new, directory=None):
+    """Refusals that fall only on the write creating their situation (old None: a creation by init). A state that
+    already holds the situation stays valid and writable by any write that does not create it again."""
+    old, errors = old or {}, []
+
+    def motive(label, value, how):
+        if value is not None and not meaningful(value):
+            errors.append(f'{label}: expected a motive with at least {MOTIVE_MIN} letters or digits, got {value!r}; '
+                          f'{how}')
+
+    if kind_of(new) == 'wave2':
+        old_reviews = _items(old.get('reviews'))
+        for index, review in enumerate(_items(new.get('reviews'))):
+            if review not in old_reviews:
+                for field in ('disposition', 'reference'):
+                    motive(f'reviews[{index}].{field}', review.get(field),
+                           'write what the review found or why none is needed, and where it is recorded')
+        env, oenv = new.get('envelope'), old.get('envelope')
+        if isinstance(env, dict) and (not isinstance(oenv, dict) or env.get('reason') != oenv.get('reason')):
+            motive('envelope.reason', env.get('reason'), 'say why this review bound fits the risk')
+        state = new.get('state') if isinstance(new.get('state'), dict) else {}
+        ostate = old.get('state') if isinstance(old.get('state'), dict) else {}
+        wait = state.get('waiting')
+        if isinstance(wait, dict) and wait != ostate.get('waiting'):
+            motive('state.waiting.resume', wait.get('resume'), 'give transition --resume the step that resumes the wave')
+        launching = sval(ostate, 'phase') == 'ready' and sval(state, 'phase') == 'launched'
+        gate = launching or (state.get('launch_ready') is True and ostate.get('launch_ready') is not True)
+        closing = sval(state, 'phase') in {'completed', 'completed_partial'} and sval(ostate, 'phase') != sval(state, 'phase')
+        if gate:
+            consumed = state.get('consumed') if isinstance(state.get('consumed'), dict) else {}
+            socles = {s.get('id'): s for s in _items(new.get('socles'))}
+            batched = [i for batch in new.get('batches') or [] if isinstance(batch, list) for i in batch]
+            for sid in batched:
+                socle = socles.get(sid, {})
+                if socle.get('readiness') == 'blocked' and socle.get('prompt_artifact') not in consumed:
+                    errors.append(f'{sid}: lot listed in batches (readiness blocked) without a consumed mandate: '
+                                  'launch_ready and launched require the mandate of every lot of batches in '
+                                  f'state.consumed; consume its prompt_artifact or remove {sid} from batches')
+        if gate or closing:
+            for drift in drifted_artifacts(new, directory, closing):
+                errors.append(f'{drift["artifact"]}: file {drift["path"]} no longer matches its consumed sha256 '
+                              f'{drift["consumed_sha256"]} (file {drift["file_sha256"]}): launch_ready, launched and '
+                              'completion are refused until its bytes are restored or state.consumed records the new '
+                              'version, reviewed on those bytes')
+    elif kind_of(new) == 'program':
+        before = {o['id']: o for o in _items(old.get('outcomes')) if text(o.get('id'))}
+        decisions = _items(new.get('decisions_pending'))
+        for o in _items(new.get('outcomes')):
+            oid, st = o.get('id'), sval(o, 'status')
+            prior = before.get(oid, {})
+            if st == 'admitted' and sval(prior, 'status') != 'admitted':
+                holds = [str(d.get('id')) for d in decisions if string_list(d.get('suspends')) and oid in d['suspends']]
+                if holds or o.get('waiting_on') is not None:
+                    errors.append(f'{oid}: admitted while ' + (f'suspended by pending decision {", ".join(holds)}'
+                                  if holds else f'waiting_on is {json.dumps(o.get("waiting_on"), ensure_ascii=False)}')
+                                  + ': settle the decision (decisions_pending) and set waiting_on to null first, '
+                                  'then admit it')
+            closure = o.get('closure')
+            if isinstance(closure, dict) and closure != prior.get('closure'):
+                motive(f'outcomes.{oid}.closure.source', closure.get('source'), 'name the source of this closure')
+            ref = prior.get('state_ref')
+            if st in CLOSED_OUTCOMES | {'failed'} and st != sval(prior, 'status') and text(ref) \
+                    and not text(o.get('state_ref')):
+                phase = _wave_phase(directory, ref)
+                if phase is not None and phase not in TERMINAL_PHASES:
+                    errors.append(f'{oid}: {st} clears state_ref {ref} while that wave is {phase}: keep state_ref and '
+                                  'record the closure when the wave is terminal (abandoned or failed may keep it now)')
+        known = {d.get('id'): d for d in _items(old.get('decisions_pending'))}
+        for index, dec in enumerate(decisions):
+            label, value = f'decisions_pending[{index}].recommendation', dec.get('recommendation')
+            how = 'give what the pilot advises and why'
+            if dec.get('id') not in known and value is None:
+                errors.append(f'{label}: a new decision {dec.get("id")} needs a recommendation, got missing; {how}')
+            elif value != known.get(dec.get('id'), {}).get('recommendation'):
+                motive(label, value, how)
+    return errors
+
+
 REPARSE_POINT = 0x400
 
 
@@ -1241,7 +1362,7 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
             inherited = [e for e in errors if e in before]
             errors = [e for e in errors if e not in before]
         if not errors:
-            errors = check_evolution(old, new, owner_change=owner_change)
+            errors = check_evolution(old, new, owner_change=owner_change) + introduced_refusals(old, new, path.parent)
         if errors:
             raise StateError('refused: ' + '; '.join(errors))
         old_j, new_j = journal_path(path, old), journal_path(path, new)
@@ -1356,6 +1477,9 @@ def cmd_check(args):
     result = {'valid': not errors, 'kind': kind_of(doc), 'errors': errors, 'limits': LIMITS}
     if closures:
         result['closure_pending'] = closure_reports(closures, path, doc)
+    drifted = drifted_artifacts(doc, path.parent)
+    if drifted:
+        result['drifted_artifacts'] = drifted
     if kind_of(doc) in CLOSED_KEYS:
         result['unknown_keys'] = unknown_keys(doc)
     return result, bool(errors)
@@ -1368,7 +1492,7 @@ def cmd_ready(args):
         raise StateError('ready needs a program.json')
     closures = []
     errors = validate_program(doc, path.parent, self_path=path, closures=closures)
-    result = dict(ready_view(doc), consistency_errors=errors)
+    result = dict(ready_view(doc), decisions_pending=_items(doc.get('decisions_pending')), consistency_errors=errors)
     if closures:
         result['closure_pending'] = closure_reports(closures, path, doc)
     return result, bool(errors)
@@ -1446,6 +1570,10 @@ def cmd_resume(args):
         for intent in pending:
             actions.append(f'{label}: reconcile intent {intent["correlation"]} ({intent["op"]} {intent["target"]}) '
                            'by reading the real runtime/file state before any retry')
+        for drift in drifted_artifacts(wave, target.parent):
+            actions.append(f'{label}: consumed artifact {drift["artifact"]} ({drift["path"]}) no longer matches its '
+                           'sha256: restore its bytes or record the new version in state.consumed before launch_ready, '
+                           'launch or closure')
         for actor in live:
             actions.append(f'{label}: actor {actor["correlation"]} ref {actor.get("ref")} status {actor["status"]}: '
                            'confirm from a delivered signal or a targeted read; do not relaunch while it may be alive')
@@ -1500,7 +1628,9 @@ def cmd_resume(args):
         actions.append('ready outcomes (engage those not tied to a pending intent or unknown actor while '
                        'reconciling the others): ' + ', '.join(view['ready']))
     for dec in _items(doc.get('decisions_pending')):
-        actions.append(f'decision {dec.get("id")} pending: {dec.get("question")} (suspends {dec.get("suspends")})')
+        advice = f'; recommendation: {dec["recommendation"]}' if text(dec.get('recommendation')) else ''
+        actions.append(f'decision {dec.get("id")} pending: {dec.get("question")} (suspends {dec.get("suspends")})'
+                       + advice)
     if errors:
         actions.insert(0, 'consistency errors must be reconciled before using this summary to launch anything')
     actions = list(dict.fromkeys(actions))  # same text once, first position kept
@@ -1591,7 +1721,8 @@ INIT_TEMPLATES = {
         'skills_consumed': 'default []: list of {name: text, sha256: 64 hex of its SKILL.md}',
         'status': 'default "active": one of ' + ', '.join(sorted(PROGRAM_STATUSES)),
         'status_reason': f'default "{INIT_REASON}": nonempty text',
-        'decisions_pending': 'default []: list of {id, question, option, effects: text, suspends: list of outcome ids, '
+        'decisions_pending': 'default []: list of {id, question, option, effects, recommendation: text (what the pilot '
+                             'advises and why, required on a new entry), suspends: list of outcome ids, '
                              'empty for a decision that suspends nothing and does not prevent completion}',
         'last_milestone': 'default null: null or {at, summary, ref: text}'},
     'wave': {
@@ -1810,7 +1941,7 @@ def cmd_init(args):
     if exists:
         check_state_file(given)
     errors = validate_any(doc, path.parent, check_paths=False, self_path=path)
-    errors += [f'unknown key {key}' for key in unknown_keys(doc)]
+    errors += [f'unknown key {key}' for key in unknown_keys(doc)] + introduced_refusals(None, doc, path.parent)
     if errors:
         raise StateError('refused: initial state invalid: ' + '; '.join(errors))
     new_bytes = (json.dumps(doc, ensure_ascii=False, indent=2, allow_nan=False) + '\n').encode('utf-8')
