@@ -5,7 +5,7 @@
 Statut : **candidate**. Installée le 17 novembre 2026 dans les deux profils du propriétaire par `rc_update.py` ; deux essais comparatifs de pilotes et deux campagnes sur de petits programmes, trente agents GPT-6.1 Sol puis vingt-cinq agents Fable 5.2 dans la configuration retenue à cette date.
 
 - Origine et choix : [sources v10](sources-v10.md).
-- Contrôles déterministes : `python -B tools/check.py` vert sur le commit de tête de la branche `v10-pertinence`. Il gagne l'étape `footprint`, une étape `updater-from-v9.1.2`, et l'inventaire refuse une lecture obligatoire du pilote au-delà de 3 953 mots, son niveau en v9.1.2. Collectes déclarées dans `EXPECTED`.
+- Contrôles déterministes : `python -B tools/check.py` vert sur le commit de tête de la branche `v10-pertinence`. Il gagne l'étape `footprint`, une étape `updater-from-v9.1.2`, et l'inventaire refuse une lecture obligatoire du pilote au-delà de 3 953 mots, son niveau en v9.1.2, ramené à 3 733 le 23 novembre. Collectes déclarées dans `EXPECTED`.
 - Jardinage du dépôt : les quatre suites `test_update_from_v*.py` deviennent `test_update_from_previous.py`, paramétré par version d'origine. Les sept cas de chaque version sont conservés ; deux changent de nom (`test_reference_rebuilt_exactly`, `test_rollback_restores_previous_bytes`). Huit contre-épreuves, une par obligation plus la composition des octets : une casse locale de `tools/rc_update.py` ou d'une fixture, annulée aussitôt, fait échouer le cas visé.
 - Revue : GPT-6.1 Sol (effort `high`) sur le candidat `84e7384`, premier usage du brief de revue. Mesure, pertinence, convergence, écrits, budget de lecture et mutualisation des tests sont tenus. Trois constats, corrigés dans les deux commits suivants :
   - bloquant : `provenance.json` portait l'empreinte du README d'avant sa dernière retouche, et le contrôle complet échouait à l'inventaire sur le commit. Le vert annoncé par l'auteur datait d'avant cette retouche ;
@@ -171,13 +171,34 @@ Rejeu sur la version corrigée. Campagne Fable : quatre-vingt-un des quatre-ving
 
 Ce que la campagne ne dit pas : les programmes sont petits et tout a tourné sous Windows ; les modèles réellement exécutés ne sont attestés qu'en partie (l'hôte ne rend aucun reçu pour un sous-agent natif, et les pilotes n'ont relu qu'une partie des reçus de leurs délégués) ; les pilotes ont laissé au propriétaire du produit d'essai des décisions non tranchées, dont deux défauts d'encodage hérités, non corrigés (import d'un export non ASCII, liste d'acteurs hors page de code) ; la version corrigée n'a pas subi de seconde campagne, seulement le rejeu des scripts et les revues ; les `prompt_lint.py` des trois optimiseurs signalaient à tort des rubriques manquantes sur un mandat français : leurs détecteurs de rubrique manquante lisent maintenant le français, les autres détecteurs restent anglais ; `rc_state.py` a grandi (2 208 à 2 383 lignes) malgré les cas particuliers retirés, et `check.py` aussi (328 à 440). Limites écrites dans les outils : le moteur exige une preuve déclarée et nouvelle, sans certifier qu'elle est vraie ni qu'un signal appliqué concerne l'acteur ; `check.py` ne confine pas ce que fait le code des tests listés et tient l'installation de l'interpréteur pour base de confiance ; le validateur refuse quelques formes Markdown saines (titre Setext, destination à parenthèses, exemple de lien sans schéma dans du code).
 
+### Retour du premier projet réel (23 novembre 2026)
+
+La v10.2 a conduit un premier projet réel, privé, du 17 au 20 novembre : un superviseur Fable 5.2, des auteurs Opus 5.5, des réviseurs GPT-6.2 Astra, cinq vagues. Ses trois fils de pilotage (31 856 items, 654 sous-agents ; deux des trois fils avaient commencé sous les versions v7 à v9.1.1, avec un pilote GPT) ont été exportés de la base locale de l'hôte, puis lus par seize analystes GPT-6.2 Astra et deux analystes Opus 5.5. Ils ont rendu 804 constats localisés ; la racine a retrouvé mot pour mot 774 de leurs citations dans la source, et quatre analystes Astra les ont regroupés en 107 motifs avec la règle de la stack qui s'applique à chacun. Ce dépôt ne reproduit ni les fils ni les constats.
+
+Ce qui a tenu. Le pilote n'a jamais contourné le moteur et a repris depuis le registre après un arrêt de plus de sept heures sur quota. La contre-revue des mandats a trouvé des bloquants à chaque premier tour, avant le développement. La revue indépendante a trouvé des défauts derrière des tests verts à chaque lot, et la revue globale quatre écarts que le contrôle d'acceptation du projet ne jouait pas. Un essai sur l'appareil réel a montré un défaut que six passages verts de ce contrôle n'avaient pas vu.
+
+Ce qui coûtait, et ce qui change :
+
+- Les deux briefs de revue demandaient le rapport en fichier « puis le même texte en message final », et les mandats d'auteur reprenaient la formule : selon l'analyste des fiches, 46 interventions ont rendu près de 330 000 caractères de remises. Le rapport va maintenant dans le fichier ; le message porte le statut, les bloquants et le chemin, et la remise entière seulement si l'écriture a échoué.
+- Le pilote a écrit 75 fichiers d'opérations jetables pour alimenter des écritures d'état, la forme en ligne étant peu praticable dans son shell. `write --ops -` les lit sur l'entrée standard.
+- Les refus rencontrés nomment le champ en cause et la commande qui les lève. La fenêtre entre la clôture d'une vague et l'écriture de l'index, que le moteur rendait comme une erreur de cohérence, sort sous `closure_pending` ; `resume` signale une vague lancée sans acteur vivant et ne présente plus la prochaine action d'une vague terminale. Un résultat tenu s'accepte dans une vague close partiellement quand la partialité vient d'un autre résultat.
+- Un échec sans aucun texte venait du shell, qui lisait une apostrophe typographique comme un guillemet, pas du moteur : `engine.md` le dit.
+- Rien ne mesurait ce qui s'écrit autour d'un candidat. Sur ce projet, l'analyste du disque compte de 22 000 à 102 000 mots de Markdown par dossier de vague, pour des diffs de 65 à 4 900 lignes ajoutées. `rc_footprint.py --wave-dir` le mesure et le signale.
+- Sur 155 frictions, défauts et interventions de l'humain relevés sur la période de la v10.2, les analystes en attribuent 40 à une règle écrite non suivie et 10 à une règle absente. Les règles que `rc_state.py` et `check_wave.py` refusent déjà sortent donc de la lecture obligatoire du pilote, qui passe de 3 953 à 3 733 mots ; l'ordre des corrections du jardin (le code, puis un contrôle, puis une instruction courte) vaut aussi pour ce que le pilote écrit en conduite.
+
+Auteurs : trois Opus 5.5, un par lot (moteur, empreinte, textes), sur des fichiers disjoints.
+
+Ce qui reste ouvert, relevé et non traité : les décisions présentées à l'humain sans recommandation ni outil de question ; une cause présentée comme établie sans que la preuve la porte ; une permission déduite du but de la mission ; la revue globale arrivée après une promotion locale ; le partage d'un programme entre deux pilotes ; la reprise après quota ; les répétitions du contrôle d'acceptation ; la vérification à l'exécution, toujours différée.
+
+Ce que ce retour ne dit pas : il vient d'un seul projet et d'un seul pilote sous la version actuelle ; le classement des causes est celui des analystes ; aucun coût en jetons n'est connu ; aucun essai du produit n'a été rejoué ; les changements ci-dessus n'ont conduit aucun programme.
+
 Limites :
 
 - Deux pilotes ont conduit la v10 sur deux petits programmes. La convergence de revue n'a jamais approché son enveloppe.
 - La détection des commentaires est une heuristique par extension : docstrings et commentaires de fin de ligne lui échappent.
-- La configuration éprouvée (pilote Fable qui décide et encadre, champions Opus, réviseurs GPT-6.1 Sol) ne l'est que sur les petits programmes de la campagne Fable, pas sur un projet réel. Celle qui est retenue depuis le 17 novembre, avec des réviseurs GPT-6.2 Astra, n'a conduit aucun essai.
+- La configuration à réviseurs GPT-6.1 Sol n'est éprouvée que sur les petits programmes de la campagne Fable. Celle qui est retenue depuis le 17 novembre, avec des réviseurs GPT-6.2 Astra, a conduit un seul projet réel, sur cinq vagues et trois jours (section précédente) ; aucune campagne ne l'a éprouvée.
 - Le skill Fable porte des faits fournisseurs lus le 16 novembre 2026 ; aucun prompt écrit avec lui n'a été mesuré sur un modèle.
-- Le coût d'administration du moteur ne change pas.
+- Le coût d'administration du moteur est mesuré sur le projet réel et réduit sur deux points (opérations sur l'entrée standard, fenêtre de clôture) ; les trois écritures par aller-retour d'acteur restent.
 
 ## Version v9.1.1 (11 novembre 2026)
 

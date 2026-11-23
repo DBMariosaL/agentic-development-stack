@@ -71,9 +71,9 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED = {'state': 228, 'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 9, 'updater-from-v9': 9, 'updater-from-v9.1': 9, 'updater-from-v9.1.1': 9, 'updater-from-v9.1.2': 9, 'package': 36, 'footprint': 16}
+EXPECTED = {'state': 236,'updater-v7': 30, 'updater-v8': 39, 'updater-from-v8': 9, 'updater-from-v9': 9, 'updater-from-v9.1': 9, 'updater-from-v9.1.1': 9, 'updater-from-v9.1.2': 9, 'package': 36, 'footprint': 19}
 READING = ('SKILL.md', 'references/program-contract.md', 'references/operating-loop.md')
-READING_BUDGET = 3953
+READING_BUDGET = 3733
 # Every step in run order; all_passed requires exactly these results, in this order.
 STEPS = list(EXPECTED) + ['structure']
 # Skips accepted only off Windows (NTFS junction tests), as Class.method; none is accepted on Windows.
