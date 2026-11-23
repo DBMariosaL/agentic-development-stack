@@ -17,6 +17,7 @@ Exigences du mandat, puis `base..candidat` et son empreinte (`rc_footprint.py`, 
 3. Que retire le diff qu'une exigence ou un appelant demande encore ?
 4. Le dépôt garde-t-il une seule façon de faire la chose ?
 5. Quel écrit du dépôt (document, `AGENTS.md`, note de reprise) le candidat laisse-t-il faux ou contredit-il ? Il se corrige ou se supprime dans le candidat.
+6. Quelle cause ou quelle permission le candidat, ses écrits ou le mandat tiennent-ils pour acquise ? Une cause affirmée sans l'observation qui écarte les autres explications, et une permission accordée sans citer l'accord qui la porte, sont des constats.
 
 ## Constats
 

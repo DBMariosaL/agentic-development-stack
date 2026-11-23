@@ -20,7 +20,7 @@ Le dossier de vague (`wave.json`, mandats sous `socles/`, raccord commun, `super
 
 ## `program.json`
 
-Champs et types : `init --template program`. `skills_consumed` porte l'empreinte du `SKILL.md` de chaque skill chargé : elle identifie la version sans attester une lecture. Un résultat clos porte `closure` : source et reste, ou cause et condition de reprise.
+`skills_consumed` porte l'empreinte du `SKILL.md` de chaque skill chargé : elle identifie la version sans attester une lecture. Un résultat clos porte `closure` : source et reste, ou cause et condition de reprise.
 
 **Prêt** : résultat `pending`, dépendances `accepted`, `waiting_on` nul, aucune décision qui le suspend. Une consommation partielle passe par un résultat distinct. Un résultat s'accepte à la clôture de sa vague, ou hors vague avec une `closure` sourcée : un résultat à accepter avant d'autres (contrat consommé, premier de lots sérialisés) a sa propre vague. Un découpage erroné se corrige sans supprimer : le résultat superflu se clôt `abandoned` avec sa source, les nouveaux s'ajoutent.
 
@@ -29,7 +29,7 @@ Champs et types : `init --template program`. `skills_consumed` porte l'empreinte
 Valeur inconnue : `null` avec réserve, jamais un identifiant plausible.
 
 - `mode` : `prepare` (documents et revues documentaires autorisés ; ni champion, ni superviseur, ni intégrateur, ni effet produit) ou `prepare-and-launch` ; activer un skill n'autorise rien.
-- Champs et types : `init --template wave`. `batches` nomme les lots admis.
+- `batches` nomme les lots admis.
 - `reviews` : `not_required` se motive ; `candidate_seq` est absent ou `null` pour une revue documentaire, hors candidat. Une revue disposée (`done`, `not_required`) porte `disposition` (motif) et `reference` (source).
 - `decisions` : textes courts : découpage, inconnus, chemins suspendus, ce qui continue, règles locales (boucle, section 5) et, quand le pilote supervise, dispositif d'intégration, approbations exigées et leurs octets, chemin des preuves, ressources réservées.
 - `candidate` est figé ; `envelope` porte la borne de revue et sa `reason` : atteinte, elle n'approuve rien.
@@ -54,7 +54,7 @@ Un constat `ouvert` et `bloquant` interdit l'acceptation de sa portée, quels qu
 
 - **Faits.** Sépare observé, historique, hypothèse et inconnu. Un ancien acteur ou un numéro de socle n'est pas une activité courante. Un écrit hérité (document, commentaire, résumé, remise) est un contexte, pas une preuve : en cas d'écart, code, contrôles et état observé priment, et l'écrit se corrige ou se supprime, même s'il interdit sa propre modification : l'accord est celui du mandat.
 - **Modèles.** Respecte le choix demandé ; vérifie catalogue, paramètres et reçu de lancement. Si le modèle exécuté n'est pas exposé, fournisseur et modèle configuré retournés suffisent, avec réserve ; l'effort reste non attesté. Un modèle indisponible suspend son lancement, sans substitution silencieuse. Si le mandat impose une seule famille, un acteur distinct autorisé remplace la diversité de familles, avec réserve.
-- **Contre-revue documentaire.** Un mandat de champion ou de superviseur séparé est contre-relu par un nouvel acteur seulement s'il ouvre un nouveau domaine, définit ou change une interface partagée, ou touche un chemin sensible ([risque](operating-loop.md#3-livrer-juste)) ; sinon sa revue s'inscrit `not_required` avec ce motif. Une revue interdite ou indisponible est `not_executed`, ne vaut pas accord et reste prérequise au lancement concerné. Un changement de statut n'ouvre ni rédaction ni revue.
+- **Contre-revue documentaire.** Un mandat de champion ou de superviseur séparé est contre-relu par un nouvel acteur seulement s'il ouvre un nouveau domaine, définit ou change une interface partagée, ou touche un chemin sensible ([risque](operating-loop.md#3-livrer-juste)) ; un écrit fondant sur une cause une décision du propriétaire l'est aussi. Sinon sa revue s'inscrit `not_required` avec ce motif. Une revue interdite ou indisponible est `not_executed`, ne vaut pas accord et reste prérequise au lancement concerné. Un changement de statut n'ouvre ni rédaction ni revue.
 
 ## Filtres
 
