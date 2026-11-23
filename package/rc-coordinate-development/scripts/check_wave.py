@@ -285,9 +285,17 @@ def validate(doc, directory=None, check_paths=None):
                 continue
             matching = [r for r in valid_reviews if r['artifact'] == name
                         and r['sha256'].lower() == entry['sha256'].lower()]
-            require(bool(matching) and all(isinstance(r.get('status'), str)
-                    and r['status'] in DISPOSED_STATUSES for r in matching),
-                    f'{name}: launch_ready requires disposed reviews on the consumed sha256')
+            undisposed = sorted({shown(r.get('status')) for r in matching
+                                 if not (isinstance(r.get('status'), str) and r['status'] in DISPOSED_STATUSES)})
+            require(bool(matching) and not undisposed,
+                    f'{name}: launch_ready requires disposed reviews on the consumed sha256 {entry["sha256"]}: '
+                    + (f'its reviews on that sha256 are still {", ".join(undisposed)}; set each one to status "done" '
+                       'with its disposition and reference'
+                       if matching else 'none is recorded; add to reviews ' + json.dumps(
+                           {'artifact': name, 'sha256': entry['sha256'], 'status': 'done',
+                            'disposition': '<summary>', 'reference': '<report>'}, ensure_ascii=False))
+                    + '. Status "not_required", with its reason as disposition and its source as reference, is '
+                    'valid when the consumed text calls for no review')
 
     if check_paths is None:
         check_paths = directory is not None

@@ -27,4 +27,4 @@ Exigences du mandat, puis `base..candidat` et son empreinte (`rc_footprint.py`, 
 
 ## Remise
 
-Écris le rapport dans le fichier que nomme le pilote, puis rends le même texte en message final : verdict et constats bloquants d'abord, sans récit. Le filtre de remise suit le modèle de ton parent ([contrat](program-contract.md#filtres)) ; si son skill ne t'est pas accessible, dis-le et tiens-t'en à ce format.
+Écris le rapport dans le fichier que nomme le pilote. Ton message final porte le verdict, chaque constat bloquant en une ligne et le chemin du fichier, sans récit ; si l'écriture du fichier a échoué, il porte le rapport entier et le dit. Le filtre de remise suit le modèle de ton parent ([contrat](program-contract.md#filtres)) ; si son skill ne t'est pas accessible, dis-le et tiens-t'en à ce format.
