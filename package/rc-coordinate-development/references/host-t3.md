@@ -17,6 +17,7 @@ Lu par le pilote quand sa session tourne dans T3 Code. Ce fichier dit quel outil
 - Un réviseur d'un autre fournisseur peut se voir refuser Git sur une copie qu'il n'a pas créée : [moteur](engine.md#git).
 - `finished`, un `workState` autre que `result_available` ou `hasPendingChildRuns: true` ne sont pas une remise : seul le message final de l'acteur en est une : il indique où lire la remise, ou la porte si l'écriture a échoué.
 - Pas de sondage d'un délégué actif : ni `task_status`, ni `t3_thread_wait` en boucle, ni minuterie, ni délégué créé pour te réveiller. Une notification arrivée après la clôture s'enregistre par `event` ; le moteur la classe et rien ne se rouvre.
+- Un message de coordination à un autre fil nomme le fil où revient le résultat.
 - Un fil de premier niveau (`t3_thread_launch`, `create_threads`) n'est pas une délégation : seulement si le mandat couvre sa création (boucle, section 2). Il appartient au projet du dépôt produit ; un `cd` ne rattache pas un fil. Un sous-agent natif ou un enfant délégué de ta session n'est pas un nouveau fil.
 - Ta référence d'acteur (`--actor`, `owner.ref`) est l'identifiant de ton fil, unique par session (sans fil propre, la référence convenue dans ton brief) : un nom d'acteur que l'hôte réutilise d'une session à l'autre (`/root`) rendrait deux pilotes indiscernables pour le moteur.
 

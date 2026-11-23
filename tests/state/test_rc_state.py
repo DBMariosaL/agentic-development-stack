@@ -295,7 +295,7 @@ class Transitions(Base):
         p['outcomes'][0].update(state_ref=None, closure={'source': 'adopted history', 'remaining': 'none'})
         self.write(self.program_path, p)
         question = {'id': 'D1', 'question': 'Confirm the doc fix?', 'option': 'confirm, else revert it',
-                    'effects': 'documentation only'}
+                    'effects': 'documentation only', 'recommendation': 'confirm: the fix only touches documentation'}
         ops = json.dumps([{'op': 'append', 'path': 'decisions_pending', 'value': dict(question, suspends=['ghost'])}])
         self.refused('decisions_pending[0]', 'write', self.program_path, '--actor', OWNER, '--expect-revision', 0,
                      '--ops', ops)

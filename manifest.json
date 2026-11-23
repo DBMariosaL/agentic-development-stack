@@ -264,8 +264,8 @@
     },
     {
       "path": "rc-coordinate-development/references/engine.md",
-      "sha256": "3e08ebb60ce288e53ae5d1d97f387762df776d449f86c27ba683194d060579c5",
-      "bytes": 23257
+      "sha256": "78761c602fa0e0b43a9629f7747aeae12d51c8fef8c86f8bf5c78e6f1a0a6cb7",
+      "bytes": 24875
     },
     {
       "path": "rc-coordinate-development/references/garden.md",
@@ -274,23 +274,23 @@
     },
     {
       "path": "rc-coordinate-development/references/host-t3.md",
-      "sha256": "293563fdbe9a62f0debee8983eeaeebbefcbf8634293088f599ebe12853b851b",
-      "bytes": 5036
+      "sha256": "d598dffc40865f26315dc438af452cfca6b0e9eec617bebaaf69ab47940a48e8",
+      "bytes": 5120
     },
     {
       "path": "rc-coordinate-development/references/operating-loop.md",
-      "sha256": "d48d39f84483c756b6cd130d539b21cd54d39ce4d9f449758219caf74579259d",
-      "bytes": 14971
+      "sha256": "52e540f2adb2478785de0b8b47326c49377c30dd46066350e305453ed952f2c4",
+      "bytes": 14985
     },
     {
       "path": "rc-coordinate-development/references/program-contract.md",
-      "sha256": "2c401369fbb08bb0ffd948f7cc7542825f2d56105cfd99bcf3ad57001f5b0d2d",
-      "bytes": 8447
+      "sha256": "aa020734d027ea22d51fb0a33b0111c28ce937f7f7d517703cc627b65d533e6e",
+      "bytes": 8436
     },
     {
       "path": "rc-coordinate-development/references/review-brief.md",
-      "sha256": "40be3538c6089b7590ad417ade1af2a75195826303c70a4246a5a02f1529cad8",
-      "bytes": 3072
+      "sha256": "2b73eaa7c785feed54101dda66bd0c1f122a93a88217fc1a20426461ecdaae3f",
+      "bytes": 3332
     },
     {
       "path": "rc-coordinate-development/references/separate-relay.md",
@@ -314,8 +314,8 @@
     },
     {
       "path": "rc-coordinate-development/scripts/rc_state.py",
-      "sha256": "fd983fa02346b7ac76a06b197750f63a30a688350cd724856f3e0743f720607f",
-      "bytes": 144272
+      "sha256": "df5d32104a7e6b3270c248888aed0fa099f263dba7141e67c74928d16a6035a0",
+      "bytes": 156458
     },
     {
       "path": "rc-prepare-socle-prompts/SKILL.md",
@@ -363,5 +363,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "2bb566192aa5c0e1ff4307ac745300f8e18b1f65ffe2e169b8982eff8735ed81"
+  "digest": "a344732eb94b778f72025854e9c9bc89d1330ee25303710f7a924232963fffbb"
 }

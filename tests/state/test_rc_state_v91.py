@@ -332,7 +332,7 @@ class ResumeAndReady(Base):
 class ReviewCandidateSeq(Base):
     def test_null_candidate_seq_is_out_of_candidate(self):
         w = wave2()
-        review = {'artifact': 'prompt_a', 'sha256': 'a' * 64, 'status': 'done', 'disposition': 'ok',
+        review = {'artifact': 'prompt_a', 'sha256': 'a' * 64, 'status': 'done', 'disposition': 'no finding',
                   'reference': 'r.md', 'candidate_seq': None}
         w['reviews'] = [review]
         self.assertEqual(rc.validate_wave2(w, self.wave_path.parent), [])
