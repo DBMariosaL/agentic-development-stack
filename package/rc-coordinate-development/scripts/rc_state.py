@@ -985,18 +985,40 @@ def drifted_artifacts(doc, directory, closing=False):
 
 def index_drifts(doc, directory):
     """Drifted consumed artifacts of the active waves an index references, by outcome id."""
-    out = {}
+    out, base = {}, Path(directory).resolve()
     for o in _items(doc.get('outcomes')):
         ref = o.get('state_ref')
         if text(o.get('id')) and local_path(ref):
-            target = Path(directory).resolve() / ref.replace('\\', '/')
+            target = (base / ref.replace('\\', '/')).resolve()
             try:
-                drifts = drifted_artifacts(load(target), target.parent) if target.is_file() else []
+                inside = target.is_file() and base in target.parents  # the validator's own containment rule
+                drifts = drifted_artifacts(load(target), target.parent) if inside else []
             except (OSError, ValueError):
                 drifts = []
             if drifts:
                 out[o['id']] = drifts
     return out
+
+
+def _same_ref(a, b):
+    """Two state_ref spellings of the same wave file (separator, '.' segments, case on Windows)."""
+    def norm(ref):
+        return os.path.normcase(posixpath.normpath(ref.replace('\\', '/')))
+    return norm(a) == norm(b)
+
+
+def _migration_of(directory, nref, ref):
+    """True when the wave at nref is the migrate copy of the wave at ref (its migrated_from sha256 is ref's bytes):
+    pointing an outcome to its canonical state at adoption is not leaving its wave."""
+    if directory is None or not (local_path(nref) and local_path(ref)):
+        return False
+    base = Path(directory).resolve()
+    try:
+        source = sha256_file(base / ref.replace('\\', '/'))
+        origin = load(base / nref.replace('\\', '/')).get('migrated_from')
+    except (OSError, ValueError, AttributeError):
+        return False
+    return isinstance(origin, dict) and origin.get('sha256') == source
 
 
 def _wave_phase(directory, ref):
@@ -1010,20 +1032,28 @@ def _wave_phase(directory, ref):
     return sval(wave.get('state'), 'phase') if isinstance(wave, dict) else None
 
 
-def _kept(old_values):
-    """Counter of the values a state already holds: a new value equal to one still unmatched is inherited."""
-    pool = {}
-    for value in old_values:
-        key = json.dumps(value, sort_keys=True, ensure_ascii=False)
-        pool[key] = pool.get(key, 0) + 1
-
-    def take(value):
-        key = json.dumps(value, sort_keys=True, ensure_ascii=False)
-        if pool.get(key):
-            pool[key] -= 1
-            return True
-        return False
-    return take
+def _changed_fields(old_items, new_items, identity, fields):
+    """(index, field, value) that a write adds or changes in a list. A new entry identical to an inherited one is
+    inherited; an entry of the same identity (same key fields) is an update, judged on the fields it changes; any
+    other entry is added, judged on all fields. Each inherited entry is matched once."""
+    def dump(value):
+        return json.dumps(value, sort_keys=True, ensure_ascii=False)
+    pool = [dump(item) for item in old_items]
+    rest, pending = list(old_items), []
+    for index, item in enumerate(new_items):
+        if dump(item) in pool:
+            pool.remove(dump(item))
+            rest.remove(next(o for o in rest if dump(o) == dump(item)))
+        else:
+            pending.append((index, item))
+    out = []
+    for index, item in pending:
+        twin = next((o for o in rest if dump([o.get(k) for k in identity]) == dump([item.get(k) for k in identity])),
+                    None)
+        if twin is not None:
+            rest.remove(twin)
+        out.extend((index, f, item.get(f)) for f in fields if twin is None or dump(twin.get(f)) != dump(item.get(f)))
+    return out
 
 
 def introduced_refusals(old, new, directory=None):
@@ -1037,13 +1067,11 @@ def introduced_refusals(old, new, directory=None):
                           f'{json.dumps(value, ensure_ascii=False)}; {how}')
 
     if kind_of(new) == 'wave2':
-        old_reviews, reviews = _items(old.get('reviews')), _items(new.get('reviews'))
-        for field in ('disposition', 'reference'):
-            kept = _kept(r.get(field) for r in old_reviews)
-            for index, review in enumerate(reviews):
-                if review.get(field) is not None and not kept(review.get(field)):
-                    motive(f'reviews[{index}].{field}', review.get(field),
-                           'write what the review found or why none is needed, and where it is recorded')
+        for index, field, value in _changed_fields(_items(old.get('reviews')), _items(new.get('reviews')),
+                                                   ('artifact', 'sha256', 'candidate_seq'), ('disposition', 'reference')):
+            if value is not None:
+                motive(f'reviews[{index}].{field}', value,
+                       'write what the review found or why none is needed, and where it is recorded')
         env, oenv = new.get('envelope'), old.get('envelope')
         if isinstance(env, dict) and (not isinstance(oenv, dict) or env.get('reason') != oenv.get('reason')):
             motive('envelope.reason', env.get('reason'), 'say why this review bound fits the risk')
@@ -1067,12 +1095,10 @@ def introduced_refusals(old, new, directory=None):
                                   'launch_ready and launched require the mandate of every lot of batches in '
                                   f'state.consumed; consume its prompt_artifact or remove {sid} from batches')
         if flag or launching or closing:
-            ocons = ostate.get('consumed') if isinstance(ostate.get('consumed'), dict) else {}
-            ncons = state.get('consumed') if isinstance(state.get('consumed'), dict) else {}
-            seen = copy.deepcopy(new)  # a consumption dropped by this very write is still checked
-            if isinstance(seen.get('state'), dict):
-                seen['state']['consumed'] = {**ocons, **ncons}
-            for drift in drifted_artifacts(seen, directory, closing):
+            drifts = drifted_artifacts(new, directory, closing)
+            if closing:  # what the state before declared consumed, at its paths, whatever this write removes
+                drifts += [d for d in drifted_artifacts(old, directory) if d not in drifts]
+            for drift in drifts:
                 errors.append(f'{drift["artifact"]}: file {drift["path"]} no longer matches its consumed sha256 '
                               f'{drift["consumed_sha256"]} (file {drift["file_sha256"]}): launch_ready, launched and '
                               'completion are refused until its bytes are restored or state.consumed records the new '
@@ -1098,19 +1124,18 @@ def introduced_refusals(old, new, directory=None):
             if isinstance(closure, dict) and (not isinstance(pclosure, dict)
                                               or closure.get('source') != pclosure.get('source')):
                 motive(f'outcomes.{oid}.closure.source', closure.get('source'), 'name the source of this closure')
-            ref = prior.get('state_ref')
-            if text(ref) and not text(o.get('state_ref')):
+            ref, nref = prior.get('state_ref'), o.get('state_ref')
+            if text(ref) and not (text(nref) and (_same_ref(ref, nref) or _migration_of(directory, nref, ref))):
                 wphase = _wave_phase(directory, ref)
                 if wphase is not None and wphase not in TERMINAL_PHASES:
-                    errors.append(f'{oid}: state_ref {ref} cleared while that wave is {wphase}: keep it until the '
-                                  'wave is terminal; abandoned or failed may keep it, the closure follows the wave')
-        kept = _kept([d.get('id'), d.get('recommendation')] for d in _items(old.get('decisions_pending')))
-        for index, dec in enumerate(decisions):
-            value = dec.get('recommendation')
-            if not kept([dec.get('id'), value]):
-                motive(f'decisions_pending[{index}].recommendation', value,
-                       f'decision {json.dumps(dec.get("id"), ensure_ascii=False)} is added or changed: give what the '
-                       'pilot advises and why')
+                    errors.append(f'{oid}: state_ref {ref} ' + (f'replaced by {nref}' if text(nref) else 'cleared')
+                                  + f' while that wave is {wphase}: keep it until the wave is terminal; abandoned or '
+                                  'failed may keep it, the closure follows the wave')
+        for index, _, value in _changed_fields(_items(old.get('decisions_pending')), decisions, ('id',),
+                                               ('recommendation',)):
+            motive(f'decisions_pending[{index}].recommendation', value,
+                   f'decision {json.dumps(decisions[index].get("id"), ensure_ascii=False)} is added or changed: give '
+                   'what the pilot advises and why')
     return errors
 
 

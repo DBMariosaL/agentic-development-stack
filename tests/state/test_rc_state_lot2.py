@@ -85,6 +85,10 @@ class Lot2(Base):
                                                'value': {'closure': {'source': '.', 'remaining': 'nothing left'}}})
         self.refused_edit(f'reviews[1].disposition: {MOTIVE}', self.wave_path,
                           {'op': 'append', 'path': 'reviews', 'value': dict(dot, reference='report r.md')})
+        self.refused_edit(f'reviews[1].disposition: {MOTIVE}', self.wave_path,  # fixing A does not credit B
+                          {'op': 'set', 'path': 'reviews', 'value': [dict(dot, disposition='no finding on A',
+                                                                         reference='report r.md'),
+                                                                    dict(dot, artifact='manifest', reference='r.md')]})
 
     def test_G3_consumed_artifact_changed_on_disk_is_signalled_and_stops_the_gates(self):
         mandate = self.wave_path.parent / 'socles/a.txt'
@@ -122,10 +126,12 @@ class Lot2(Base):
         for phase in ('completed', 'completed_partial'):
             self.refused('no longer matches its consumed sha256', 'transition', self.wave_path, '--actor', OWNER,
                          '--expect-revision', self.rev(self.wave_path), '--to', phase)
-        self.refused_edit('prompt_a: file socles/a.txt no longer matches', self.wave_path,
-                          {'op': 'set', 'path': 'state.consumed',
-                           'value': {'manifest': {'version': 'v1', 'sha256': 'c' * 64}}},
-                          {'op': 'set', 'path': 'state.phase', 'value': 'completed'})
+        for drop in ([], [{'op': 'set', 'path': 'artifacts', 'value': {'manifest': 'candidate.json'}},
+                          {'op': 'set', 'path': 'reviews', 'value': w['reviews'][1:]}]):
+            self.refused_edit('prompt_a: file socles/a.txt no longer matches', self.wave_path,
+                              {'op': 'set', 'path': 'state.consumed',
+                               'value': {'manifest': {'version': 'v1', 'sha256': 'c' * 64}}},
+                              {'op': 'set', 'path': 'state.phase', 'value': 'completed'}, *drop)
 
     def test_G4_admitting_a_suspended_outcome_is_refused(self):
         p = program(outcome_status='pending')
@@ -146,12 +152,22 @@ class Lot2(Base):
 
     def test_G5_clearing_the_ref_of_an_outcome_whose_wave_is_live_is_refused(self):
         closed = {'status': 'accepted', 'state_ref': None, 'closure': {'source': 'review of A', 'remaining': 'none'}}
-        for value in (closed, {'status': 'pending', 'state_ref': None}):
+        other = self.root / 'waves/b/wave.json'
+        other.parent.mkdir()
+        self.write(other, dict(wave2(), program_ref=None))
+        for value, how in ((closed, 'cleared'), ({'status': 'pending', 'state_ref': None}, 'cleared'),
+                           ({'state_ref': 'waves/b/wave.json'}, 'replaced by waves/b/wave.json')):
             with self.subTest(value=value):
-                self.refused_edit('A: state_ref waves/a/wave.json cleared while that wave is launched',
+                self.refused_edit(f'A: state_ref waves/a/wave.json {how} while that wave is launched',
                                   self.program_path, {'op': 'update', 'path': 'outcomes', 'match': {'id': 'A'},
                                                       'value': value})
-        self.write(self.wave_path, wave2('stopped'))
+        self.accepted_edit(self.program_path, {'op': 'update', 'path': 'outcomes', 'match': {'id': 'A'},
+                                               'value': {'state_ref': 'waves\\a\\.\\wave.json'}})
+        self.write(other, dict(wave2(), program_ref=None, migrated_from={'schema_version': 1, 'path': 'x', 'sha256': hashlib.sha256(
+            self.wave_path.read_bytes()).hexdigest()}))  # adoption: pointing to the migrate copy is allowed
+        self.accepted_edit(self.program_path, {'op': 'update', 'path': 'outcomes', 'match': {'id': 'A'},
+                                               'value': {'state_ref': 'waves/b/wave.json'}})
+        self.write(other, dict(wave2('stopped'), program_ref=None))
         self.accepted_edit(self.program_path, {'op': 'update', 'path': 'outcomes', 'match': {'id': 'A'}, 'value': closed})
 
     def test_G6_a_new_decision_carries_a_recommendation_that_resume_and_ready_render(self):
@@ -177,6 +193,10 @@ class Lot2(Base):
         p['decisions_pending'] = [dict(DECISION, recommendation='.'), dict(DECISION, question='Again?')]
         self.write(self.program_path, p)
         self.still_usable(self.program_path)
+        advise_and_add = [dict(DECISION, recommendation='.'), dict(DECISION, question='Again?', recommendation='use MIT'),
+                          dict(DECISION, question='Third?')]  # advising the old one does not credit the new one
+        self.refused_edit(f'decisions_pending[2].recommendation: {MOTIVE}', self.program_path,
+                          {'op': 'set', 'path': 'decisions_pending', 'value': advise_and_add})
         spec = self.root / 'spec.json'
         spec.write_text(json.dumps({'mandate': p['mandate'], 'outcomes': [{'id': 'A', 'outcome': 'A', 'next_action': 'n'}],
                                     'decisions_pending': [dict(DECISION, id=[], suspends=[])]}), encoding='utf-8')
