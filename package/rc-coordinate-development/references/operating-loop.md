@@ -64,10 +64,10 @@ Une règle bloquante que tu t'imposes (plafond d'exécutions, outil écarté apr
 
 | Situation | Conduite |
 |---|---|
-| Quota ou limite de débit | `waiting_quota` ; acteurs, IDs et réservations conservés ; indépendant poursuivi ; reprise par réveil réel, sinon action humaine unique. Ni reset ni sondage. |
+| Quota ou limite de débit | `waiting_quota` avec `waiting.resume` ; acteurs, IDs et réservations conservés ; indépendant poursuivi ; reprise par réveil réel, sinon action humaine unique. Ni reset ni sondage. |
 | Erreur terminale (authentification, fournisseur) | Vague `failed` avec cause et condition de reprise ; le programme et les autres chemins continuent. |
-| Résultat d'outil incertain (timeout, erreur sans reçu, push compris) | L'intention reste `pending`. Relis l'état réel (fil, tâche, fichier, distant), résous `confirmed` ou `absent`, puis seulement réessaie. Un timeout n'est pas un échec certain. |
-| Signal reçu | `rc_state.py event` (ou `write --record-event`) dès la réception, sur ta vague, avant toute disposition ou clôture ; sans vague à toi (superviseur séparé titulaire, relais), dans `last_milestone`. Suis `classification` et `effect` ([moteur](engine.md#événements)) : aucun doublon, ancien ou tardif ne relance une équipe ni ne rouvre une vague. |
+| Résultat d'outil incertain (timeout, erreur sans reçu, push compris) | L'intention reste `pending`. Relis l'état réel (fil, tâche, fichier, distant), résous `confirmed` ou `absent`, puis seulement réessaie avec une nouvelle corrélation. Un timeout n'est pas un échec certain. |
+| Signal reçu | `rc_state.py event` (ou `write --record-event`) dès la réception, sur ta vague, avant toute disposition ou clôture ; sans vague à toi (superviseur séparé titulaire, relais), dans `last_milestone` ; un signal neuf enregistré sur la vague après sa clôture devient `late`. Suis `classification` et `effect` ([moteur](engine.md#événements)) : aucun doublon, ancien ou tardif ne relance une équipe ni ne rouvre une vague. |
 | Reprise à froid, écriture interrompue, signal absent | Sans présumer la cause, `rc_state.py resume` au prochain tour réel ; traite ses `actions` avant de relancer ce qu'elles concernent ([moteur](engine.md#reprise-à-froid)) ; le travail prêt sans lien continue. |
 
 Attente, quota, erreur et fin réelle sont distincts : seule la fin réelle clôt.
