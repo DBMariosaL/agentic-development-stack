@@ -20,7 +20,7 @@ Dans le doute entre inutile et débattable, range en débattable.
 
 ## Rapport
 
-Écris-le dans le fichier que nomme le pilote, puis rends le même texte en message final.
+Écris-le dans le fichier que nomme le pilote. Ton message final porte sa première ligne, chaque test inutile en une ligne et le chemin du fichier ; si l'écriture du fichier a échoué, il porte le rapport entier et le dit.
 
 1. Première ligne : nombre de tests examinés, puis nombre par classe.
 2. Un tableau : test (fichier et nom), classe, comportement ou défaut protégé, preuve (casse et tests en échec) ou motif.
