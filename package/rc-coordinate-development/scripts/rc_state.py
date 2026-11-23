@@ -390,7 +390,7 @@ def validate_wave2(doc, directory=None, check_paths=False, self_path=None):
         errors.append(f'duplicate actor correlation {corr}: actor {corr} already exists (role {first.get("role")!r}, '
                       f'status {first.get("status")!r}; a confirmed launch resolution, intent resolve or write '
                       '--resolve-intent, creates it): change it with {"op":"update","path":"actors","match":'
-                      f'{{"correlation":"{corr}"}},"value":{{...}}}}, never append it again')
+                      f'{{"correlation":{json.dumps(corr, ensure_ascii=False)}}},"value":{{...}}}}, never append it again')
     intents = _items(doc.get('intents'))
     require(isinstance(doc.get('intents'), list) and len(intents) == len(doc['intents']), 'intents must be a list of objects')
     seen, pending_targets = set(), set()
@@ -503,8 +503,9 @@ def ready_view(doc):
 
 
 def validate_program(doc, directory=None, check_paths=False, self_path=None, closures=None):
-    """With closures (a list), an outcome still admitted or pending on a terminal wave is appended there as
-    (outcome id, state_ref, phase) instead of being an error: the expected window before the index records it."""
+    """With closures (a list), an outcome still admitted on a terminal wave is appended there as
+    (outcome id, state_ref, phase, resolved wave path) instead of being an error: the expected window before the
+    index records it."""
     errors = []
 
     def require(cond, msg):
@@ -621,10 +622,11 @@ def validate_program(doc, directory=None, check_paths=False, self_path=None, clo
                 errors.append(f'{oid}: wave: {message}')
             wstate = wave.get('state') if isinstance(wave, dict) and isinstance(wave.get('state'), dict) else {}
             wphase = sval(wstate, 'phase')
-            if st in {'admitted', 'pending'} and member(wphase, TERMINAL_PHASES) and closures is not None:
-                closures.append((oid, ref, wphase))
-            elif st == 'admitted' and member(wphase, TERMINAL_PHASES):
-                require(False, f'{oid}: contradictory state: outcome admitted but wave is {wphase}')
+            if st == 'admitted' and member(wphase, TERMINAL_PHASES):
+                if closures is not None:
+                    closures.append((oid, ref, wphase, target))
+                else:
+                    require(False, f'{oid}: contradictory state: outcome admitted but wave is {wphase}')
             if st in {'accepted', 'accepted_partial'} and wphase not in {'completed', 'completed_partial'}:
                 require(False, f'{oid}: contradictory state: outcome {st} but wave is {wphase}')
             if wphase == 'completed_partial':
@@ -1331,10 +1333,10 @@ def guarded_write(path, actor, expected_revision, mutate, kind='write', detail=N
 def closure_reports(closures, program_path, doc):
     """Waves closed before the index recorded their outcomes: one report per wave, with the write that closes it."""
     grouped = {}
-    for oid, ref, phase in closures:
-        grouped.setdefault((ref, phase), []).append(oid)
+    for oid, ref, phase, target in closures:
+        grouped.setdefault(target, (ref, phase, []))[2].append(oid)
     reports = []
-    for (ref, phase), ids in grouped.items():
+    for ref, phase, ids in grouped.values():
         closed = 'accepted or accepted_partial' if phase in {'completed', 'completed_partial'} else 'abandoned or failed'
         reports.append({'wave': ref, 'phase': phase, 'outcomes': ids, 'write': (
             f'write {program_path.name} --actor <index owner> --expect-revision {doc.get("revision")} --ops '
@@ -1396,9 +1398,10 @@ def cmd_resume(args):
     doc = load(program_path)
     if kind_of(doc) != 'program':
         ref = doc.get('program_ref') if kind_of(doc) == 'wave2' else None
-        index = (f'its index: resume {(program_path.parent / ref).resolve()}' if relative_ref(ref) else
-                 'the index whose outcome references it (state_ref); a wave with program_ref null is not attached yet'
-                 if kind_of(doc) in {'wave1', 'wave2'} else 'a program.json')
+        index = (f'its index: resume "{(program_path.parent / ref).resolve()}"' if relative_ref(ref) else
+                 'the index whose outcome references it (state_ref), this wave being detached (program_ref null): '
+                 'resume "<path of that program.json>"' if kind_of(doc) in {'wave1', 'wave2'} else
+                 'a program.json: resume "<path of the program.json>"')
         raise StateError(f'resume needs a program.json, not a {kind_of(doc)} document: resume takes the program index '
                          f'and reports each of its waves; for {program_path.name}, run it on {index}')
     closures = []
@@ -1430,7 +1433,7 @@ def cmd_resume(args):
                       if kind_of(wave) == 'wave1' else state.get('legacy_runtime_refs')})
         label = f'{ref} (outcomes {", ".join(map(str, ids))})'
         actors = _items(wave.get('actors'))
-        if phase == 'launched' and actors and not live and not pending:
+        if phase == 'launched' and actors and not live:
             actions.append(f'{label}: signal: wave launched but none of its {len(actors)} actors is alive any more '
                            f'({", ".join(sorted({str(a.get("status")) for a in actors}))}): integrate, close or '
                            'relaunch it; nothing is refused')
@@ -1452,7 +1455,7 @@ def cmd_resume(args):
     closure_pending = closure_reports(closures, program_path, doc)
     for report in closure_pending:
         actions.append(f'closure to record: wave {report["wave"]} is {report["phase"]} but the index still holds '
-                       f'outcomes {", ".join(report["outcomes"])} as admitted or pending: {report["write"]}; '
+                       f'outcomes {", ".join(report["outcomes"])} as admitted: {report["write"]}; '
                        f'{successor} if its owner stopped')
     journal = read_journal(jpath)
     ops += open_operations(program_path, participating_journals(program_path, doc))
@@ -1998,9 +2001,8 @@ def cmd_transition(args):
                          detail={'to': args.to}, applies_event=args.applies_event), False
 
 
-def resolve_intent(doc, correlation, args, effects=None):
+def resolve_intent(doc, correlation, args, effects):
     """Resolve a pending intent; effects (a dict) receives under 'actor' the actor created or revived, if any."""
-    effects = {} if effects is None else effects
     wave_only(doc, 'intent')
     current = next((i for i in _items(doc.get('intents')) if i.get('correlation') == correlation), None)
     if current is not None and sval(current, 'status') != 'pending':
