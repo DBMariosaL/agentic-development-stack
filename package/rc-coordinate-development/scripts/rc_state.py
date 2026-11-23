@@ -72,7 +72,7 @@ CLOSED_KEYS = {
 }
 LIMITS = ('Checks declarations, revisions and local files only. Cannot certify authority, '
           'review quality, runtime delivery, idempotence of runtime calls or execution. A motive is checked for '
-          'three letters or digits, never for its quality.')
+          'three letters or decimal digits, never for its quality.')
 
 text, digest, string_list, local_path, got = v1.text, v1.digest, v1.string_list, v1.local_path, v1.got
 
@@ -954,15 +954,17 @@ MOTIVE_MIN = 3
 
 
 def meaningful(value):
-    """At least three letters or digits: the tool checks that a motive says something, never what it is worth."""
-    return isinstance(value, str) and sum(ch.isalnum() for ch in value) >= MOTIVE_MIN
+    """At least three letters or decimal digits: the tool checks that a motive says something, never its worth."""
+    return isinstance(value, str) and sum(ch.isalpha() or ch.isdecimal() for ch in value) >= MOTIVE_MIN
 
 
 def drifted_artifacts(doc, directory, closing=False):
     """Consumed artifacts whose file is present and no longer matches the recorded sha256. An absent or unreadable
     file is left to check --check-paths, as before; a closed wave, an archive, is not signalled."""
+    if kind_of(doc) not in {'wave1', 'wave2'} or directory is None:
+        return []
     state = doc.get('state') if isinstance(doc.get('state'), dict) else {}
-    if kind_of(doc) != 'wave2' or directory is None or (sval(state, 'phase') in TERMINAL_PHASES and not closing):
+    if sval(state, 'phase') in TERMINAL_PHASES and not closing:
         return []
     artifacts = doc.get('artifacts') if isinstance(doc.get('artifacts'), dict) else {}
     consumed = state.get('consumed') if isinstance(state.get('consumed'), dict) else {}
@@ -981,6 +983,22 @@ def drifted_artifacts(doc, directory, closing=False):
     return out
 
 
+def index_drifts(doc, directory):
+    """Drifted consumed artifacts of the active waves an index references, by outcome id."""
+    out = {}
+    for o in _items(doc.get('outcomes')):
+        ref = o.get('state_ref')
+        if text(o.get('id')) and local_path(ref):
+            target = Path(directory).resolve() / ref.replace('\\', '/')
+            try:
+                drifts = drifted_artifacts(load(target), target.parent) if target.is_file() else []
+            except (OSError, ValueError):
+                drifts = []
+            if drifts:
+                out[o['id']] = drifts
+    return out
+
+
 def _wave_phase(directory, ref):
     """Phase of the wave a state_ref designates, or None when it cannot be read."""
     if directory is None or not local_path(ref):
@@ -992,21 +1010,38 @@ def _wave_phase(directory, ref):
     return sval(wave.get('state'), 'phase') if isinstance(wave, dict) else None
 
 
+def _kept(old_values):
+    """Counter of the values a state already holds: a new value equal to one still unmatched is inherited."""
+    pool = {}
+    for value in old_values:
+        key = json.dumps(value, sort_keys=True, ensure_ascii=False)
+        pool[key] = pool.get(key, 0) + 1
+
+    def take(value):
+        key = json.dumps(value, sort_keys=True, ensure_ascii=False)
+        if pool.get(key):
+            pool[key] -= 1
+            return True
+        return False
+    return take
+
+
 def introduced_refusals(old, new, directory=None):
-    """Refusals that fall only on the write creating their situation (old None: a creation by init). A state that
-    already holds the situation stays valid and writable by any write that does not create it again."""
+    """Refusals that fall only on what a write adds or changes (old None: a creation by init). A value the state
+    already holds, unchanged, stays valid and never makes a write on a neighbouring field refused."""
     old, errors = old or {}, []
 
     def motive(label, value, how):
-        if value is not None and not meaningful(value):
-            errors.append(f'{label}: expected a motive with at least {MOTIVE_MIN} letters or digits, got {value!r}; '
-                          f'{how}')
+        if not meaningful(value):
+            errors.append(f'{label}: expected a motive with at least {MOTIVE_MIN} letters or decimal digits, got '
+                          f'{json.dumps(value, ensure_ascii=False)}; {how}')
 
     if kind_of(new) == 'wave2':
-        old_reviews = _items(old.get('reviews'))
-        for index, review in enumerate(_items(new.get('reviews'))):
-            if review not in old_reviews:
-                for field in ('disposition', 'reference'):
+        old_reviews, reviews = _items(old.get('reviews')), _items(new.get('reviews'))
+        for field in ('disposition', 'reference'):
+            kept = _kept(r.get(field) for r in old_reviews)
+            for index, review in enumerate(reviews):
+                if review.get(field) is not None and not kept(review.get(field)):
                     motive(f'reviews[{index}].{field}', review.get(field),
                            'write what the review found or why none is needed, and where it is recorded')
         env, oenv = new.get('envelope'), old.get('envelope')
@@ -1014,24 +1049,30 @@ def introduced_refusals(old, new, directory=None):
             motive('envelope.reason', env.get('reason'), 'say why this review bound fits the risk')
         state = new.get('state') if isinstance(new.get('state'), dict) else {}
         ostate = old.get('state') if isinstance(old.get('state'), dict) else {}
-        wait = state.get('waiting')
-        if isinstance(wait, dict) and wait != ostate.get('waiting'):
+        wait, owait, phase, ophase = state.get('waiting'), ostate.get('waiting'), sval(state, 'phase'), sval(ostate, 'phase')
+        if isinstance(wait, dict) and (phase != ophase or not isinstance(owait, dict)
+                                       or wait.get('resume') != owait.get('resume')):
             motive('state.waiting.resume', wait.get('resume'), 'give transition --resume the step that resumes the wave')
-        launching = sval(ostate, 'phase') == 'ready' and sval(state, 'phase') == 'launched'
-        gate = launching or (state.get('launch_ready') is True and ostate.get('launch_ready') is not True)
-        closing = sval(state, 'phase') in {'completed', 'completed_partial'} and sval(ostate, 'phase') != sval(state, 'phase')
-        if gate:
+        launching = phase == 'launched' and ophase != 'launched'
+        flag = state.get('launch_ready') is True and ostate.get('launch_ready') is not True
+        closing = phase in {'completed', 'completed_partial'} and ophase != phase
+        if flag or (launching and ophase == 'ready'):
             consumed = state.get('consumed') if isinstance(state.get('consumed'), dict) else {}
-            socles = {s.get('id'): s for s in _items(new.get('socles'))}
-            batched = [i for batch in new.get('batches') or [] if isinstance(batch, list) for i in batch]
+            socles = {s['id']: s for s in _items(new.get('socles')) if text(s.get('id'))}
+            batched = [i for batch in new.get('batches') or [] if isinstance(batch, list) for i in batch if text(i)]
             for sid in batched:
-                socle = socles.get(sid, {})
-                if socle.get('readiness') == 'blocked' and socle.get('prompt_artifact') not in consumed:
+                socle, mandate = socles.get(sid, {}), socles.get(sid, {}).get('prompt_artifact')
+                if socle.get('readiness') == 'blocked' and not (text(mandate) and mandate in consumed):
                     errors.append(f'{sid}: lot listed in batches (readiness blocked) without a consumed mandate: '
                                   'launch_ready and launched require the mandate of every lot of batches in '
                                   f'state.consumed; consume its prompt_artifact or remove {sid} from batches')
-        if gate or closing:
-            for drift in drifted_artifacts(new, directory, closing):
+        if flag or launching or closing:
+            ocons = ostate.get('consumed') if isinstance(ostate.get('consumed'), dict) else {}
+            ncons = state.get('consumed') if isinstance(state.get('consumed'), dict) else {}
+            seen = copy.deepcopy(new)  # a consumption dropped by this very write is still checked
+            if isinstance(seen.get('state'), dict):
+                seen['state']['consumed'] = {**ocons, **ncons}
+            for drift in drifted_artifacts(seen, directory, closing):
                 errors.append(f'{drift["artifact"]}: file {drift["path"]} no longer matches its consumed sha256 '
                               f'{drift["consumed_sha256"]} (file {drift["file_sha256"]}): launch_ready, launched and '
                               'completion are refused until its bytes are restored or state.consumed records the new '
@@ -1041,32 +1082,35 @@ def introduced_refusals(old, new, directory=None):
         decisions = _items(new.get('decisions_pending'))
         for o in _items(new.get('outcomes')):
             oid, st = o.get('id'), sval(o, 'status')
+            if not text(oid):
+                continue
             prior = before.get(oid, {})
             if st == 'admitted' and sval(prior, 'status') != 'admitted':
                 holds = [str(d.get('id')) for d in decisions if string_list(d.get('suspends')) and oid in d['suspends']]
-                if holds or o.get('waiting_on') is not None:
-                    errors.append(f'{oid}: admitted while ' + (f'suspended by pending decision {", ".join(holds)}'
-                                  if holds else f'waiting_on is {json.dumps(o.get("waiting_on"), ensure_ascii=False)}')
-                                  + ': settle the decision (decisions_pending) and set waiting_on to null first, '
-                                  'then admit it')
-            closure = o.get('closure')
-            if isinstance(closure, dict) and closure != prior.get('closure'):
+                if holds:
+                    errors.append(f'{oid}: admitted while suspended by pending decision {", ".join(holds)}: settle the '
+                                  'decision (decisions_pending) and set waiting_on to null first, then admit it')
+                elif o.get('waiting_on') is not None:
+                    errors.append(f'{oid}: admitted while waiting_on is '
+                                  f'{json.dumps(o.get("waiting_on"), ensure_ascii=False)}: set waiting_on to null '
+                                  'first, then admit it')
+            closure, pclosure = o.get('closure'), prior.get('closure')
+            if isinstance(closure, dict) and (not isinstance(pclosure, dict)
+                                              or closure.get('source') != pclosure.get('source')):
                 motive(f'outcomes.{oid}.closure.source', closure.get('source'), 'name the source of this closure')
             ref = prior.get('state_ref')
-            if st in CLOSED_OUTCOMES | {'failed'} and st != sval(prior, 'status') and text(ref) \
-                    and not text(o.get('state_ref')):
-                phase = _wave_phase(directory, ref)
-                if phase is not None and phase not in TERMINAL_PHASES:
-                    errors.append(f'{oid}: {st} clears state_ref {ref} while that wave is {phase}: keep state_ref and '
-                                  'record the closure when the wave is terminal (abandoned or failed may keep it now)')
-        known = {d.get('id'): d for d in _items(old.get('decisions_pending'))}
+            if text(ref) and not text(o.get('state_ref')):
+                wphase = _wave_phase(directory, ref)
+                if wphase is not None and wphase not in TERMINAL_PHASES:
+                    errors.append(f'{oid}: state_ref {ref} cleared while that wave is {wphase}: keep it until the '
+                                  'wave is terminal; abandoned or failed may keep it, the closure follows the wave')
+        kept = _kept([d.get('id'), d.get('recommendation')] for d in _items(old.get('decisions_pending')))
         for index, dec in enumerate(decisions):
-            label, value = f'decisions_pending[{index}].recommendation', dec.get('recommendation')
-            how = 'give what the pilot advises and why'
-            if dec.get('id') not in known and value is None:
-                errors.append(f'{label}: a new decision {dec.get("id")} needs a recommendation, got missing; {how}')
-            elif value != known.get(dec.get('id'), {}).get('recommendation'):
-                motive(label, value, how)
+            value = dec.get('recommendation')
+            if not kept([dec.get('id'), value]):
+                motive(f'decisions_pending[{index}].recommendation', value,
+                       f'decision {json.dumps(dec.get("id"), ensure_ascii=False)} is added or changed: give what the '
+                       'pilot advises and why')
     return errors
 
 
@@ -1477,7 +1521,7 @@ def cmd_check(args):
     result = {'valid': not errors, 'kind': kind_of(doc), 'errors': errors, 'limits': LIMITS}
     if closures:
         result['closure_pending'] = closure_reports(closures, path, doc)
-    drifted = drifted_artifacts(doc, path.parent)
+    drifted = index_drifts(doc, path.parent) if kind_of(doc) == 'program' else drifted_artifacts(doc, path.parent)
     if drifted:
         result['drifted_artifacts'] = drifted
     if kind_of(doc) in CLOSED_KEYS:
