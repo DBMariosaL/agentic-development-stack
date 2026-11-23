@@ -299,8 +299,8 @@
     },
     {
       "path": "rc-coordinate-development/references/test-review-brief.md",
-      "sha256": "0de316baff39017cdd6479b4daaae49a65aaca5c642d95a23c402c4eb880237d",
-      "bytes": 3069
+      "sha256": "eefece48bacda1820acb0fa0381f01d8ee52791cd3b646f68642e2129b94591a",
+      "bytes": 3129
     },
     {
       "path": "rc-coordinate-development/scripts/check_wave.py",
@@ -363,5 +363,5 @@
       "bytes": 5663
     }
   ],
-  "digest": "3db78e583d4cd210401fdc0f2a4c96c5b82bf823a85d825a06c48ce7e4d6bb39"
+  "digest": "2bb566192aa5c0e1ff4307ac745300f8e18b1f65ffe2e169b8982eff8735ed81"
 }

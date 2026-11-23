@@ -20,7 +20,7 @@ Dans le doute entre inutile et débattable, range en débattable.
 
 ## Rapport
 
-Écris-le dans le fichier que nomme le pilote. Ton message final porte le verdict (la première ligne ci-dessous), chaque comportement demandé dont aucun test ne détecte la casse et le chemin du fichier ; le classement reste dans le fichier ; si l'écriture du fichier a échoué, il porte le rapport entier et le dit.
+Écris-le dans le fichier que nomme le pilote. Ton message final porte la première ligne ci-dessous, la suite si elle n'est plus verte une fois les tests inutiles retirés, chaque comportement demandé dont aucun test ne détecte la casse, et le chemin du fichier ; le classement reste dans le fichier ; si l'écriture du fichier a échoué, il porte le rapport entier et le dit.
 
 1. Première ligne : nombre de tests examinés, puis nombre par classe.
 2. Un tableau : test (fichier et nom), classe, comportement ou défaut protégé, preuve (casse et tests en échec) ou motif.

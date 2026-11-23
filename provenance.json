@@ -228,7 +228,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "manifest.json (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "2155509383c8177bc9f63bd3c156bcc72ca43a7c84c77c99ee32def629178fb1",
-      "sha256": "39faafe2adf6f1d1c3cb219cea35eccb02272af00d4a5f2f4dd40fdd37b81e35",
+      "sha256": "a898de8d92525cf544316517c80b158d838bebea806f7688633cd3b5d0a4c9e4",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "manifest.json",
@@ -1684,7 +1684,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "README.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": "61d499802761a72e9273a2a894efe0ba6b08c80100d3561771a6bdc4c7acc355",
-      "sha256": "ca2b4a492445d5911cf2c5165ebb595d6a271ea74b1a5ce3c37c21fc71421bbe",
+      "sha256": "6b613b412379cf78ecf4cfa56c0aa2e636c32cbeec98694d9e06cad6fc5084a4",
       "adaptation": "v10 edit",
       "previous_record": {
         "path": "README.md",
@@ -1748,7 +1748,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "created for v10",
       "source_sha256": null,
-      "sha256": "0de316baff39017cdd6479b4daaae49a65aaca5c642d95a23c402c4eb880237d",
+      "sha256": "eefece48bacda1820acb0fa0381f01d8ee52791cd3b646f68642e2129b94591a",
       "adaptation": "v10 creation"
     },
     {
@@ -1804,7 +1804,7 @@
       "source_group": "rc-stack-v10-20261116",
       "source": "docs/qualification.md (v9.1.2, commit 929c5db4c8b12636ec71f101f6293fb9eb49a7ed) edited for v10",
       "source_sha256": null,
-      "sha256": "641ee54a6a7217b247f7fa7c4028a482ee0d70598f7be038e9716833b95960cd",
+      "sha256": "6c0b79360826f6fdd369d4a588cd3b0a1793f65a3c6312d546c6bbb9c141c6bd",
       "adaptation": "v10 edit"
     },
     {
