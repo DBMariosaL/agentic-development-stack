@@ -840,11 +840,13 @@ class Successor(Campaign):
     def test_R02_04_takeover_of_the_index_inside_the_closure_window(self):
         w = wave2('stopped')
         self.write(self.wave_path, w)
-        window = 'A: contradictory state: outcome admitted but wave is stopped'
         code, cold = self.run_cli('resume', self.program_path)
-        self.assertEqual(cold['consistency_errors'], [window])
-        self.assertTrue(any('outcome A is still admitted' in a and 'claim --takeover' in a for a in cold['actions']))
-        self.assertEqual(self.takeover(self.program_path)['consistency_errors'], [window])
+        self.assertEqual((code, cold['consistency_errors']), (0, []))  # a closure to record, not an error
+        self.assertEqual([(c['wave'], c['outcomes']) for c in cold['closure_pending']], [('waves/a/wave.json', ['A'])])
+        self.assertTrue(any('closure to record' in a and 'claim --takeover' in a for a in cold['actions']))
+        taken = self.takeover(self.program_path)
+        self.assertEqual((taken.get('consistency_errors'), [c['outcomes'] for c in taken['closure_pending']]),
+                         (None, [['A']]))
         self.ok('write', self.program_path, '--actor', self.OTHER, '--expect-revision', 1, '--ops', json.dumps(
             [{'op': 'update', 'path': 'outcomes', 'match': {'id': 'A'},
               'value': {'status': 'abandoned', 'closure': {'source': 'wave stopped', 'remaining': 'all'}}},
