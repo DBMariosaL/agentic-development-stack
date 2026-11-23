@@ -3,7 +3,7 @@ import io
 import json
 from unittest import mock
 
-from regression.test_wave_validator_v1 import launch, module as checker
+from regression.test_wave_validator_v1 import launch, module as checker, rename_artifact
 from test_rc_state import OWNER, program, rc, wave2
 from test_rc_state_v10_campagne import Campaign
 
@@ -41,25 +41,35 @@ class Refusals(Campaign):
                                 'reference': None})
         pending = [e for e in checker.validate(data, self.root, check_paths=False) if e.startswith('supervisor:')]
         self.assertIn("still 'pending'", pending[0])
+        rename_artifact(data, 'route_prompt', 'prompt "lot A"')
+        data['reviews'] = [r for r in data['reviews'] if r['artifact'] != 'prompt "lot A"']
+        quoted = [e for e in checker.validate(data, self.root, check_paths=False) if e.startswith('prompt "lot A":')]
+        suggested = json.loads(quoted[0].split('add to reviews ')[1].split('. Status')[0])
+        self.assertEqual((suggested['artifact'], suggested['sha256']),
+                         ('prompt "lot A"', data['state']['consumed']['prompt "lot A"']['sha256']))
 
     def test_resolution_announces_its_actor_and_a_second_append_names_it(self):
-        wave = self.solo()
-        self.ok('intent', wave, 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', 'r1',
+        wave, corr = self.solo(), 'lot "A"'
+        self.ok('intent', wave, 'add', '--actor', OWNER, '--expect-revision', 0, '--correlation', corr,
                 '--op', 'launch', '--target', 'review-A')
-        result = self.ok('intent', wave, 'resolve', '--actor', OWNER, '--expect-revision', 1, '--correlation', 'r1',
+        result = self.ok('intent', wave, 'resolve', '--actor', OWNER, '--expect-revision', 1, '--correlation', corr,
                          '--status', 'confirmed', '--result-ref', 'task-1', '--role', 'reviewer')
-        self.assertEqual((result['actor']['correlation'], result['actor']['role']), ('r1', 'reviewer'))
+        self.assertEqual((result['actor']['correlation'], result['actor']['role']), (corr, 'reviewer'))
         self.assertIn('created running by this resolution', result['actor']['effect'])
-        append = [{'op': 'append', 'path': 'actors', 'value': {'role': 'reviewer', 'model': None, 'ref': 'task-1',
-                                                               'correlation': 'r1', 'status': 'running',
-                                                               'target': 'review-A'}}]
-        result = self.refused("actor r1 already exists (role 'reviewer', status 'running'", 'write', wave,
-                              '--actor', OWNER, '--expect-revision', 2, '--ops', json.dumps(append))
-        self.assertIn('{"op":"update","path":"actors","match":{"correlation":"r1"}', result['error'])
+        append = [{'op': 'append', 'path': 'actors', 'value': self.doc(wave)['actors'][0]}]
+        result = self.refused('already exists', 'write', wave, '--actor', OWNER, '--expect-revision', 2,
+                              '--ops', json.dumps(append))
+        self.assertIn(f"actor {corr} already exists (role 'reviewer', status 'running'", result['error'])
+        self.assertIn('{"op":"update","path":"actors","match":{"correlation":"lot \\"A\\""}', result['error'])
 
     def test_resume_on_a_wave_names_its_index(self):
         result = self.refused('resume takes the program index', 'resume', self.wave_path)
-        self.assertIn(f'resume {self.program_path.resolve()}', result['error'])
+        self.assertIn(f'resume "{self.program_path.resolve()}"', result['error'])
+        w = wave2()
+        w['program_ref'] = None
+        self.write(self.wave_path, w)
+        self.assertIn('resume "<path of that program.json>"',
+                      self.refused('detached', 'resume', self.wave_path)['error'])
 
     def test_write_in_a_terminal_wave_sends_the_receipt_to_the_index(self):
         self.write(self.wave_path, wave2('stopped'))
@@ -72,7 +82,7 @@ class Resume(Campaign):
     def test_closure_window_is_reported_apart_from_consistency_errors(self):
         self.write(self.wave_path, wave2('stopped'))
         p = program()
-        p['outcomes'][1]['state_ref'] = 'waves/a/wave.json'  # B pending on the same closed wave
+        p['outcomes'][1].update(status='admitted', depends_on=[], state_ref='waves/a/./wave.json')  # same file
         self.write(self.program_path, p)
         result = self.ok('check', self.program_path)
         self.assertEqual((result['valid'], result['errors']), (True, []))
@@ -82,6 +92,9 @@ class Resume(Campaign):
         ready = self.ok('ready', self.program_path)
         self.assertEqual((ready['consistency_errors'], [c['outcomes'] for c in ready['closure_pending']]),
                          ([], [['A', 'B']]))
+        p['outcomes'][1].update(status='pending', state_ref='waves/a/wave.json')  # pending: as before, no report
+        self.write(self.program_path, p)
+        self.assertEqual([c['outcomes'] for c in self.ok('check', self.program_path)['closure_pending']], [['A']])
         self.write(self.wave_path, wave2('launched'))
         p['outcomes'][0]['status'] = 'accepted'
         self.write(self.program_path, p)
@@ -93,6 +106,7 @@ class Resume(Campaign):
         self.assertEqual((wave['next_action'], wave['next_action_at_closure']), (None, 'synthetic next'))
         w = wave2('launched')
         w['actors'] = [ACTOR]
+        w['intents'] = [{'correlation': 'n1', 'op': 'write', 'target': 'notes', 'status': 'pending', 'result_ref': None}]
         self.write(self.wave_path, w)
         cold = self.ok('resume', self.program_path)
         self.assertEqual(cold['waves'][0]['next_action'], 'synthetic next')
